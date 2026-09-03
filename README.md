@@ -27,7 +27,7 @@ just check   # the gate before a PR: core build and tests, then a device build w
 just lint    # swiftformat in lint mode; `just fmt` fixes what it reports
 ```
 
-`just check` and `just lint` run locally. The forge's runner is Linux and cannot build iOS, so there is no CI; run them before opening a PR.
+`just check` and `just lint` run locally before a PR. The forge's runner is Linux and cannot build iOS, so the only CI is on the GitHub mirror: `.github/workflows/testflight.yml` runs the core tests, archives, and uploads to TestFlight on every push to `main`. The build number is the workflow run number. See the file for the secrets it expects.
 
 Set `DEVELOPMENT_TEAM` in `configs/Local.xcconfig` (gitignored) before building on a device.
 
