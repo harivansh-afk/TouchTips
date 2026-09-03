@@ -33,6 +33,9 @@ struct PersonRowView: View {
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(.rect)
+        // The hairline starts at the text, as the system does, and runs to the screen edge
+        // instead of stopping at the row inset.
+        .alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] + 16 }
     }
 }
 
