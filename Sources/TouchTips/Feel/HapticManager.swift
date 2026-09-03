@@ -1,116 +1,60 @@
 //
 //  HapticManager.swift
-//  mixbridge
 //
-//  Created by Harivansh Rathi on 11/16/25.
+//  Began as mixbridge's file. Reshaped after phia's: main-actor only, no thread checks,
+//  one prepared generator per style, and a hardware check so simulators and iPads stay quiet.
 //
 
-import UIKit
+import CoreHaptics
 import SwiftUI
+import UIKit
 
+/// Centralized haptic feedback. Every call site is a SwiftUI action or a main-actor model, so the
+/// type is main-actor isolated and the generators are created once.
 @MainActor
-private enum CachedHaptics {
-    static let light = UIImpactFeedbackGenerator(style: .light)
-    static let medium = UIImpactFeedbackGenerator(style: .medium)
-    static let heavy = UIImpactFeedbackGenerator(style: .heavy)
-    static let selection = UISelectionFeedbackGenerator()
-    static let notification = UINotificationFeedbackGenerator()
-
-    static func impact(_ generator: UIImpactFeedbackGenerator) {
-        generator.prepare()
-        generator.impactOccurred()
-    }
-}
-
-/// Centralized haptic feedback management
-/// Provides consistent haptics across the app
-struct HapticManager {
+enum HapticManager {
+    private static let supported = CHHapticEngine.capabilitiesForHardware().supportsHaptics
+    private static let lightGenerator = UIImpactFeedbackGenerator(style: .light)
+    private static let mediumGenerator = UIImpactFeedbackGenerator(style: .medium)
+    private static let heavyGenerator = UIImpactFeedbackGenerator(style: .heavy)
+    private static let selectionGenerator = UISelectionFeedbackGenerator()
+    private static let notificationGenerator = UINotificationFeedbackGenerator()
 
     /// Light impact - for subtle interactions
-    static func light() {
-        if Thread.isMainThread {
-            MainActor.assumeIsolated { CachedHaptics.impact(CachedHaptics.light) }
-        } else {
-            DispatchQueue.main.async { CachedHaptics.impact(CachedHaptics.light) }
-        }
-    }
+    static func light() { impact(lightGenerator) }
 
     /// Medium impact - for standard button taps and selections
-    static func medium() {
-        if Thread.isMainThread {
-            MainActor.assumeIsolated { CachedHaptics.impact(CachedHaptics.medium) }
-        } else {
-            DispatchQueue.main.async { CachedHaptics.impact(CachedHaptics.medium) }
-        }
-    }
+    static func medium() { impact(mediumGenerator) }
 
     /// Heavy impact - for significant actions
-    static func heavy() {
-        if Thread.isMainThread {
-            MainActor.assumeIsolated { CachedHaptics.impact(CachedHaptics.heavy) }
-        } else {
-            DispatchQueue.main.async { CachedHaptics.impact(CachedHaptics.heavy) }
-        }
-    }
+    static func heavy() { impact(heavyGenerator) }
 
     /// Selection feedback - for navigation and tab changes
     static func selection() {
-        if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                CachedHaptics.selection.prepare()
-                CachedHaptics.selection.selectionChanged()
-            }
-        } else {
-            DispatchQueue.main.async {
-                CachedHaptics.selection.prepare()
-                CachedHaptics.selection.selectionChanged()
-            }
-        }
+        guard supported else { return }
+        selectionGenerator.prepare()
+        selectionGenerator.selectionChanged()
     }
 
     /// Success notification - for successful operations
-    static func success() {
-        if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                CachedHaptics.notification.prepare()
-                CachedHaptics.notification.notificationOccurred(.success)
-            }
-        } else {
-            DispatchQueue.main.async {
-                CachedHaptics.notification.prepare()
-                CachedHaptics.notification.notificationOccurred(.success)
-            }
-        }
-    }
+    static func success() { notify(.success) }
 
     /// Warning notification - for destructive actions
-    static func warning() {
-        if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                CachedHaptics.notification.prepare()
-                CachedHaptics.notification.notificationOccurred(.warning)
-            }
-        } else {
-            DispatchQueue.main.async {
-                CachedHaptics.notification.prepare()
-                CachedHaptics.notification.notificationOccurred(.warning)
-            }
-        }
-    }
+    static func warning() { notify(.warning) }
 
     /// Error notification - for failed operations
-    static func error() {
-        if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                CachedHaptics.notification.prepare()
-                CachedHaptics.notification.notificationOccurred(.error)
-            }
-        } else {
-            DispatchQueue.main.async {
-                CachedHaptics.notification.prepare()
-                CachedHaptics.notification.notificationOccurred(.error)
-            }
-        }
+    static func error() { notify(.error) }
+
+    private static func impact(_ generator: UIImpactFeedbackGenerator) {
+        guard supported else { return }
+        generator.prepare()
+        generator.impactOccurred()
+    }
+
+    private static func notify(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+        guard supported else { return }
+        notificationGenerator.prepare()
+        notificationGenerator.notificationOccurred(type)
     }
 }
 

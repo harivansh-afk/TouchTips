@@ -20,6 +20,7 @@ struct PlaceSheet: View {
                 } label: {
                     PersonRowView(row: row)
                 }
+                .buttonStyle(.press)
                 .listRowSeparatorTint(.white.opacity(0.12))
             }
             .listStyle(.plain)

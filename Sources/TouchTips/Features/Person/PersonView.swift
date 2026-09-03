@@ -113,7 +113,7 @@ private struct MeetCard: View {
                             .font(.callout)
                             .foregroundStyle(.secondary)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.press)
                         .padding(.top, 4)
                         .accessibilityHint("Shows this place on the map")
                     } else {
