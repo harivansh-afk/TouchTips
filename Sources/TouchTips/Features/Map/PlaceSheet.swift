@@ -6,13 +6,18 @@ struct PlaceSheet: View {
     let place: PlaceSummary
 
     @Environment(AppModel.self) private var app
+    @Environment(Router.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var rows: [PersonRow] = []
 
     var body: some View {
         NavigationStack {
             List(rows) { row in
-                NavigationLink(value: Destination.person(row.id)) {
+                Button {
+                    HapticManager.selection()
+                    dismiss()
+                    router.navigate(to: .person(row.id))
+                } label: {
                     PersonRowView(row: row)
                 }
                 .listRowSeparatorTint(.white.opacity(0.12))
@@ -34,9 +39,6 @@ struct PlaceSheet: View {
                     }
                     .accessibilityLabel("Close")
                 }
-            }
-            .navigationDestination(for: Destination.self) { destination in
-                DestinationView(destination: destination)
             }
             .task { await observe() }
         }

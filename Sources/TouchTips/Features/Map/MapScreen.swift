@@ -4,6 +4,7 @@ import TouchTipsCore
 
 struct MapScreen: View {
     @Environment(AppModel.self) private var app
+    @Environment(Router.self) private var router
     @State private var places: [PlaceSummary] = []
     @State private var camera: MapCameraPosition = .automatic
     @State private var selection: Int64?
@@ -13,6 +14,16 @@ struct MapScreen: View {
     private static let desaturate = true
 
     var body: some View {
+        NavigationStack(path: router.path(for: .map)) {
+            map
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(for: Destination.self) { destination in
+                    DestinationView(destination: destination)
+                }
+        }
+    }
+
+    private var map: some View {
         Map(position: $camera, selection: $selection) {
             ForEach(places) { place in
                 Marker(place.name ?? "", monogram: Text(place.people, format: .number), coordinate: place.coordinate)
