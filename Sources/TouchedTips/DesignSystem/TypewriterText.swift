@@ -19,6 +19,8 @@ struct TypewriterText: View {
             .task { await type() }
     }
 
+    /// A held breath on the empty screen before the first glyph.
+    private static let leadIn: Duration = .milliseconds(650)
     private static let glyphPause: Duration = .milliseconds(42)
     private static let spacePause: Duration = .milliseconds(90)
     private static let linePause: Duration = .milliseconds(360)
@@ -30,6 +32,7 @@ struct TypewriterText: View {
             onFinished()
             return
         }
+        try? await Task.sleep(for: Self.leadIn)
         for (lineIndex, line) in lines.enumerated() {
             if lineIndex > 0 {
                 progress = .start(ofLine: lineIndex)
