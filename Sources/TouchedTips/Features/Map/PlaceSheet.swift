@@ -8,7 +8,6 @@ struct PlaceSheet: View {
     let onOpen: (String) -> Void
 
     @Environment(AppModel.self) private var app
-    @Environment(\.dismiss) private var dismiss
     @State private var rows: [PersonRow] = []
 
     var body: some View {
@@ -29,17 +28,6 @@ struct PlaceSheet: View {
                 place.name ?? Format.coordinates(place.latitude, place.longitude),
                 subtitle: "\(place.people) people · \(Format.yearSpan(place.first, place.last))"
             )
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        HapticManager.light()
-                        dismiss()
-                    } label: {
-                        Icon(.x)
-                    }
-                    .accessibilityLabel("Close")
-                }
-            }
             .task { await observe() }
         }
     }

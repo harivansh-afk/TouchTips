@@ -10,6 +10,8 @@ struct MapScreen: View {
     @State private var selection: Int64?
     @State private var showStyles = false
     @State private var region: MKCoordinateRegion?
+    @State private var snapshots = MapSnapshots()
+    @State private var stylesHeight: CGFloat = 260
     @AppStorage("mapStyle") private var styleChoice = MapStyleChoice.muted
     /// A person tapped in the place sheet. Pushed once the sheet has finished closing.
     @State private var pendingPerson: String?
@@ -30,7 +32,10 @@ struct MapScreen: View {
             UserAnnotation()
         }
         .mapStyle(styleChoice.style)
-        .onMapCameraChange { context in region = context.region }
+        .onMapCameraChange(frequency: .onEnd) { context in
+            region = context.region
+            snapshots.prefetch(region: context.region)
+        }
         .mapControls {
             MapCompass()
         }
@@ -93,8 +98,9 @@ struct MapScreen: View {
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .sheet(isPresented: $showStyles) {
-            MapStylesSheet(region: region ?? Self.fallbackRegion, choice: $styleChoice)
-                .presentationDetents([.height(310)])
+            MapStylesSheet(region: region ?? Self.fallbackRegion, choice: $styleChoice, contentHeight: $stylesHeight)
+                .environment(snapshots)
+                .presentationDetents([.height(stylesHeight + MapStylesSheet.padding * 2)])
                 .presentationDragIndicator(.hidden)
                 .presentationBackgroundInteraction(.enabled)
         }
