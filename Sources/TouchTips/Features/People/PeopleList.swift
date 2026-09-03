@@ -49,7 +49,7 @@ struct PeopleList: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color.black)
+        .background(Color.ground)
         .environment(\.zoomNamespace, zoom)
         .navigationDestination(for: Destination.self) { destination in
             DestinationView(destination: destination, zoom: zoom)
@@ -76,7 +76,7 @@ struct PeopleList: View {
                 PersonRowView(row: row)
             }
             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-            .listRowSeparatorTint(.white.opacity(0.12))
+            .listRowSeparatorTint(.hairline)
             .listRowSeparator(index == 0 ? .hidden : .visible, edges: .top)
             .listRowSeparator(index == rows.count - 1 ? .hidden : .visible, edges: .bottom)
             .matchedTransitionSource(id: row.id, in: zoom)

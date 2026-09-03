@@ -35,6 +35,6 @@ struct ConfidenceDot: View {
         ConfidenceDot(tier: nil)
     }
     .padding()
-    .background(Color.black)
+    .background(Color.ground)
     .preferredColorScheme(.dark)
 }

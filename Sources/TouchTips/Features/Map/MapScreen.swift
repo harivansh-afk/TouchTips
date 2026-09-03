@@ -44,7 +44,7 @@ struct MapScreen: View {
                     camera = .userLocation(fallback: .automatic)
                 }
             } label: {
-                Icon("navigation-arrow")
+                Icon(.navigationArrow)
                     .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
             }

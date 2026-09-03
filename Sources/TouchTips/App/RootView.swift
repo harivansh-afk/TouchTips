@@ -22,17 +22,17 @@ struct RootView: View {
                 Tab(value: .people) {
                     LazyTab(tab: .people) { PeopleView() }
                 } label: {
-                    Image("users")
+                    Image(.users)
                 }
                 Tab(value: .map) {
                     LazyTab(tab: .map) { MapScreen() }
                 } label: {
-                    Image("map-trifold")
+                    Image(.mapTrifold)
                 }
                 Tab(value: .search) {
                     LazyTab(tab: .search) { PeopleSearchView() }
                 } label: {
-                    Image("magnifying-glass")
+                    Image(.magnifyingGlass)
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -61,7 +61,7 @@ private struct LazyTab<Content: View>: View {
             if hasBeenSelected {
                 content()
             } else {
-                Color.black
+                Color.ground
             }
         }
         .toolbarVisibility(.hidden, for: .tabBar)

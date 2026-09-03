@@ -59,7 +59,7 @@ struct AddSheet: View {
                         HapticManager.light()
                         dismiss()
                     } label: {
-                        Icon("x")
+                        Icon(.x)
                     }
                     .accessibilityLabel("Cancel")
                 }
@@ -68,7 +68,7 @@ struct AddSheet: View {
                         HapticManager.medium()
                         save()
                     } label: {
-                        Icon("check")
+                        Icon(.check)
                     }
                     .disabled(trimmedName.isEmpty)
                     .accessibilityLabel("Save")
@@ -163,7 +163,7 @@ struct AddSheet: View {
                 .padding(.vertical, 9)
                 .overlay {
                     if dashed, !selected {
-                        Capsule().strokeBorder(.white.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                        Capsule().strokeBorder(Color.dashed, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
                     }
                 }
         }

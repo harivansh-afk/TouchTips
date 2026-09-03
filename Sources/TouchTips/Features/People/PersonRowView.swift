@@ -47,6 +47,6 @@ struct PersonRowView: View {
     }
     .listStyle(.plain)
     .scrollContentBackground(.hidden)
-    .background(Color.black)
+    .background(Color.ground)
     .preferredColorScheme(.dark)
 }

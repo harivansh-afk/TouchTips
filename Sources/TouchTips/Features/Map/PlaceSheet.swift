@@ -21,7 +21,7 @@ struct PlaceSheet: View {
                     PersonRowView(row: row)
                 }
                 .buttonStyle(.press)
-                .listRowSeparatorTint(.white.opacity(0.12))
+                .listRowSeparatorTint(.hairline)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)

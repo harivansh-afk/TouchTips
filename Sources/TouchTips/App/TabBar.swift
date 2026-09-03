@@ -36,7 +36,7 @@ struct TabBar: View {
             HapticManager.medium()
             router.back()
         } label: {
-            Icon("caret-left", size: 22)
+            Icon(.caretLeft, size: 22)
                 .foregroundStyle(.white)
                 .frame(width: 46, height: 46)
         }
@@ -63,7 +63,7 @@ struct TabBar: View {
                 .background {
                     if selected {
                         Capsule()
-                            .fill(.white.opacity(0.14))
+                            .fill(Color.pill)
                             .padding(5)
                             .matchedGeometryEffect(id: "pill", in: pill)
                     }
@@ -87,11 +87,11 @@ struct TabBar: View {
 }
 
 extension AppTab {
-    var glyph: String {
+    var glyph: ImageResource {
         switch self {
-        case .people: "users"
-        case .map: "map-trifold"
-        case .search: "magnifying-glass"
+        case .people: .users
+        case .map: .mapTrifold
+        case .search: .magnifyingGlass
         }
     }
 

@@ -56,7 +56,7 @@ struct PlacePicker: View {
                     HapticManager.light()
                     dismiss()
                 } label: {
-                    Icon("caret-left")
+                    Icon(.caretLeft)
                 }
                 .accessibilityLabel("Back")
             }
@@ -104,7 +104,7 @@ struct PlacePicker: View {
                 onPick(choice)
                 dismiss()
             } label: {
-                Icon("check")
+                Icon(.check)
                     .frame(width: 44, height: 44)
             }
             .buttonStyle(.glassProminent)
