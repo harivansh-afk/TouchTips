@@ -8,6 +8,9 @@ struct MapScreen: View {
     @State private var places: [PlaceSummary] = []
     @State private var camera: MapCameraPosition = .automatic
     @State private var selection: Int64?
+    @State private var showStyles = false
+    @State private var region: MKCoordinateRegion?
+    @AppStorage("mapStyle") private var styleChoice = MapStyleChoice.muted
     /// A person tapped in the place sheet. Pushed once the sheet has finished closing.
     @State private var pendingPerson: String?
     /// The place whose sheet was open when a person was tapped, so back can reopen it.
@@ -26,11 +29,25 @@ struct MapScreen: View {
             }
             UserAnnotation()
         }
-        .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll, showsTraffic: false))
+        .mapStyle(styleChoice.style)
+        .onMapCameraChange { context in region = context.region }
         .mapControls {
             MapCompass()
         }
         // No grayscale filter: it re-rendered the whole MapKit layer every frame and made pins feel slow.
+        .overlay(alignment: .topLeading) {
+            Button {
+                HapticManager.light()
+                showStyles = true
+            } label: {
+                Icon(.mapTrifold)
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+            }
+            .glassEffect(.clear.interactive(), in: .circle)
+            .accessibilityLabel("Map style")
+            .padding(16)
+        }
         .overlay(alignment: .topTrailing) {
             Button {
                 HapticManager.light()
@@ -71,8 +88,20 @@ struct MapScreen: View {
                 .presentationDragIndicator(.hidden)
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
+        .sheet(isPresented: $showStyles) {
+            MapStylesSheet(region: region ?? Self.fallbackRegion, choice: $styleChoice)
+                .presentationDetents([.height(340)])
+                .presentationDragIndicator(.hidden)
+                .presentationBackgroundInteraction(.enabled)
+        }
         .task { await observe() }
     }
+
+    /// Only reached if the sheet opens before the camera has ever reported. Somewhere with streets.
+    private static let fallbackRegion = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 38.0293, longitude: -78.4767),
+        latitudinalMeters: 1500, longitudinalMeters: 1500
+    )
 
     private func pushPendingPerson() {
         guard let contactID = pendingPerson else { return }
