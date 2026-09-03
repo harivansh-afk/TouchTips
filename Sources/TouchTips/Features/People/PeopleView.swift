@@ -31,7 +31,7 @@ struct PeopleView: View {
                                 HapticManager.light()
                                 showAdd = true
                             } label: {
-                                Icon("plus")
+                                Icon(.plus)
                             }
                             .accessibilityLabel("Add")
                         }
@@ -41,7 +41,7 @@ struct PeopleView: View {
                                 HapticManager.light()
                                 showSettings = true
                             } label: {
-                                Icon("gear-six")
+                                Icon(.gearSix)
                             }
                             .accessibilityLabel("Settings")
                         }

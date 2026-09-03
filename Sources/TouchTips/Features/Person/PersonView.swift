@@ -46,7 +46,7 @@ struct PersonView: View {
                 .padding(.bottom, 40)
             }
         }
-        .background(Color.black)
+        .background(Color.ground)
         .navigationBarTitleDisplayMode(.inline)
         .navigationAllowDismissalGestures(allowDismissalGesture)
         // The tab bar's back circle is the only way back, plus the swipe.
@@ -108,7 +108,7 @@ private struct MeetCard: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Text(detail)
-                                Icon("map-trifold", size: 14).opacity(0.7)
+                                Icon(.mapTrifold, size: 14).opacity(0.7)
                             }
                             .font(.callout)
                             .foregroundStyle(.secondary)

@@ -19,6 +19,6 @@ struct InitialsAvatar: View {
         InitialsAvatar(initials: "MK", size: 96)
     }
     .padding()
-    .background(Color.black)
+    .background(Color.ground)
     .preferredColorScheme(.dark)
 }

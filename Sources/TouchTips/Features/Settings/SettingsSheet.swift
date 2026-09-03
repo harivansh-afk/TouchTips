@@ -75,7 +75,7 @@ struct SettingsSheet: View {
                         HapticManager.light()
                         dismiss()
                     } label: {
-                        Icon("check")
+                        Icon(.check)
                     }
                     .accessibilityLabel("Done")
                 }

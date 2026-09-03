@@ -64,7 +64,7 @@ private struct SplashView: View {
         let height = width * splashAspectRatio
 
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.ground.ignoresSafeArea()
 
             LottieView(
                 file: .logo,

@@ -72,7 +72,7 @@ struct OnboardingView: View {
             .controlSize(.large)
         }
         .padding(26)
-        .background(Color.black)
+        .background(Color.ground)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { app.contactsAccess.refresh() }
         }
