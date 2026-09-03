@@ -30,7 +30,7 @@ just check   # the gate before a PR: core build and tests, then a device build w
 just lint    # swiftformat in lint mode; `just fmt` fixes what it reports
 ```
 
-`just check` and `just lint` run locally before a PR. The forge's runner is Linux and cannot build iOS, so builds ship through Xcode Cloud, which reads the GitHub mirror: every push to `main` archives and goes to TestFlight. `ci_scripts/ci_post_clone.sh` generates the project on the runner, since the xcodeproj is not committed, and stamps Xcode Cloud's build number. The workflow itself is configured in App Store Connect, not here.
+`just check` and `just lint` run locally before a PR. github.com/harivansh-afk/TouchedTips is the canonical repo, because Xcode Cloud builds from it: every push to `main` archives and goes to TestFlight, with `ci_scripts/ci_post_clone.sh` generating the project on the runner and stamping the build number. git.harivan.sh holds a read-only mirror that `.github/workflows/mirror.yml` refreshes on every push.
 
 Set `DEVELOPMENT_TEAM` in `configs/Local.xcconfig` (gitignored) before building on a device.
 

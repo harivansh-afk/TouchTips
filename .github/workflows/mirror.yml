@@ -1,0 +1,31 @@
+# GitHub is the source of truth for this repo. Every push mirrors all
+# branches and tags to the read-only copy on git.harivan.sh.
+#
+# Secret: FORGE_TOKEN, a Forgejo access token with write:repository.
+name: Mirror to forge
+
+on:
+  push:
+  delete:
+  workflow_dispatch:
+
+concurrency:
+  group: mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push all branches and tags
+        env:
+          FORGE_TOKEN: ${{ secrets.FORGE_TOKEN }}
+        run: |
+          set -euo pipefail
+          git remote add forge "https://harivansh-afk:${FORGE_TOKEN}@git.harivan.sh/harivansh-afk/TouchedTips.git"
+          git push --force --prune forge 'refs/remotes/origin/*:refs/heads/*'
+          git push --force --tags forge
