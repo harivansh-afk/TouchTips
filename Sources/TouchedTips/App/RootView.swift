@@ -47,7 +47,6 @@ struct RootView: View {
     }
 }
 
-/// Builds a tab's content the first time it is selected, the way phia does. The map is the
 /// expensive one; nobody pays for MapKit before asking for it.
 private struct LazyTab<Content: View>: View {
     let tab: AppTab

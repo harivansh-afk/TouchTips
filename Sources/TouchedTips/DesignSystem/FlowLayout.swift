@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Rows of chips that wrap, left to right, the way phia lays out its quiz options. Every row
+
 /// stays visible instead of hiding in a horizontal scroll.
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8

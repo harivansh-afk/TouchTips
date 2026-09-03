@@ -1,8 +1,6 @@
 import SwiftUI
 
-/// The phia bar, laid out the way phia lays it out: a back capsule that enters when the selected
 /// tab has something pushed, the tab capsule, and one separate glass circle on the right for
-/// search, in phia's add-to-closet slot. The only input is `router.isOnRoot`.
 struct TabBar: View {
     @Environment(Router.self) private var router
     @Namespace private var pill

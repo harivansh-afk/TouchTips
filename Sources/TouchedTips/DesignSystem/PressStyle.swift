@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// The one press feel for plain controls, after phia's tap modifier: a dip in opacity, a small
 /// scale, a short spring, and a light tick on the way down. Glass buttons keep `.glass`.
 struct PressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
