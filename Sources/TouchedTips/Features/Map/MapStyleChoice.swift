@@ -26,32 +26,14 @@ enum MapStyleChoice: String, CaseIterable, Identifiable {
         }
     }
 
-    /// The same style for MKMapSnapshotter, which speaks MapKit's older configuration objects.
-    var configuration: MKMapConfiguration {
+    /// The shipped picture of this style. Rendered once with MKMapSnapshotter on a Mac; the Muted
+    /// one is grayscaled in the file so no filter runs in the sheet.
+    var preview: ImageResource {
         switch self {
-        case .muted:
-            let config = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .muted)
-            config.pointOfInterestFilter = .excludingAll
-            return config
-        case .standard:
-            let config = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .default)
-            config.pointOfInterestFilter = .excludingAll
-            return config
-        case .satellite:
-            return MKImageryMapConfiguration(elevationStyle: .flat)
-        case .hybrid:
-            let config = MKHybridMapConfiguration(elevationStyle: .flat)
-            config.pointOfInterestFilter = .excludingAll
-            return config
-        }
-    }
-
-    /// What a tile shows until its snapshot arrives.
-    var ground: Color {
-        switch self {
-        case .muted: Color(white: 0.10)
-        case .standard: Color(white: 0.14)
-        case .satellite, .hybrid: Color(red: 0.17, green: 0.19, blue: 0.15)
+        case .muted: .mapMuted
+        case .standard: .mapStandard
+        case .satellite: .mapSatellite
+        case .hybrid: .mapHybrid
         }
     }
 }

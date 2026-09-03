@@ -1,5 +1,6 @@
 import Contacts
 import CoreLocation
+import PhoneNumberKit
 import SwiftUI
 import TouchedTipsCore
 
@@ -11,6 +12,8 @@ struct AddSheet: View {
 
     @State private var name = ""
     @State private var phone = ""
+    /// Formats as you type for the device's region, and follows a typed country code instead.
+    private let phoneFormatter = PartialFormatter()
     @State private var path: [Route] = []
     @State private var choices: [PlaceChoice] = []
     @State private var chosen: PlaceChoice?
@@ -39,6 +42,10 @@ struct AddSheet: View {
                         .textContentType(.telephoneNumber)
                         .keyboardType(.phonePad)
                         .focused($focus, equals: .phone)
+                        .onChange(of: phone) { _, typed in
+                            let formatted = phoneFormatter.formatPartial(typed)
+                            if formatted != typed { phone = formatted }
+                        }
                 }
 
                 Section {
@@ -52,7 +59,8 @@ struct AddSheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.ground)
+            // Into the keyboard region too, or the translucent keyboard shows a hard edge where the black stops.
+            .background { Color.ground.ignoresSafeArea() }
             .serifTitle("Just met")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -237,9 +245,12 @@ struct AddSheet: View {
         let parts = trimmedName.split(separator: " ", maxSplits: 1)
         contact.givenName = parts.first.map(String.init) ?? ""
         contact.familyName = parts.count > 1 ? String(parts[1]) : ""
-        let digits = phone.trimmingCharacters(in: .whitespaces)
-        if !digits.isEmpty {
-            contact.phoneNumbers = [CNLabeledValue(label: CNLabelPhoneNumberMobile, value: CNPhoneNumber(stringValue: digits))]
+        let typed = phone.trimmingCharacters(in: .whitespaces)
+        if !typed.isEmpty {
+            // Stored as +14345551234 when it parses, so Contacts and Phone treat it as a real number.
+            let utility = PhoneNumberUtility()
+            let stored = (try? utility.parse(typed)).map { utility.format($0, toType: .e164) } ?? typed
+            contact.phoneNumbers = [CNLabeledValue(label: CNLabelPhoneNumberMobile, value: CNPhoneNumber(stringValue: stored))]
         }
 
         let request = CNSaveRequest()

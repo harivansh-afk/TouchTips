@@ -66,7 +66,8 @@ struct FixSheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.ground)
+            // Into the keyboard region too, or the translucent keyboard shows a hard edge where the black stops.
+            .background { Color.ground.ignoresSafeArea() }
             .serifTitle(row.meet == nil ? "When did you meet?" : "Fix")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

@@ -14,7 +14,6 @@ enum Destination: Hashable {
     case undocumented
 }
 
-/// One path per tab, the way phia does it. "Inside a page" is nothing more than the selected
 /// tab's path being non-empty; pushed screens append to it and never talk to the shell.
 @MainActor
 @Observable
