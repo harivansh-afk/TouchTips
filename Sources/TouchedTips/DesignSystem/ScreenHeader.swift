@@ -24,22 +24,21 @@ struct ScreenHeader<Trailing: View>: View {
     }
 }
 
-/// Bar buttons the way iOS 26 draws adjacent toolbar items: one shared glass capsule, 44 points
-/// tall, each glyph in its own 44-point hit area, no gap between them.
+/// Bar buttons as iOS 26 draws separated toolbar items: each its own 44-point clear-glass circle,
+/// eight points apart, the same gap a fixed toolbar spacer leaves.
 struct HeaderButtons<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        GlassEffectContainer {
-            HStack(spacing: 0) {
+        GlassEffectContainer(spacing: 8) {
+            HStack(spacing: 8) {
                 content()
             }
-            .glassEffect(.clear.interactive(), in: .capsule)
         }
     }
 }
 
-/// One glyph inside `HeaderButtons`. Sized like a navigation bar item: a 44-point square.
+/// One glyph in its own circle, sized like a navigation bar item.
 struct HeaderButton: View {
     let glyph: ImageResource
     let label: String
@@ -53,9 +52,10 @@ struct HeaderButton: View {
             Icon(glyph, size: 22)
                 .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
-                .contentShape(.rect)
+                .contentShape(.circle)
         }
         .buttonStyle(.plain)
+        .glassEffect(.clear.interactive(), in: .circle)
         .accessibilityLabel(label)
     }
 }
