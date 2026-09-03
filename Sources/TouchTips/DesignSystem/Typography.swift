@@ -2,8 +2,10 @@ import SwiftUI
 
 extension Font {
     /// The one display face. One word or line per screen, never body text.
+    /// Scales with Dynamic Type relative to `.largeTitle`: every use is a title, so one anchor keeps
+    /// the ratios between sizes intact at every accessibility setting.
     static func display(_ size: CGFloat) -> Font {
-        .custom("InstrumentSerif-Italic", size: size)
+        .custom("InstrumentSerif-Italic", size: size, relativeTo: .largeTitle)
     }
 }
 

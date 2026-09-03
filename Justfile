@@ -21,6 +21,25 @@ test:
 fmt:
     swiftformat Sources Packages/TouchTipsCore/Sources Packages/TouchTipsCore/Tests
 
+# Formatting check only. Feel/ is excluded in .swiftformat: those files are mixbridge's, byte for byte.
+lint:
+    swiftformat Sources Packages/TouchTipsCore/Sources Packages/TouchTipsCore/Tests --lint
+
+# The gate before a PR: core build and tests, then a device build with any warning counted as a failure.
+check: gen
+    #!/usr/bin/env zsh
+    set -eu
+    swift build --package-path Packages/TouchTipsCore
+    swift test --package-path Packages/TouchTipsCore
+    log=$(xcodebuild -project TouchTips.xcodeproj -scheme TouchTips -destination 'generic/platform=iOS' \
+        -allowProvisioningUpdates -derivedDataPath build/dd -quiet build 2>&1) || { echo "$log"; exit 1 }
+    if print -r -- "$log" | grep -q "warning:"; then
+        print -r -- "$log" | grep "warning:"
+        echo "warnings are failures" >&2
+        exit 1
+    fi
+    echo "check passed"
+
 # Build for a plugged-in iPhone and install it. Needs DEVELOPMENT_TEAM in configs/Local.xcconfig.
 device: gen
     #!/usr/bin/env zsh

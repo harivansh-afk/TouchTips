@@ -12,8 +12,14 @@ final class AppModel {
     let photos = ContactPhotos()
     let contactsAccess = ContactsAccess()
 
-    init() {
-        database = AppModel.openDatabase()
+    /// The app's own database in Application Support.
+    convenience init() {
+        self.init(database: AppModel.openDatabase())
+    }
+
+    /// Any database. Previews and tests hand in an in-memory one; nothing starts until `start()`.
+    init(database: AppDatabase) {
+        self.database = database
         capture = CaptureCoordinator(database: database)
         geocoder = Geocoder(database: database)
         capture.didIngest = { [geocoder, photos] in

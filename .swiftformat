@@ -5,3 +5,5 @@
 --wrapcollections before-first
 --stripunusedargs closure-only
 --disable redundantSelf, wrapMultilineStatementBraces
+
+--exclude Sources/TouchTips/Feel

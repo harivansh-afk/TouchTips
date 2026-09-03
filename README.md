@@ -23,7 +23,11 @@ Needs Xcode 26. From a shell with `just` and `xcodegen` (the flake's dev shell h
 just gen     # writes TouchTips.xcodeproj; copies configs/Local.example.xcconfig to configs/Local.xcconfig on first run
 just open    # opens it in Xcode
 just test    # core package tests, no simulator needed
+just check   # the gate before a PR: core build and tests, then a device build where any warning fails
+just lint    # swiftformat in lint mode; `just fmt` fixes what it reports
 ```
+
+`just check` and `just lint` run locally. The forge's runner is Linux and cannot build iOS, so there is no CI; run them before opening a PR.
 
 Set `DEVELOPMENT_TEAM` in `configs/Local.xcconfig` (gitignored) before building on a device.
 
