@@ -106,6 +106,7 @@ struct PeopleList: View {
                 .padding(.vertical, 4)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(.rect)
+                .alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] + 16 }
             }
             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             .listRowSeparator(.hidden)
