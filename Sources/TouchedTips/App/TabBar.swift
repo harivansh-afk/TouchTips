@@ -1,8 +1,6 @@
 import SwiftUI
 
-/// The phia bar, laid out the way phia lays it out: a back capsule that enters when the selected
 /// tab has something pushed, the tab capsule, and one separate glass circle on the right for
-/// search, in phia's add-to-closet slot. The only input is `router.isOnRoot`.
 struct TabBar: View {
     @Environment(Router.self) private var router
     @Namespace private var pill
@@ -37,15 +35,17 @@ struct TabBar: View {
 
     /// Back and search share one shape: a capsule the height of the bar, glass button style, so the
     /// whole shape is the target and the two sides of the bar match.
+    /// The same clear glass as the capsule, so the three shapes read as one bar. The content shape
+    /// makes the whole capsule the target, not just the glyph.
     private func sideButton(_ glyph: ImageResource, label: String, selected: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Icon(glyph, size: 22)
                 .foregroundStyle(.white.opacity(selected ? 1 : 0.85))
-                .frame(width: 44, height: Self.height - 16)
+                .frame(width: 58, height: Self.height)
                 .contentShape(.capsule)
         }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.capsule)
+        .buttonStyle(.plain)
+        .glassEffect(.clear.interactive(), in: .capsule)
         .accessibilityLabel(label)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }

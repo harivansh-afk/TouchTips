@@ -17,6 +17,9 @@ packages:
   Lottie:
     url: https://github.com/airbnb/lottie-spm
     exactVersion: 4.5.2
+  PhoneNumberKit:
+    url: https://github.com/PhoneNumberKit/PhoneNumberKit
+    exactVersion: 5.0.8
 
 settings:
   base:
@@ -33,6 +36,7 @@ targets:
     dependencies:
       - package: TouchedTipsCore
       - package: Lottie
+      - package: PhoneNumberKit
     info:
       path: Sources/TouchedTips/Info.plist
       properties:

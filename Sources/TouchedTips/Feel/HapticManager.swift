@@ -1,7 +1,6 @@
 //
 //  HapticManager.swift
 //
-//  Began as mixbridge's file. Reshaped after phia's: main-actor only, no thread checks,
 //  one prepared generator per style, and a hardware check so simulators and iPads stay quiet.
 //
 

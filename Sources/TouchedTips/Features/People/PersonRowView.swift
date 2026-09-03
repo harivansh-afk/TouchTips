@@ -4,6 +4,9 @@ import TouchedTipsCore
 struct PersonRowView: View {
     let row: PersonRow
 
+    /// Avatar width plus the gap to the text.
+    nonisolated static let textLeading: CGFloat = 42 + 14
+
     var body: some View {
         HStack(spacing: 14) {
             ContactAvatar(contactID: row.id, initials: row.person.initials)
@@ -33,6 +36,10 @@ struct PersonRowView: View {
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(.rect)
+        // The hairline starts where the text does, after the avatar, and ends at the row inset,
+        // which is what mixbridge's rows do. The button wrapper would otherwise start it under
+        // the avatar.
+        .alignmentGuide(.listRowSeparatorLeading) { _ in Self.textLeading }
     }
 }
 

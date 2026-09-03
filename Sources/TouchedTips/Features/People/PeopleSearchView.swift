@@ -11,6 +11,9 @@ struct PeopleSearchView: View {
     @State private var groups = PeopleGroups()
     @State private var hideHeader = false
     @State private var showField = false
+    /// The last request this view acted on. The tab is built lazily, so the first request can
+    /// land before the view exists; comparing counts on appear catches it.
+    @State private var handledRequests = 0
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -21,7 +24,7 @@ struct PeopleSearchView: View {
                 .hidesHeaderOnScroll($hideHeader)
                 .safeAreaInset(edge: .top, spacing: 0) {
                     if showField {
-                        field
+                        GlassSearchField(prompt: "Name or place", text: $query, focused: $focused)
                             .padding(.horizontal, 16)
                             .padding(.top, 4)
                             .padding(.bottom, 8)
@@ -31,13 +34,11 @@ struct PeopleSearchView: View {
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
                 }
-                .onChange(of: router.searchRequests) { _, _ in
+                .onChange(of: router.searchRequests, initial: true) { _, count in
+                    guard count > handledRequests else { return }
+                    handledRequests = count
                     withAnimation(.appleMusic) { showField = true }
-                    // The field has to exist before it can take focus; one tick is enough.
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(50))
-                        focused = true
-                    }
+                    focusWhenReady()
                 }
                 .onChange(of: focused) { _, focused in
                     guard !focused, query.isEmpty else { return }
@@ -57,30 +58,16 @@ struct PeopleSearchView: View {
         }
     }
 
-    private var field: some View {
-        HStack(spacing: 10) {
-            Icon(.magnifyingGlass, size: 18)
-                .foregroundStyle(.secondary)
-            TextField("Name or place", text: $query)
-                .focused($focused)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .submitLabel(.search)
-            if !query.isEmpty {
-                Button {
-                    HapticManager.light()
-                    query = ""
-                } label: {
-                    Icon(.x, size: 16)
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear")
+    /// The field has to exist before it can take focus. Ask a few times over the first frames;
+    /// the first that lands wins, the rest are no-ops.
+    private func focusWhenReady() {
+        Task {
+            for _ in 0 ..< 6 {
+                focused = true
+                try? await Task.sleep(for: .milliseconds(40))
+                if focused { return }
             }
         }
-        .padding(.horizontal, 16)
-        .frame(height: 46)
-        .glassEffect(.clear, in: .capsule)
     }
 
     private func regroup() {

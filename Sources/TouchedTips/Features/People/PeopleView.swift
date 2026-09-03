@@ -16,8 +16,10 @@ struct PeopleView: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .safeAreaInset(edge: .top, spacing: 0) {
                     ScreenHeader(title: "People", hidden: hideHeader) {
-                        HeaderButton(glyph: .plus, label: "Add") { showAdd = true }
-                        HeaderButton(glyph: .gearSix, label: "Settings") { showSettings = true }
+                        HeaderButtons {
+                            HeaderButton(glyph: .plus, label: "Add") { showAdd = true }
+                            HeaderButton(glyph: .gearSix, label: "Settings") { showSettings = true }
+                        }
                     }
                 }
                 .sheet(isPresented: $showAdd) {
@@ -35,12 +37,12 @@ struct PeopleView: View {
 
     private var content: some View {
         PeopleList(sections: people.sections, undocumented: people.undocumented)
+            .hidesHeaderOnScroll($hideHeader)
             .overlay {
                 if people.rows.isEmpty {
                     emptyState
                 }
             }
-            .hidesHeaderOnScroll($hideHeader)
     }
 
     @ViewBuilder

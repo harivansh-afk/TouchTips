@@ -11,8 +11,26 @@ struct PlaceSheet: View {
     @State private var rows: [PersonRow] = []
 
     var body: some View {
-        NavigationStack {
-            List(rows) { row in
+        List {
+            // The heading is a row on the left, under the grabber. No bar, nothing centred.
+            Section {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(place.name ?? Format.coordinates(place.latitude, place.longitude))
+                        .font(.display(26))
+                        .lineLimit(2)
+                    Text("\(place.people) people · \(Format.yearSpan(place.first, place.last))")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .listRowInsets(EdgeInsets(top: 18, leading: 20, bottom: 10, trailing: 20))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+
+            let indexed = rows.indexedRows()
+            ForEach(indexed) { entry in
+                let row = entry.item
                 Button {
                     HapticManager.selection()
                     onOpen(row.id)
@@ -20,16 +38,15 @@ struct PlaceSheet: View {
                     PersonRowView(row: row)
                 }
                 .buttonStyle(.press)
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                 .listRowSeparatorTint(.hairline)
+                .listRowSeparator(entry.index == 0 ? .hidden : .visible, edges: .top)
+                .listRowSeparator(entry.index == indexed.count - 1 ? .hidden : .visible, edges: .bottom)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .serifTitle(
-                place.name ?? Format.coordinates(place.latitude, place.longitude),
-                subtitle: "\(place.people) people · \(Format.yearSpan(place.first, place.last))"
-            )
-            .task { await observe() }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .task { await observe() }
     }
 
     private func observe() async {
