@@ -17,6 +17,11 @@ enum Format {
         date.formatted(.dateTime.day().month(.wide).year())
     }
 
+    /// "Saturday"
+    static func weekday(_ date: Date) -> String {
+        date.formatted(.dateTime.weekday(.wide))
+    }
+
     static func time(_ date: Date) -> String {
         date.formatted(.dateTime.hour().minute())
     }
@@ -43,7 +48,7 @@ enum Format {
     /// Serif lead line and bold body line for the hero card.
     static func headline(for meet: Meet) -> (lead: String, body: String) {
         switch meet.precision {
-        case .exact, .day: (meet.start.formatted(.dateTime.weekday(.wide)), longDate(meet.start))
+        case .exact, .day: (weekday(meet.start), longDate(meet.start))
         case .month: ("Sometime in", month(meet.start))
         case .year: ("Sometime in", meet.start.formatted(.dateTime.year()))
         }

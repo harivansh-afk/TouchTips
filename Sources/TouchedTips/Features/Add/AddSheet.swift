@@ -8,57 +8,48 @@ import TouchedTipsCore
 struct AddSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
 
     @State private var name = ""
     @State private var phone = ""
     /// Formats as you type for the device's region, and follows a typed country code instead.
     private let phoneFormatter = PartialFormatter()
-    @State private var path: [Route] = []
     @State private var choices: [PlaceChoice] = []
     @State private var chosen: PlaceChoice?
     @State private var origin: CLLocationCoordinate2D?
-    @State private var locating = true
-    @State private var locationOff = false
+    @State private var note: PlaceChooser.Note? = .locating
     @State private var problem: String?
     @FocusState private var focus: Field?
-    @Namespace private var chips
 
     private enum Field { case name, phone }
-    private enum Route: Hashable { case elsewhere }
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
 
     var body: some View {
-        NavigationStack(path: $path) {
-            Form {
-                Section {
-                    TextField("Name", text: $name)
-                        .textContentType(.name)
-                        .focused($focus, equals: .name)
-                        .submitLabel(.next)
-                        .onSubmit { focus = .phone }
-                    TextField("Phone", text: $phone)
-                        .textContentType(.telephoneNumber)
-                        .keyboardType(.phonePad)
-                        .focused($focus, equals: .phone)
-                        .onChange(of: phone) { _, typed in
-                            let formatted = phoneFormatter.formatPartial(typed)
-                            if formatted != typed { phone = formatted }
-                        }
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    fields
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Where")
+                            .font(.caption.weight(.semibold))
+                            .textCase(.uppercase)
+                            .kerning(1)
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 6)
+                        PlaceChooser(candidates: choices, selection: $chosen, origin: origin, note: note)
+                    }
+                    if let problem {
+                        Text(problem)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                    }
                 }
-
-                Section {
-                    whereRow
-                        .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
-                        .listRowBackground(Color.clear)
-                }
-
-                if let problem {
-                    Section { Text(problem).foregroundStyle(.secondary) }
-                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 40)
             }
-            .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             // Into the keyboard region too, or the translucent keyboard shows a hard edge where the black stops.
             .background { Color.ground.ignoresSafeArea() }
             .serifTitle("Just met")
@@ -83,16 +74,6 @@ struct AddSheet: View {
                     .accessibilityLabel("Save")
                 }
             }
-            .navigationDestination(for: Route.self) { route in
-                switch route {
-                case .elsewhere:
-                    PlacePicker(origin: origin) { picked in
-                        choices.removeAll { $0.key == picked.key }
-                        choices.insert(picked, at: 0)
-                        chosen = picked
-                    }
-                }
-            }
             .task {
                 focus = .name
                 await locate()
@@ -102,83 +83,41 @@ struct AddSheet: View {
         .presentationDetents([.large])
     }
 
-    // MARK: - Where
+    // MARK: - Who
 
-    @ViewBuilder
-    private var whereRow: some View {
-        if locating {
-            HStack(spacing: 12) {
-                ProgressView()
-                Text("Finding where you are").foregroundStyle(.secondary)
-            }
-        } else if locationOff, choices.isEmpty {
-            HStack(spacing: 12) {
-                Text("Location is off").foregroundStyle(.secondary)
-                Spacer()
-                Button("Open Settings") {
-                    HapticManager.light()
-                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+    /// Name and phone in one glass card, a hairline between them, like the card on the person screen.
+    private var fields: some View {
+        VStack(spacing: 0) {
+            TextField("Name", text: $name)
+                .font(.title3.weight(.semibold))
+                .textContentType(.name)
+                .focused($focus, equals: .name)
+                .submitLabel(.next)
+                .onSubmit { focus = .phone }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 15)
+            Rectangle()
+                .fill(Color.hairline)
+                .frame(height: 1)
+                .padding(.leading, 18)
+            TextField("Phone", text: $phone)
+                .textContentType(.telephoneNumber)
+                .keyboardType(.phonePad)
+                .focused($focus, equals: .phone)
+                .onChange(of: phone) { _, typed in
+                    let formatted = phoneFormatter.formatPartial(typed)
+                    if formatted != typed { phone = formatted }
                 }
-                .buttonStyle(.glass)
-            }
-        } else {
-            VStack(alignment: .leading, spacing: 10) {
-                GlassEffectContainer(spacing: 8) {
-                    FlowLayout(spacing: 8) {
-                        ForEach(choices) { choice in
-                            chip(choice.name, selected: chosen == choice, id: choice.key) {
-                                chosen = choice
-                            }
-                        }
-                        chip("Elsewhere…", selected: false, id: "elsewhere") {
-                            path.append(.elsewhere)
-                        }
-                        chip("No place", selected: chosen == nil, id: "none", dashed: true) {
-                            chosen = nil
-                        }
-                    }
-                }
-                Text(caption)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 15)
         }
-    }
-
-    private var caption: String {
-        if let chosen {
-            return chosen.detail.map { "\(chosen.name) · \($0)" } ?? chosen.name
-        }
-        return "Saved with the time only."
-    }
-
-    private func chip(_ title: String, selected: Bool, id: String, dashed: Bool = false, action: @escaping () -> Void) -> some View {
-        Button {
-            HapticManager.selection()
-            action()
-        } label: {
-            Text(title)
-                .font(.subheadline.weight(.medium))
-                .lineLimit(1)
-                .foregroundStyle(selected ? .black : .white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .overlay {
-                    if dashed, !selected {
-                        Capsule().strokeBorder(Color.dashed, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                    }
-                }
-        }
-        .buttonStyle(.plain)
-        .glassEffect(selected ? .regular.tint(.white).interactive() : .clear.interactive(), in: .capsule)
-        .glassEffectID(id, in: chips)
-        .accessibilityAddTraits(selected ? .isSelected : [])
+        .glassEffect(.clear, in: .rect(cornerRadius: 22))
     }
 
     // MARK: - Location
 
     private func locate() async {
-        defer { locating = false }
+        defer { if note == .locating { note = nil } }
 
         var list: [PlaceChoice] = []
         if let visit = app.capture.currentVisit,
@@ -220,14 +159,14 @@ struct AddSheet: View {
     private func liveLocation() async -> CLLocationCoordinate2D? {
         let status = app.capture.locationStatus
         guard status != .denied, status != .restricted else {
-            locationOff = true
+            note = .locationOff
             return nil
         }
         do {
             for try await update in CLLocationUpdate.liveUpdates() {
                 if let location = update.location { return location.coordinate }
                 if update.authorizationDenied {
-                    locationOff = true
+                    note = .locationOff
                     return nil
                 }
                 if update.locationUnavailable { return nil }

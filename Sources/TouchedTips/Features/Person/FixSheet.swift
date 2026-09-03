@@ -1,71 +1,56 @@
-import MapKit
+import CoreLocation
 import SwiftUI
 import TouchedTipsCore
 
-/// The user's answer for when and where. Precision first, because "sometime in 2023" is a real answer.
+/// The user's answer for when and where. One date, then the same Where block the Add sheet draws.
+/// Suggestions are your own visits around that day, so the usual fix is one tap.
 struct FixSheet: View {
     let row: PersonRow
 
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
 
-    @State private var precision: Choice
     @State private var date: Date
-    @State private var place: PlacePick
-    @State private var suggestions: [Place] = []
-    @State private var query = ""
-    @State private var found: [FoundPlace] = []
+    @State private var place: PlaceChoice?
+    @State private var suggestions: [PlaceChoice] = []
     @State private var problem: String?
 
     init(row: PersonRow) {
         self.row = row
-        _precision = State(initialValue: Choice(row.meet?.precision))
         _date = State(initialValue: row.meet?.start ?? .now)
-        _place = State(initialValue: row.place.map(PlacePick.existing) ?? .none)
+        _place = State(initialValue: row.place.map { Self.choice($0) })
     }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("When") {
-                    Picker("Precision", selection: $precision) {
-                        ForEach(Choice.allCases) { choice in
-                            Text(choice.title).tag(choice)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        label("When")
+                        dateRow
+                        if let hint = precisionHint {
+                            Text(hint)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 6)
                         }
                     }
-                    .pickerStyle(.segmented)
-                    if precision != .unknown {
-                        DatePicker("Date", selection: $date, in: ...Date.now, displayedComponents: .date)
+                    VStack(alignment: .leading, spacing: 12) {
+                        label("Where")
+                        PlaceChooser(candidates: candidates, selection: $place, origin: origin)
+                    }
+                    if let problem {
+                        Text(problem)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
                     }
                 }
-
-                if precision != .unknown {
-                    Section("Where") {
-                        Picker("Where", selection: $place) {
-                            ForEach(suggestions) { suggestion in
-                                option(suggestion.name ?? Format.coordinates(suggestion.latitude, suggestion.longitude), detail: "You were here")
-                                    .tag(PlacePick.existing(suggestion))
-                            }
-                            ForEach(found) { result in
-                                option(result.name, detail: result.detail ?? "Search result")
-                                    .tag(PlacePick.found(result))
-                            }
-                            Text("No place").tag(PlacePick.none)
-                        }
-                        .pickerStyle(.inline)
-                        .labelsHidden()
-
-                        TextField("Search a place", text: $query)
-                            .submitLabel(.search)
-                            .onSubmit { Task { await search() } }
-                    }
-                }
-
-                if let problem {
-                    Section { Text(problem).foregroundStyle(.secondary) }
-                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 40)
             }
-            .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             // Into the keyboard region too, or the translucent keyboard shows a hard edge where the black stops.
             .background { Color.ground.ignoresSafeArea() }
             .serifTitle(row.meet == nil ? "When did you meet?" : "Fix")
@@ -94,69 +79,79 @@ struct FixSheet: View {
         .presentationDetents([.large])
     }
 
-    private func option(_ title: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-            Text(detail).font(.footnote).foregroundStyle(.secondary)
+    private func label(_ text: String) -> some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .textCase(.uppercase)
+            .kerning(1)
+            .foregroundStyle(.secondary)
+            .padding(.leading, 6)
+    }
+
+    // MARK: - When
+
+    /// The day, as one glass row. The picker is the system's; the row is ours.
+    private var dateRow: some View {
+        HStack {
+            Text(Format.weekday(date))
+                .font(.display(22))
+            Spacer()
+            DatePicker("Date", selection: $date, in: ...Date.now, displayedComponents: .date)
+                .labelsHidden()
+                .tint(.white)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .glassEffect(.clear, in: .rect(cornerRadius: 22))
+    }
+
+    /// The row seeds the picker with the first of the month or year when only that much was known.
+    private var precisionHint: String? {
+        switch row.meet?.precision {
+        case .month: "Only the month was known. Pick the day if you remember it."
+        case .year: "Only the year was known. Pick the day if you remember it."
+        default: nil
         }
     }
 
-    // MARK: - Time
-
-    private var window: DateInterval? {
-        let calendar = Calendar.current
-        switch precision {
-        case .day: return calendar.dateInterval(of: .day, for: date)
-        case .month: return calendar.dateInterval(of: .month, for: date)
-        case .year: return calendar.dateInterval(of: .year, for: date)
-        case .unknown: return nil
-        }
+    private var window: DateInterval {
+        Calendar.current.dateInterval(of: .day, for: date) ?? DateInterval(start: date, duration: 86400)
     }
 
-    // MARK: - Places
+    // MARK: - Where
+
+    /// The place already on record leads; visits around the day follow.
+    private var candidates: [PlaceChoice] {
+        var list: [PlaceChoice] = []
+        if let existing = row.place {
+            list.append(Self.choice(existing))
+        }
+        for suggestion in suggestions where !list.contains(where: { $0.key == suggestion.key }) {
+            list.append(suggestion)
+        }
+        return list
+    }
+
+    private var origin: CLLocationCoordinate2D? {
+        (place ?? candidates.first)?.coordinate
+    }
+
+    private static func choice(_ place: Place, detail: String = "Current") -> PlaceChoice {
+        let name = place.name ?? Format.coordinates(place.latitude, place.longitude)
+        return PlaceChoice(place: place, name: name, detail: detail)
+    }
 
     private func loadSuggestions() async {
-        guard let window else {
-            suggestions = []
-            return
-        }
         let padding = 3 * 3600.0
         let start = window.start.addingTimeInterval(-padding)
         let end = window.end.addingTimeInterval(padding)
         do {
-            suggestions = try await app.database.reader.read { db in
+            let visited = try await app.database.reader.read { db in
                 try Place.visited(between: start, and: end).limit(8).fetchAll(db)
             }
+            suggestions = visited.map { Self.choice($0, detail: "You were here") }
         } catch {
             Log.ui.error("suggestions failed: \(error.localizedDescription)")
-        }
-    }
-
-    private func search() async {
-        let text = query.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = text
-        request.resultTypes = [.pointOfInterest, .address]
-        if let near = suggestions.first {
-            request.region = MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: near.latitude, longitude: near.longitude),
-                latitudinalMeters: 20_000, longitudinalMeters: 20_000
-            )
-        }
-        do {
-            let response = try await MKLocalSearch(request: request).start()
-            found = response.mapItems.prefix(6).map { item in
-                FoundPlace(
-                    name: item.name ?? text,
-                    detail: item.addressRepresentations?.cityWithContext,
-                    latitude: item.location.coordinate.latitude,
-                    longitude: item.location.coordinate.longitude
-                )
-            }
-            problem = found.isEmpty ? "Nothing found for “\(text)”." : nil
-        } catch {
-            problem = error.localizedDescription
         }
     }
 
@@ -165,28 +160,17 @@ struct FixSheet: View {
     private func save() async {
         let database = app.database
         do {
-            guard let window else {
-                try Ingest.clearMeet(contactID: row.id, to: database)
-                HapticManager.success()
-                dismiss()
-                return
-            }
-            let placeID: Int64? = switch place {
-            case .none:
-                nil
-            case .existing(let existing):
-                existing.id
-            case .found(let result):
-                try await database.writer.write { db in
+            var placeID: Int64?
+            if let place {
+                placeID = try await database.writer.write { db in
                     try Place.findOrCreate(
-                        db, key: PlaceKey.cell(latitude: result.latitude, longitude: result.longitude),
-                        latitude: result.latitude, longitude: result.longitude, name: result.name
+                        db, key: place.key, latitude: place.latitude, longitude: place.longitude, name: place.name
                     ).id
                 }
             }
             try Ingest.setUserMeet(
                 contactID: row.id, start: window.start, end: window.end.addingTimeInterval(-1),
-                precision: precision.precision, placeID: placeID, now: .now, to: database
+                precision: .day, placeID: placeID, now: .now, to: database
             )
             HapticManager.success()
             dismiss()
@@ -195,51 +179,4 @@ struct FixSheet: View {
             problem = error.localizedDescription
         }
     }
-}
-
-private enum Choice: Hashable, CaseIterable, Identifiable {
-    case day, month, year, unknown
-
-    var id: Self { self }
-
-    init(_ precision: Precision?) {
-        switch precision {
-        case .exact, .day, nil: self = .day
-        case .month: self = .month
-        case .year: self = .year
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .day: "Day"
-        case .month: "Month"
-        case .year: "Year"
-        case .unknown: "Unknown"
-        }
-    }
-
-    /// Only valid when not `.unknown`.
-    var precision: Precision {
-        switch self {
-        case .day, .unknown: .day
-        case .month: .month
-        case .year: .year
-        }
-    }
-}
-
-private struct FoundPlace: Hashable, Identifiable {
-    let name: String
-    let detail: String?
-    let latitude: Double
-    let longitude: Double
-
-    var id: String { "\(latitude),\(longitude)" }
-}
-
-private enum PlacePick: Hashable {
-    case none
-    case existing(Place)
-    case found(FoundPlace)
 }
