@@ -15,12 +15,6 @@ struct PeopleView: View {
 
     private var sections: [PeopleSection] { PeopleSections.make(from: rows, matching: query) }
 
-    private var subtitle: String {
-        let placed = rows.filter { $0.place != nil }.count
-        let undocumented = rows.filter { $0.meet == nil }.count
-        return "\(rows.count) people · \(placed) placed · \(undocumented) undocumented"
-    }
-
     var body: some View {
         NavigationStack(path: $path) {
             content
@@ -28,27 +22,33 @@ struct PeopleView: View {
                 .contentMargins(.top, 0, for: .scrollContent)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("People")
-                                .font(.display(34))
-                            Text(subtitle)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                        .fixedSize()
-                        .padding(.leading, -4)
-                        .opacity(hideToolbar ? 0 : 1)
+                        Text("People")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .fixedSize()
+                            .padding(.leading, -4)
+                            .opacity(hideToolbar ? 0 : 1)
                     }
                     .sharedBackgroundVisibility(.hidden)
 
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
+                            HapticManager.light()
+                            isSearchPresented = true
+                        } label: {
+                            Image(systemName: "magnifyingglass")
+                        }
+                        .accessibilityLabel("Search")
+                    }
+                    ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            HapticManager.light()
                             showSettings = true
                         } label: {
                             Image(systemName: "gearshape")
                         }
                         .accessibilityLabel("Settings")
-                        .opacity(hideToolbar ? 0 : 1)
                     }
                 }
                 .navigationDestination(for: String.self) { contactID in
@@ -112,7 +112,7 @@ struct PeopleView: View {
             }
         }
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.contentOffset.y + geometry.contentInsets.top
+            geometry.contentOffset.y
         } action: { _, newValue in
             let shouldHide = newValue > 0
             if shouldHide != hideToolbar {
