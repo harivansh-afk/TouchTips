@@ -27,20 +27,28 @@ struct PeopleView: View {
                     }
                     .sharedBackgroundVisibility(.hidden)
 
-                    ToolbarItem(placement: .topBarTrailing) {
-                        HStack(spacing: 10) {
-                            GlassCircleButton(icon: "plus", label: "Add") {
+                    // Native glass circles, so size and spacing are the system's. They leave the bar on scroll.
+                    if !hideToolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
                                 HapticManager.light()
                                 showAdd = true
+                            } label: {
+                                Icon("plus")
                             }
-                            GlassCircleButton(icon: "gear-six", label: "Settings") {
+                            .accessibilityLabel("Add")
+                        }
+                        ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
                                 HapticManager.light()
                                 showSettings = true
+                            } label: {
+                                Icon("gear-six")
                             }
+                            .accessibilityLabel("Settings")
                         }
-                        .opacity(hideToolbar ? 0 : 1)
                     }
-                    .sharedBackgroundVisibility(.hidden)
                 }
                 .sheet(isPresented: $showAdd) {
                     AddSheet()
