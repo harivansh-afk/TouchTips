@@ -8,10 +8,8 @@ struct MapScreen: View {
     @State private var places: [PlaceSummary] = []
     @State private var camera: MapCameraPosition = .automatic
     @State private var selection: Int64?
-
-    /// Muted dark is close to grey; this removes what colour is left. Flip to false if it turns out
-    /// SwiftUI's filter does not reach the MapKit layer on device.
-    private static let desaturate = true
+    /// A person tapped in the place sheet. Pushed once the sheet has finished closing.
+    @State private var pendingPerson: String?
 
     var body: some View {
         NavigationStack(path: router.path(for: .map)) {
@@ -36,7 +34,7 @@ struct MapScreen: View {
         .mapControls {
             MapCompass()
         }
-        .grayscale(Self.desaturate ? 1 : 0)
+        // No grayscale filter: it re-rendered the whole MapKit layer every frame and made pins feel slow.
         .overlay(alignment: .topTrailing) {
             Button {
                 HapticManager.light()
@@ -67,13 +65,22 @@ struct MapScreen: View {
                 .allowsHitTesting(false)
             }
         }
-        .sheet(item: selectedPlace) { place in
-            PlaceSheet(place: place)
+        .sheet(item: selectedPlace, onDismiss: pushPendingPerson) { place in
+            PlaceSheet(place: place) { contactID in
+                pendingPerson = contactID
+                selection = nil
+            }
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.hidden)
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .task { await observe() }
+    }
+
+    private func pushPendingPerson() {
+        guard let contactID = pendingPerson else { return }
+        pendingPerson = nil
+        router.navigate(to: .person(contactID))
     }
 
     /// Selects the place another screen asked for, once it is in the list.

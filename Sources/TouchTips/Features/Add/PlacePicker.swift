@@ -33,7 +33,6 @@ struct PlacePicker: View {
         }
         .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .all, showsTraffic: false))
         .mapControls { MapCompass() }
-        .grayscale(1)
         .ignoresSafeArea(edges: .bottom)
         .overlay(alignment: .bottom) {
             if let candidate {

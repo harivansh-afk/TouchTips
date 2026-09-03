@@ -4,9 +4,10 @@ import TouchTipsCore
 /// Everyone met at one place, newest first.
 struct PlaceSheet: View {
     let place: PlaceSummary
+    /// Called with a contact ID when a row is tapped. The map closes the sheet, then pushes.
+    let onOpen: (String) -> Void
 
     @Environment(AppModel.self) private var app
-    @Environment(Router.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var rows: [PersonRow] = []
 
@@ -15,8 +16,7 @@ struct PlaceSheet: View {
             List(rows) { row in
                 Button {
                     HapticManager.selection()
-                    dismiss()
-                    router.navigate(to: .person(row.id))
+                    onOpen(row.id)
                 } label: {
                     PersonRowView(row: row)
                 }
@@ -29,6 +29,17 @@ struct PlaceSheet: View {
                 place.name ?? Format.coordinates(place.latitude, place.longitude),
                 subtitle: "\(place.people) people · \(Format.yearSpan(place.first, place.last))"
             )
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        HapticManager.light()
+                        dismiss()
+                    } label: {
+                        Icon(.x)
+                    }
+                    .accessibilityLabel("Close")
+                }
+            }
             .task { await observe() }
         }
     }

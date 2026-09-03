@@ -41,9 +41,9 @@ struct AddSheet: View {
                         .focused($focus, equals: .phone)
                 }
 
-                Section("Where") {
+                Section {
                     whereRow
-                        .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
+                        .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
                         .listRowBackground(Color.clear)
                 }
 
@@ -52,6 +52,7 @@ struct AddSheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
+            .background(Color.ground)
             .serifTitle("Just met")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -102,7 +103,6 @@ struct AddSheet: View {
                 ProgressView()
                 Text("Finding where you are").foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 20)
         } else if locationOff, choices.isEmpty {
             HStack(spacing: 12) {
                 Text("Location is off").foregroundStyle(.secondary)
@@ -113,32 +113,26 @@ struct AddSheet: View {
                 }
                 .buttonStyle(.glass)
             }
-            .padding(.horizontal, 20)
         } else {
-            VStack(alignment: .leading, spacing: 8) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    GlassEffectContainer(spacing: 8) {
-                        HStack(spacing: 8) {
-                            ForEach(choices) { choice in
-                                chip(choice.name, selected: chosen == choice, id: choice.key) {
-                                    chosen = choice
-                                }
-                            }
-                            chip("Elsewhere…", selected: false, id: "elsewhere") {
-                                path.append(.elsewhere)
-                            }
-                            chip("No place", selected: chosen == nil, id: "none", dashed: true) {
-                                chosen = nil
+            VStack(alignment: .leading, spacing: 10) {
+                GlassEffectContainer(spacing: 8) {
+                    FlowLayout(spacing: 8) {
+                        ForEach(choices) { choice in
+                            chip(choice.name, selected: chosen == choice, id: choice.key) {
+                                chosen = choice
                             }
                         }
-                        .padding(.horizontal, 20)
+                        chip("Elsewhere…", selected: false, id: "elsewhere") {
+                            path.append(.elsewhere)
+                        }
+                        chip("No place", selected: chosen == nil, id: "none", dashed: true) {
+                            chosen = nil
+                        }
                     }
                 }
-                .scrollClipDisabled()
                 Text(caption)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 20)
             }
         }
     }
