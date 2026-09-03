@@ -68,7 +68,8 @@ struct SettingsSheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.ground)
+            // Into the keyboard region too, or the translucent keyboard shows a hard edge where the black stops.
+            .background { Color.ground.ignoresSafeArea() }
             .serifTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
