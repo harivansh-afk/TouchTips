@@ -3,15 +3,23 @@ import SwiftUI
 struct RootView: View {
     @AppStorage("onboardingDone") private var onboardingDone = false
     @State private var router = Router()
+    /// True from the end of onboarding until the tab bar has risen into place.
+    @State private var barBelow = false
 
     /// Content stops this far above the bottom safe area, so lists end above the capsule.
     private static let barInset = TabBar.height + TabBar.bottomPadding + 8 - 34
 
     var body: some View {
-        if onboardingDone {
-            tabs
-        } else {
-            OnboardingView(done: $onboardingDone)
+        ZStack {
+            if onboardingDone {
+                tabs.transition(.opacity.combined(with: .scale(scale: 0.96)))
+            } else {
+                OnboardingView {
+                    barBelow = true
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.9)) { onboardingDone = true }
+                }
+                .transition(.opacity)
+            }
         }
     }
 
@@ -41,9 +49,23 @@ struct RootView: View {
 
             TabBar()
                 .ignoresSafeArea(.keyboard)
+                .offset(y: barBelow ? 140 : 0)
+                .onAppear { raiseBar() }
         }
         .tint(.white)
         .environment(router)
+    }
+}
+
+extension RootView {
+    /// After onboarding the bar arrives late, from below the screen, with a tick as it sets off.
+    private func raiseBar() {
+        guard barBelow else { return }
+        Task {
+            try? await Task.sleep(for: .milliseconds(240))
+            HapticManager.light()
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) { barBelow = false }
+        }
     }
 }
 
@@ -64,9 +86,15 @@ private struct LazyTab<Content: View>: View {
             }
         }
         .toolbarVisibility(.hidden, for: .tabBar)
-        .onAppear { if router.selectedTab == tab { hasBeenSelected = true } }
+        .onAppear {
+            if router.selectedTab == tab {
+                hasBeenSelected = true
+            }
+        }
         .onChange(of: router.selectedTab) { _, selected in
-            if selected == tab { hasBeenSelected = true }
+            if selected == tab {
+                hasBeenSelected = true
+            }
         }
     }
 }

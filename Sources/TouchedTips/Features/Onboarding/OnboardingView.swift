@@ -6,10 +6,13 @@ struct OnboardingView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
-    @Binding var done: Bool
+    /// Called once the screen has finished leaving; the caller swaps in the app.
+    let finish: () -> Void
 
     /// Flips once the headline has finished typing; everything under it rises in after.
     @State private var revealed = false
+    /// Flips on Start; everything falls away, then `finish` runs.
+    @State private var leaving = false
 
     private var contactsState: PermissionState {
         switch app.contactsAccess.status {
@@ -27,6 +30,15 @@ struct OnboardingView: View {
         }
     }
 
+    /// Bottom up, the way it came in: Start, the rows, the body, then the headline sweeps out.
+    private func leave() {
+        leaving = true
+        Task {
+            try? await Task.sleep(for: .milliseconds(620))
+            finish()
+        }
+    }
+
     private func openSettings() {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             openURL(url)
@@ -36,7 +48,11 @@ struct OnboardingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Spacer()
-            TypewriterText(text: "Who did I meet?\nWhere did I meet them?\nWhen?", font: .display(40)) {
+            TypewriterText(
+                text: "Who did I meet?\nWhere did I meet them?\nWhen?",
+                font: .display(40),
+                leaving: leaving
+            ) {
                 revealed = true
             }
             .lineSpacing(2)
@@ -46,7 +62,7 @@ struct OnboardingView: View {
             )
             .foregroundStyle(.secondary)
             .padding(.bottom, 8)
-            .risesIn(revealed, order: 0)
+            .staged(revealed, leaving: leaving, order: 0)
 
             PermissionRow(
                 title: "Contacts",
@@ -60,7 +76,7 @@ struct OnboardingView: View {
                     app.capture.scheduleTick()
                 }
             }
-            .risesIn(revealed, order: 1)
+            .staged(revealed, leaving: leaving, order: 1)
 
             PermissionRow(
                 title: "Location, Always",
@@ -71,12 +87,12 @@ struct OnboardingView: View {
             ) {
                 app.capture.requestLocation()
             }
-            .risesIn(revealed, order: 2)
+            .staged(revealed, leaving: leaving, order: 2)
 
             Spacer()
             Button {
                 HapticManager.heavy()
-                done = true
+                leave()
             } label: {
                 Text("Start")
                     .font(.body.weight(.semibold))
@@ -86,7 +102,7 @@ struct OnboardingView: View {
             .buttonStyle(.glassProminent)
             .tint(.white)
             .controlSize(.large)
-            .risesIn(revealed, order: 3)
+            .staged(revealed, leaving: leaving, order: 3)
         }
         .padding(26)
         .background(Color.ground)
@@ -99,12 +115,15 @@ struct OnboardingView: View {
 }
 
 private extension View {
-    /// Hidden until `shown`, then fades up into place. `order` staggers siblings by a beat each.
-    func risesIn(_ shown: Bool, order: Int) -> some View {
-        opacity(shown ? 1 : 0)
-            .offset(y: shown ? 0 : 14)
-            .allowsHitTesting(shown)
-            .animation(.spring(response: 0.55, dampingFraction: 0.85).delay(Double(order) * 0.09), value: shown)
+    /// Hidden until `shown`, then fades up into place; on `leaving` it falls back out. Siblings are
+    /// staggered by `order`, first in and last out.
+    func staged(_ shown: Bool, leaving: Bool, order: Int) -> some View {
+        let visible = shown && !leaving
+        let delay = leaving ? Double(3 - order) * 0.05 : Double(order) * 0.09
+        return opacity(visible ? 1 : 0)
+            .offset(y: visible ? 0 : 14)
+            .allowsHitTesting(visible)
+            .animation(.spring(response: leaving ? 0.4 : 0.55, dampingFraction: 0.85).delay(delay), value: visible)
     }
 }
 
