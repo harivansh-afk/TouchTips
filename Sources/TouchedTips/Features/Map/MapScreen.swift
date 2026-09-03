@@ -88,13 +88,13 @@ struct MapScreen: View {
                 selection = nil
             }
                 .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.hidden)
+                .presentationDragIndicator(.visible)
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .sheet(isPresented: $showStyles) {
             MapStylesSheet(choice: $styleChoice, contentHeight: $stylesHeight)
                 .presentationDetents([.height(stylesHeight + MapStylesSheet.padding * 2)])
-                .presentationDragIndicator(.hidden)
+                .presentationDragIndicator(.visible)
                 .presentationBackgroundInteraction(.enabled)
         }
         .task { await observe() }
