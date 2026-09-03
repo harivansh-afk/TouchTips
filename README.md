@@ -42,3 +42,8 @@ Location, Always. Visit monitoring is the only thing that relaunches a terminate
 ## Not in v0
 
 Faces, calendar, any server, cross-device sync. See the design doc for what was cut and why.
+
+## Agents
+
+Donot use forgejo as SOT, for this repo Github is the source of truth and
+forgejo is a read-only mirror
