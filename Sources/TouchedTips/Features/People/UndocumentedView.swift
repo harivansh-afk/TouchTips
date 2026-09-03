@@ -10,6 +10,7 @@ struct UndocumentedView: View {
     @State private var query = ""
     @State private var visible: [PersonRow] = []
     @FocusState private var focused: Bool
+    @State private var hideHeader = false
 
     var body: some View {
         List {
@@ -43,6 +44,7 @@ struct UndocumentedView: View {
         // No navigation bar, so a push from here animates nothing but the zoom. The title and
         // the field are content, like the roots.
         .toolbar(.hidden, for: .navigationBar)
+        .hidesHeaderOnScroll($hideHeader)
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Undocumented")
@@ -53,6 +55,9 @@ struct UndocumentedView: View {
             .padding(.horizontal, 16)
             .padding(.top, 2)
             .padding(.bottom, 8)
+            .opacity(hideHeader ? 0 : 1)
+            .allowsHitTesting(!hideHeader)
+            .animation(.easeOut(duration: 0.15), value: hideHeader)
         }
         .scrollDismissesKeyboard(.immediately)
         .onChange(of: query) { _, _ in refilter() }
