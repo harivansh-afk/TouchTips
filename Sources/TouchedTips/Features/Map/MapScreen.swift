@@ -33,9 +33,15 @@ struct MapScreen: View {
     private var map: some View {
         Map(position: $camera, selection: $selection) {
             ForEach(places) { place in
-                Marker(place.name ?? "", monogram: Text(place.people, format: .number), coordinate: place.coordinate)
-                    .tint(place.witnessed ? .white : .gray)
-                    .tag(place.id)
+                Annotation(place.name ?? "", coordinate: place.coordinate, anchor: .center) {
+                    PlacePin(
+                        place: place,
+                        image: place.soleContactID.flatMap(app.photos.image(for:)),
+                        selected: selection == place.id
+                    )
+                }
+                .tag(place.id)
+                .annotationTitles(.hidden)
             }
             UserAnnotation()
         }
@@ -62,34 +68,56 @@ struct MapScreen: View {
             .padding(.horizontal, 16)
             .padding(.top, 2)
         }
-        .onChange(of: selection) { _, current in
-            if current != nil { HapticManager.selection() }
-        }
-        .onChange(of: router.pendingPlace, initial: true) { _, _ in showPendingPlace() }
-        .onChange(of: places) { _, _ in showPendingPlace() }
-        .overlay {
+        .overlay(alignment: .bottom) {
             if places.isEmpty {
-                ContentUnavailableView(
-                    "Nothing placed yet",
-                    systemImage: "mappin.slash",
-                    description: Text("A place appears here once someone was met there.")
-                )
-                .allowsHitTesting(false)
+                emptyState
+                    .transition(.blurReplace)
             }
         }
-        .sheet(item: selectedPlace, onDismiss: pushPendingPerson) { place in
+        .animation(.appleMusic, value: places.isEmpty)
+        .onChange(of: selection) { _, current in
+            guard let current, let place = places.first(where: { $0.id == current }) else { return }
+            HapticManager.selection()
+            // One person: they are the pin, so the tap goes straight to them.
+            if let contactID = place.soleContactID {
+                selection = nil
+                router.open(person: contactID)
+            }
+        }
+        .onChange(of: router.pendingPlace, initial: true) { _, _ in showPendingPlace() }
+        .onChange(of: places, initial: true) { _, places in
+            for id in places.compactMap(\.soleContactID) { app.photos.load(id) }
+            showPendingPlace()
+        }
+        .sheet(item: sheetPlace, onDismiss: pushPendingPerson) { place in
             PlaceSheet(place: place) { contactID in
                 pendingPerson = contactID
                 lastPlace = place.id
                 selection = nil
             }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .task { await observe() }
     }
 
+    /// One line in the app's voice, low on the map, in place of a system placeholder.
+    private var emptyState: some View {
+        VStack(spacing: 2) {
+            Text("Nowhere yet")
+                .font(.display(24))
+            Text("The map fills in as you meet people.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .multilineTextAlignment(.center)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 14)
+        .glassEffect(.clear, in: .rect(cornerRadius: 24))
+        .padding(.bottom, 12)
+        .allowsHitTesting(false)
+    }
 
     private func pushPendingPerson() {
         guard let contactID = pendingPerson else { return }
@@ -97,19 +125,21 @@ struct MapScreen: View {
         router.open(person: contactID)
     }
 
-    /// Selects the place another screen asked for, once it is in the list.
+    /// Centres on the place another screen asked for, once it is in the list. A place with one
+    /// person is only centred, or the pin would push the screen that just sent us here.
     private func showPendingPlace() {
         guard let id = router.pendingPlace, let place = places.first(where: { $0.id == id }) else { return }
         router.pendingPlace = nil
         withAnimation(.appleMusic) {
             camera = .region(MKCoordinateRegion(center: place.coordinate, latitudinalMeters: 600, longitudinalMeters: 600))
         }
-        selection = id
+        if place.soleContactID == nil { selection = id }
     }
 
-    private var selectedPlace: Binding<PlaceSummary?> {
+    /// The sheet is for places with more than one person; a single person is pushed instead.
+    private var sheetPlace: Binding<PlaceSummary?> {
         Binding(
-            get: { places.first { $0.id == selection } },
+            get: { places.first { $0.id == selection && $0.soleContactID == nil } },
             set: { selection = $0?.id }
         )
     }

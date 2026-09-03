@@ -50,6 +50,9 @@ public struct PlaceSummary: Decodable, FetchableRecord, Hashable, Identifiable, 
     public var witnessed: Bool
     public var first: Date
     public var last: Date
+    /// The one person met here, when there is exactly one. The map draws them instead of a count.
+    public var soleContactID: String?
+    public var soleName: String?
 
     public static func all() -> SQLRequest<PlaceSummary> {
         """
@@ -57,9 +60,12 @@ public struct PlaceSummary: Decodable, FetchableRecord, Hashable, Identifiable, 
                COUNT(meet.contactID) AS people,
                MAX(meet.tier <= 1) AS witnessed,
                MIN(meet.start) AS first,
-               MAX(meet.start) AS last
+               MAX(meet.start) AS last,
+               CASE WHEN COUNT(meet.contactID) = 1 THEN MIN(meet.contactID) END AS soleContactID,
+               CASE WHEN COUNT(meet.contactID) = 1 THEN MIN(person.name) END AS soleName
         FROM place
         JOIN meet ON meet.placeID = place.id
+        LEFT JOIN person ON person.contactID = meet.contactID
         GROUP BY place.id
         """
     }
