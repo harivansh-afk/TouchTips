@@ -15,7 +15,19 @@ struct MapScreen: View {
     @State private var lastPlace: Int64?
 
     var body: some View {
-        map
+        NavigationStack(path: router.path(for: .map)) {
+            map
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(for: Destination.self) { destination in
+                    DestinationView(destination: destination)
+                }
+        }
+        // Back from a person lands here with the same place sheet open again.
+        .onChange(of: router.paths[.map]?.count ?? 0) { _, count in
+            guard count == 0, let place = lastPlace else { return }
+            lastPlace = nil
+            selection = place
+        }
     }
 
     private var map: some View {
@@ -82,7 +94,7 @@ struct MapScreen: View {
     private func pushPendingPerson() {
         guard let contactID = pendingPerson else { return }
         pendingPerson = nil
-        router.open(person: contactID, fromPlace: lastPlace)
+        router.open(person: contactID)
     }
 
     /// Selects the place another screen asked for, once it is in the list.

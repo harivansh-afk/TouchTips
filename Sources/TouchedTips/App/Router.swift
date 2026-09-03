@@ -27,26 +27,16 @@ final class Router {
     /// Bumped every time the search button is tapped. The search tab shows its field and the keyboard on it.
     var searchRequests = 0
 
-    /// Where a person was opened from, when it was not the People tab. Back returns there.
-    private var returnTab: AppTab?
-    /// The place whose sheet was open at the time, so the map can put it back.
-    private var returnPlace: Int64?
-
     var isOnRoot: Bool { paths[selectedTab, default: []].isEmpty }
 
     func navigate(to destination: Destination) {
         paths[selectedTab, default: []].append(destination)
     }
 
-    /// The person screen lives on the People tab only. From any other tab this switches there,
-    /// pushes, and remembers the way back.
-    func open(person contactID: String, fromPlace placeID: Int64? = nil) {
-        if selectedTab != .people {
-            returnTab = selectedTab
-            returnPlace = placeID
-            selectedTab = .people
-        }
-        paths[.people, default: []].append(.person(contactID))
+    /// The person screen is one screen, pushed on whichever tab you are on, so back is one pop
+    /// and lands where you came from.
+    func open(person contactID: String) {
+        paths[selectedTab, default: []].append(.person(contactID))
     }
 
     func back() {
@@ -75,13 +65,8 @@ final class Router {
         )
     }
 
-    /// Every pop goes through here, the swipe included, so returning to the origin tab is consistent.
+    /// Every pop goes through here, the swipe included.
     private func setPath(_ path: [Destination], for tab: AppTab) {
         paths[tab] = path
-        guard path.isEmpty, tab == .people, let returnTab else { return }
-        self.returnTab = nil
-        pendingPlace = returnPlace
-        returnPlace = nil
-        selectedTab = returnTab
     }
 }
