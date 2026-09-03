@@ -7,9 +7,15 @@ struct PeopleSection: Identifiable, Hashable {
     var rows: [PersonRow]
 }
 
+/// Dated people grouped by month, newest first, and the undated ones kept apart.
+struct PeopleGroups: Hashable {
+    var sections: [PeopleSection] = []
+    /// Saved before touchtips, alphabetical. Shown as one row that pushes its own list.
+    var undocumented: [PersonRow] = []
+}
+
 enum PeopleSections {
-    /// Newest month first, then everyone we have no date for.
-    static func make(from rows: [PersonRow], matching query: String = "", calendar: Calendar = .current) -> [PeopleSection] {
+    static func make(from rows: [PersonRow], matching query: String = "", calendar: Calendar = .current) -> PeopleGroups {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         let visible = trimmed.isEmpty ? rows : rows.filter { row in
             row.person.name.localizedCaseInsensitiveContains(trimmed)
@@ -33,9 +39,6 @@ enum PeopleSections {
                 sections.append(PeopleSection(id: id, title: Format.month(monthStart), rows: [entry.row]))
             }
         }
-        if !undated.isEmpty {
-            sections.append(PeopleSection(id: "before-install", title: "Undocumented", rows: undated))
-        }
-        return sections
+        return PeopleGroups(sections: sections, undocumented: undated)
     }
 }

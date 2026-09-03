@@ -11,10 +11,13 @@ struct PersonRowView: View {
                 Text(row.person.name)
                     .font(.body.weight(.medium))
                     .lineLimit(1)
-                Text(Format.rowSubtitle(row))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                let subtitle = Format.rowSubtitle(row)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 6) {

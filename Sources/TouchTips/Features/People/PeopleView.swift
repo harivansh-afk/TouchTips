@@ -9,8 +9,6 @@ struct PeopleView: View {
     @State private var showSettings = false
     @State private var hideToolbar = false
 
-    private var sections: [PeopleSection] { PeopleSections.make(from: people.rows) }
-
     var body: some View {
         NavigationStack(path: router.path(for: .people)) {
             content
@@ -63,14 +61,10 @@ struct PeopleView: View {
     }
 
     private var content: some View {
-        PeopleList(sections: sections)
+        PeopleList(sections: people.sections, undocumented: people.undocumented)
             .overlay {
                 if people.rows.isEmpty {
-                    ContentUnavailableView(
-                        "No one yet",
-                        systemImage: "person.2",
-                        description: Text("New contacts show up here with when and where you met.")
-                    )
+                    emptyState
                 }
             }
             .onScrollGeometryChange(for: CGFloat.self) { geometry in
@@ -83,5 +77,33 @@ struct PeopleView: View {
                     }
                 }
             }
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        switch people.readiness {
+        case .contactsOff:
+            ContentUnavailableView(
+                "Contacts is off",
+                systemImage: "person.crop.circle.badge.xmark",
+                description: Text("Nothing can be noticed until touchtips can read your contacts. Allow it in Settings.")
+            )
+        case .reading:
+            ContentUnavailableView {
+                Label {
+                    Text("Reading your contacts")
+                } icon: {
+                    ProgressView()
+                }
+            } description: {
+                Text("The first read goes through everyone once.")
+            }
+        case .ready:
+            ContentUnavailableView(
+                "No one yet",
+                systemImage: "person.2",
+                description: Text("New contacts show up here with when and where you met.")
+            )
+        }
     }
 }
