@@ -8,6 +8,9 @@ struct OnboardingView: View {
     @Environment(\.openURL) private var openURL
     @Binding var done: Bool
 
+    /// Flips once the headline has finished typing; everything under it rises in after.
+    @State private var revealed = false
+
     private var contactsState: PermissionState {
         switch app.contactsAccess.status {
         case .authorized: .granted
@@ -25,22 +28,29 @@ struct OnboardingView: View {
     }
 
     private func openSettings() {
-        if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            openURL(url)
+        }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Spacer()
-            Text("Where did\nyou meet\neveryone?")
-                .font(.display(52))
-                .lineSpacing(-2)
-            Text("TouchedTips watches new contacts and your visits, and remembers when and where each person came in. Nothing leaves this phone.")
-                .foregroundStyle(.secondary)
-                .padding(.bottom, 8)
+            TypewriterText(text: "Who did I meet?\nWhere did I meet them?\nWhen?", font: .display(40)) {
+                revealed = true
+            }
+            .lineSpacing(2)
+
+            Text(
+                "TouchedTips lives on your iPhone and logs each new contact as it is created, so you never forget someone again."
+            )
+            .foregroundStyle(.secondary)
+            .padding(.bottom, 8)
+            .risesIn(revealed, order: 0)
 
             PermissionRow(
                 title: "Contacts",
-                detail: "Full access, so new people can be noticed.",
+                detail: "So new people get noticed.",
                 missing: "New people won't be noticed.",
                 state: contactsState,
                 openSettings: openSettings
@@ -50,32 +60,51 @@ struct OnboardingView: View {
                     app.capture.scheduleTick()
                 }
             }
+            .risesIn(revealed, order: 1)
+
             PermissionRow(
                 title: "Location, Always",
-                detail: "Visits wake the app and give the place. iOS asks for Always later, after the app has used your location once.",
+                detail: "So each new contact gets a place.",
                 missing: "Places can't be captured.",
                 state: locationState,
                 openSettings: openSettings
             ) {
                 app.capture.requestLocation()
             }
+            .risesIn(revealed, order: 2)
 
             Spacer()
             Button {
                 HapticManager.heavy()
                 done = true
             } label: {
-                Text("Start").frame(maxWidth: .infinity)
+                Text("Start")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.glassProminent)
             .tint(.white)
             .controlSize(.large)
+            .risesIn(revealed, order: 3)
         }
         .padding(26)
         .background(Color.ground)
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { app.contactsAccess.refresh() }
+            if phase == .active {
+                app.contactsAccess.refresh()
+            }
         }
+    }
+}
+
+private extension View {
+    /// Hidden until `shown`, then fades up into place. `order` staggers siblings by a beat each.
+    func risesIn(_ shown: Bool, order: Int) -> some View {
+        opacity(shown ? 1 : 0)
+            .offset(y: shown ? 0 : 14)
+            .allowsHitTesting(shown)
+            .animation(.spring(response: 0.55, dampingFraction: 0.85).delay(Double(order) * 0.09), value: shown)
     }
 }
 
@@ -104,7 +133,11 @@ private struct PermissionRow: View {
             Spacer(minLength: 8)
             Button(verb) {
                 HapticManager.heavy()
-                if state == .denied { openSettings() } else { action() }
+                if state == .denied {
+                    openSettings()
+                } else {
+                    action()
+                }
             }
             .buttonStyle(.glass)
             .disabled(state == .granted)
