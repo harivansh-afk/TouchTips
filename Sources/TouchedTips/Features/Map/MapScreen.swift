@@ -8,8 +8,6 @@ struct MapScreen: View {
     @State private var places: [PlaceSummary] = []
     @State private var camera: MapCameraPosition = .automatic
     @State private var selection: Int64?
-    @State private var showStyles = false
-    @State private var stylesHeight: CGFloat = 260
     @AppStorage("mapStyle") private var styleChoice = MapStyleChoice.muted
     /// A person tapped in the place sheet. Pushed once the sheet has finished closing.
     @State private var pendingPerson: String?
@@ -36,20 +34,6 @@ struct MapScreen: View {
         // Muted is monotone by decision. The filter costs a re-render of the map layer per frame, so
         // it applies to that one style only; the other three are MapKit's own colour.
         .grayscale(styleChoice == .muted ? 1 : 0)
-        .overlay(alignment: .topLeading) {
-            Button {
-                HapticManager.light()
-                showStyles = true
-            } label: {
-                Icon(.mapTrifold)
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-            }
-            .glassEffect(.clear.interactive(), in: .circle)
-            .accessibilityLabel("Map style")
-            .padding(.horizontal, 16)
-            .padding(.top, 2)
-        }
         .overlay(alignment: .topTrailing) {
             Button {
                 HapticManager.light()
@@ -90,12 +74,6 @@ struct MapScreen: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-        }
-        .sheet(isPresented: $showStyles) {
-            MapStylesSheet(choice: $styleChoice, contentHeight: $stylesHeight)
-                .presentationDetents([.height(stylesHeight + MapStylesSheet.padding * 2)])
-                .presentationDragIndicator(.visible)
-                .presentationBackgroundInteraction(.enabled)
         }
         .task { await observe() }
     }

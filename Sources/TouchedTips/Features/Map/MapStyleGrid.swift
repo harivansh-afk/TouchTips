@@ -1,14 +1,10 @@
 import SwiftUI
 
 /// Four pictures, one per style, of the same blocks of lower Manhattan, rendered once on a Mac
-/// and shipped as assets so the sheet is instant. Tap one and the map behind changes at once;
-/// the sheet is the confirmation. Swipe down to leave.
-struct MapStylesSheet: View {
+/// and shipped as assets. Lives in Settings; tapping one changes the map the next time it is seen.
+struct MapStyleGrid: View {
     @Binding var choice: MapStyleChoice
-    /// The grid's measured height, so the sheet can be exactly that plus equal padding.
-    @Binding var contentHeight: CGFloat
 
-    static let padding: CGFloat = 24
     private static let tileAspect: CGFloat = 160 / 108
 
     var body: some View {
@@ -17,10 +13,6 @@ struct MapStylesSheet: View {
                 tile(option)
             }
         }
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
-        .padding(.horizontal, 20)
-        .padding(.vertical, Self.padding)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private func tile(_ option: MapStyleChoice) -> some View {
