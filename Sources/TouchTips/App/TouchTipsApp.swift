@@ -5,31 +5,29 @@ import SwiftUI
 struct TouchTipsApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
-    // Splash state management
+    // Splash state. The wordmark plays once per process, so a warm launch never sees it.
     @State private var finishedSplash: Bool = false
-    @State private var isAppInitialized: Bool = false
+    /// A floor against a flash on a fast device; nothing else waits on it.
+    @State private var pastFloor: Bool = false
 
-    // Splash is visible until both animation and app initialization are complete
     private var isShowingSplash: Bool {
-        !(isAppInitialized && finishedSplash)
+        !(pastFloor && finishedSplash)
     }
 
     var body: some Scene {
         WindowGroup {
             ZStack {
-                if isAppInitialized {
-                    RootView()
-                }
+                // Laid out under the splash from the start, so the fade reveals a finished screen.
+                RootView()
 
                 splashView
             }
             .preferredColorScheme(.dark)
             .environment(delegate.app)
             .onAppear {
-                // Minimum splash display time. Capture already started in AppDelegate.
                 Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(400))
-                    isAppInitialized = true
+                    pastFloor = true
                 }
             }
         }
@@ -37,12 +35,8 @@ struct TouchTipsApp: App {
 
     private var splashView: some View {
         SplashView {
-            Task { @MainActor in
-                // Optional: add slight delay after animation completes
-                try? await Task.sleep(for: .milliseconds(200))
-                finishedSplash = true
-                // Completion triggers splash fade-out via isShowingSplash
-            }
+            // The fade starts the instant the animation ends.
+            finishedSplash = true
         }
         .opacity(isShowingSplash ? 1 : 0)
         .allowsHitTesting(isShowingSplash)
@@ -75,7 +69,7 @@ private struct SplashView: View {
             LottieView(
                 file: .logo,
                 loopMode: .playOnce,
-                speed: 1.5,
+                speed: 2.0,
                 onComplete: {
                     onFinished()
                 }
