@@ -66,6 +66,7 @@ struct FixSheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
+            .background(Color.ground)
             .serifTitle(row.meet == nil ? "When did you meet?" : "Fix")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

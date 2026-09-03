@@ -68,6 +68,7 @@ struct SettingsSheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
+            .background(Color.ground)
             .serifTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
