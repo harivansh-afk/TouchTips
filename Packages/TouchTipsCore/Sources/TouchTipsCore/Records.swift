@@ -85,6 +85,9 @@ public struct Place: Codable, Hashable, Identifiable, Sendable {
 public enum PlaceKey {
     public static func google(_ placeID: String) -> String { "g:" + placeID }
 
+    /// An Apple Maps place, from `MKMapItem.identifier`. Picked by hand in the Add sheet.
+    public static func apple(_ identifier: String) -> String { "a:" + identifier }
+
     /// Three decimals is about 110 m. Two visits to one café share a cell; two cafés a block apart usually do not.
     public static func cell(latitude: Double, longitude: Double) -> String {
         "c:" + String(format: "%.3f,%.3f", latitude, longitude)

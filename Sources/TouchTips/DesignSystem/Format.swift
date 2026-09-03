@@ -21,6 +21,12 @@ enum Format {
         date.formatted(.dateTime.hour().minute())
     }
 
+    /// "40 m" or "1.2 km"
+    static func distance(_ meters: Double) -> String {
+        Measurement(value: meters, unit: UnitLength.meters)
+            .formatted(.measurement(width: .abbreviated, usage: .road))
+    }
+
     static func coordinates(_ latitude: Double, _ longitude: Double) -> String {
         String(format: "%.3f, %.3f", latitude, longitude)
     }
