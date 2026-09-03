@@ -5,7 +5,6 @@ struct PersonView: View {
     let contactID: String
 
     @Environment(AppModel.self) private var app
-    @Environment(\.dismiss) private var dismiss
     @State private var allowDismissalGesture: AllowedNavigationDismissalGestures = .none
     @State private var row: PersonRow?
     @State private var evidence: Visit?
@@ -50,18 +49,8 @@ struct PersonView: View {
         .background(Color.black)
         .navigationBarTitleDisplayMode(.inline)
         .navigationAllowDismissalGestures(allowDismissalGesture)
+        // The tab bar's back circle is the only way back, plus the swipe.
         .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Icon("caret-left")
-                        .foregroundStyle(.primary)
-                }
-                .accessibilityLabel("Back")
-            }
-        }
         .task {
             try? await Task.sleep(for: .seconds(1))
             allowDismissalGesture = .all
