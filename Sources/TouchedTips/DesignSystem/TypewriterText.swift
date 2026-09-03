@@ -4,9 +4,11 @@ import SwiftUI
 /// glyphs one at a time, each rising out of a blur, so the serif keeps its kerning and nothing
 /// reflows mid-word.
 ///
-/// The rhythm: letters at a steady pace, spaces a touch longer. Before a question mark the typing
-/// hesitates, then the mark rises slowly from further down and lands with a heavy haptic. Every
-/// other glyph is a light tick. Flip `leaving` and the glyphs sweep back out in the order they came.
+/// The run is scheduled up front: every glyph gets a time, the haptics for the whole run go to
+/// CoreHaptics as one pattern, and the glyphs are drawn against the same clock. Letters come at a
+/// steady pace, spaces a touch longer. Before a question mark the typing hesitates, then the mark
+/// rises slowly from further down and lands with a thud. Flip `leaving` and the glyphs sweep back
+/// out in the order they came.
 struct TypewriterText: View {
     let text: String
     let font: Font
@@ -16,6 +18,7 @@ struct TypewriterText: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var progress = GlyphReveal.Progress()
+    @State private var haptics = TypingHaptics()
 
     var body: some View {
         Text(text)
@@ -24,20 +27,56 @@ struct TypewriterText: View {
             .task { await type() }
             .onChange(of: leaving) { _, leaving in
                 guard leaving else { return }
-                withAnimation(.easeIn(duration: 0.55)) { progress.exit = 1 }
+                withAnimation(.easeIn(duration: 0.38)) { progress.exit = 1 }
             }
     }
 
+    /// One glyph and the moment it lands, in seconds from the start of the run.
+    private struct Step {
+        let line: Int
+        let glyph: Character
+        let at: TimeInterval
+    }
+
     /// A held breath on the empty screen before the first glyph.
-    private static let leadIn: Duration = .milliseconds(700)
-    private static let letter: Duration = .milliseconds(52)
-    private static let space: Duration = .milliseconds(100)
+    private static let leadIn: TimeInterval = 0.5
+    private static let letter: TimeInterval = 0.046
+    private static let space: TimeInterval = 0.08
     /// The pause before a question mark, as if deciding to ask.
-    private static let hesitation: Duration = .milliseconds(220)
-    /// How far into the mark's rise the heavy haptic lands.
-    private static let landing: Duration = .milliseconds(340)
+    private static let hesitation: TimeInterval = 0.16
+    /// How long a question mark takes to rise.
+    private static let markRise: TimeInterval = 0.4
+    /// How far into the rise the thud lands.
+    private static let landing: TimeInterval = 0.2
     /// After a mark lands, before the next line starts.
-    private static let linePause: Duration = .milliseconds(560)
+    private static let linePause: TimeInterval = 0.3
+
+    private static func schedule(_ lines: [Substring]) -> (steps: [Step], end: TimeInterval) {
+        var steps: [Step] = []
+        var time = leadIn
+        for (line, glyphs) in lines.enumerated() {
+            if line > 0 {
+                time += linePause
+            }
+            for glyph in glyphs {
+                if glyph == "?" {
+                    time += hesitation
+                }
+                steps.append(Step(line: line, glyph: glyph, at: time))
+                time += glyph == "?" ? markRise : glyph.isWhitespace ? space : letter
+            }
+        }
+        return (steps, time)
+    }
+
+    private static func taps(for steps: [Step]) -> [TypingHaptics.Tap] {
+        steps.flatMap { step -> [TypingHaptics.Tap] in
+            if step.glyph == "?" {
+                return [.strike(at: step.at), .thud(at: step.at + landing)]
+            }
+            return step.glyph.isWhitespace ? [] : [.tick(at: step.at)]
+        }
+    }
 
     private func type() async {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
@@ -46,31 +85,24 @@ struct TypewriterText: View {
             onFinished()
             return
         }
-        try? await Task.sleep(for: Self.leadIn)
-        for (lineIndex, line) in lines.enumerated() {
-            if lineIndex > 0 {
-                try? await Task.sleep(for: Self.linePause)
-                progress = .start(ofLine: lineIndex)
+        let (steps, end) = Self.schedule(lines)
+        haptics.prepare()
+        let clock = ContinuousClock()
+        let start = clock.now
+        haptics.play(Self.taps(for: steps))
+        var line = 0
+        for step in steps {
+            try? await clock.sleep(until: start + .seconds(step.at))
+            guard !Task.isCancelled else { return }
+            if step.line != line {
+                line = step.line
+                progress = .start(ofLine: line)
             }
-            for glyph in line {
-                guard !Task.isCancelled else { return }
-                if glyph == "?" {
-                    try? await Task.sleep(for: Self.hesitation)
-                    progress.slow = true
-                    withAnimation(.easeOut(duration: 0.6)) { progress.glyphs += 1 }
-                    HapticManager.light()
-                    try? await Task.sleep(for: Self.landing)
-                    HapticManager.heavy()
-                } else {
-                    progress.slow = false
-                    withAnimation(.easeOut(duration: 0.22)) { progress.glyphs += 1 }
-                    if !glyph.isWhitespace {
-                        HapticManager.light()
-                    }
-                    try? await Task.sleep(for: glyph.isWhitespace ? Self.space : Self.letter)
-                }
-            }
+            progress.slow = step.glyph == "?"
+            withAnimation(.easeOut(duration: step.glyph == "?" ? Self.markRise : 0.18)) { progress.glyphs += 1 }
         }
+        try? await clock.sleep(until: start + .seconds(end))
+        guard !Task.isCancelled else { return }
         progress = .complete
         onFinished()
     }
@@ -78,7 +110,8 @@ struct TypewriterText: View {
 
 /// Draws every line before `progress.line` in full, the glyphs of that line up to
 /// `progress.glyphs` (the last one part-way in), and nothing after. `exit` sweeps every drawn
-/// glyph back out, first typed first gone.
+/// glyph back out, first typed first gone. Blur is only paid on the way in, one glyph at a time;
+/// on the way out a dozen glyphs move at once, so they fade and drift instead.
 private struct GlyphReveal: TextRenderer, Animatable {
     struct Progress {
         var line = 0
@@ -106,7 +139,7 @@ private struct GlyphReveal: TextRenderer, Animatable {
     }
 
     /// How many glyphs are mid-sweep at once on the way out.
-    private static let sweep = 8.0
+    private static let sweep = 12.0
 
     func draw(layout: Text.Layout, in context: inout GraphicsContext) {
         let lines = layout.map { Array($0.flatMap(\.self)) }
@@ -127,9 +160,9 @@ private struct GlyphReveal: TextRenderer, Animatable {
                 let haze = progress.slow && entered < 1 ? 10.0 : 6.0
                 var glyph = context
                 glyph.opacity = visible
-                glyph.translateBy(x: 0, y: (1 - entered) * rise - gone * 14)
-                if visible < 1 {
-                    glyph.addFilter(.blur(radius: (1 - entered) * haze + gone * 8))
+                glyph.translateBy(x: 0, y: (1 - entered) * rise - gone * 12)
+                if entered < 1 {
+                    glyph.addFilter(.blur(radius: (1 - entered) * haze))
                 }
                 glyph.draw(slice)
             }

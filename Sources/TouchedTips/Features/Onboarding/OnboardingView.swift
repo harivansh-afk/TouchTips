@@ -30,11 +30,12 @@ struct OnboardingView: View {
         }
     }
 
-    /// Bottom up, the way it came in: Start, the rows, the body, then the headline sweeps out.
+    /// Bottom up, the way it came in: Start, the rows, the body, then the headline sweeps out. The
+    /// app starts coming in while the last glyphs are still going, so there is no empty frame.
     private func leave() {
         leaving = true
         Task {
-            try? await Task.sleep(for: .milliseconds(620))
+            try? await Task.sleep(for: .milliseconds(280))
             finish()
         }
     }
@@ -119,11 +120,15 @@ private extension View {
     /// staggered by `order`, first in and last out.
     func staged(_ shown: Bool, leaving: Bool, order: Int) -> some View {
         let visible = shown && !leaving
-        let delay = leaving ? Double(3 - order) * 0.05 : Double(order) * 0.09
+        let delay = leaving ? Double(3 - order) * 0.03 : Double(order) * 0.09
         return opacity(visible ? 1 : 0)
             .offset(y: visible ? 0 : 14)
             .allowsHitTesting(visible)
-            .animation(.spring(response: leaving ? 0.4 : 0.55, dampingFraction: 0.85).delay(delay), value: visible)
+            .animation(
+                leaving ? .easeIn(duration: 0.28).delay(delay) : .spring(response: 0.55, dampingFraction: 0.85)
+                    .delay(delay),
+                value: visible
+            )
     }
 }
 

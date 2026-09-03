@@ -3,23 +3,41 @@ import SwiftUI
 struct RootView: View {
     @AppStorage("onboardingDone") private var onboardingDone = false
     @State private var router = Router()
-    /// True from the end of onboarding until the tab bar has risen into place.
-    @State private var barBelow = false
+    /// True until onboarding has finished and the tab bar has risen into place. The tabs are
+    /// built underneath onboarding from launch, so the hand-over animates layers that already
+    /// exist instead of paying for their first layout mid-animation.
+    @State private var barBelow = !UserDefaults.standard.bool(forKey: "onboardingDone")
 
     /// Content stops this far above the bottom safe area, so lists end above the capsule.
     private static let barInset = TabBar.height + TabBar.bottomPadding + 8 - 34
 
     var body: some View {
         ZStack {
-            if onboardingDone {
-                tabs.transition(.opacity.combined(with: .scale(scale: 0.96)))
-            } else {
-                OnboardingView {
-                    barBelow = true
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.9)) { onboardingDone = true }
-                }
-                .transition(.opacity)
+            tabs
+                .opacity(onboardingDone ? 1 : 0)
+                .scaleEffect(onboardingDone ? 1 : 0.96)
+                .allowsHitTesting(onboardingDone)
+                .accessibilityHidden(!onboardingDone)
+            if !onboardingDone {
+                OnboardingView { arrive() }
+                    .transition(.opacity)
             }
+        }
+        // Replaying onboarding from Settings puts the bar back below for the next arrival.
+        .onChange(of: onboardingDone) { _, done in
+            if !done {
+                barBelow = true
+            }
+        }
+    }
+
+    /// The app settles in from slightly small; the bar follows from below the screen, with a tick.
+    private func arrive() {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.9)) { onboardingDone = true }
+        Task {
+            try? await Task.sleep(for: .milliseconds(120))
+            HapticManager.light()
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.8)) { barBelow = false }
         }
     }
 
@@ -50,22 +68,9 @@ struct RootView: View {
             TabBar()
                 .ignoresSafeArea(.keyboard)
                 .offset(y: barBelow ? 140 : 0)
-                .onAppear { raiseBar() }
         }
         .tint(.white)
         .environment(router)
-    }
-}
-
-extension RootView {
-    /// After onboarding the bar arrives late, from below the screen, with a tick as it sets off.
-    private func raiseBar() {
-        guard barBelow else { return }
-        Task {
-            try? await Task.sleep(for: .milliseconds(240))
-            HapticManager.light()
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) { barBelow = false }
-        }
     }
 }
 
