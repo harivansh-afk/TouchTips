@@ -37,8 +37,8 @@ targets:
       path: Sources/TouchTips/Info.plist
       properties:
         CFBundleDisplayName: touchtips
-        CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UIUserInterfaceStyle: Dark
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
@@ -52,6 +52,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: sh.harivan.touchtips
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
         PRODUCT_NAME: touchtips
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
