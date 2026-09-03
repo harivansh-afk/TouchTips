@@ -19,8 +19,7 @@ struct PersonView: View {
                     VStack(spacing: 12) {
                         InitialsAvatar(initials: row.person.initials, size: 96)
                         Text(row.person.name)
-                            .font(.system(size: 30, weight: .bold))
-                            .kerning(-0.6)
+                            .font(.display(36))
                             .multilineTextAlignment(.center)
                     }
                     MeetCard(row: row)

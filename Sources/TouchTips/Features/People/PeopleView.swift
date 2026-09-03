@@ -19,8 +19,7 @@ struct PeopleView: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Text("People")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
+                            .font(.display(36))
                             .fixedSize()
                             .padding(.leading, -4)
                             .opacity(hideToolbar ? 0 : 1)

@@ -20,9 +20,10 @@ struct PlaceSheet: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(Color.black)
-            .navigationTitle(place.name ?? Format.coordinates(place.latitude, place.longitude))
-            .navigationSubtitle("\(place.people) people · \(Format.yearSpan(place.first, place.last))")
-            .navigationBarTitleDisplayMode(.inline)
+            .serifTitle(
+                place.name ?? Format.coordinates(place.latitude, place.longitude),
+                subtitle: "\(place.people) people · \(Format.yearSpan(place.first, place.last))"
+            )
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {

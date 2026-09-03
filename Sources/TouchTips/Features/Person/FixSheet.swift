@@ -67,8 +67,7 @@ struct FixSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.black)
-            .navigationTitle(row.meet == nil ? "When did you meet?" : "Fix")
-            .navigationBarTitleDisplayMode(.inline)
+            .serifTitle(row.meet == nil ? "When did you meet?" : "Fix")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {

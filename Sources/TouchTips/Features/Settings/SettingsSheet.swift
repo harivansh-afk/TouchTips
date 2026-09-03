@@ -69,8 +69,7 @@ struct SettingsSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.black)
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
+            .serifTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button {

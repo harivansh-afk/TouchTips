@@ -20,8 +20,7 @@ struct PeopleList: View {
                     // The heading is a row, not a section header, so it scrolls with the list instead of pinning.
                     Section {
                         Text(section.title)
-                            .font(.title2)
-                            .fontWeight(.bold)
+                            .font(.display(26))
                             .foregroundColor(Color.primary)
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))

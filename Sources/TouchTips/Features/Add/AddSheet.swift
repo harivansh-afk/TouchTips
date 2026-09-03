@@ -65,8 +65,7 @@ struct AddSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.black)
-            .navigationTitle("Just met")
-            .navigationBarTitleDisplayMode(.inline)
+            .serifTitle("Just met")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
