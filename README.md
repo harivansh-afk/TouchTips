@@ -1,6 +1,9 @@
 # TouchedTips
 
-When and where did I meet each person in my contacts. iOS 26, SwiftUI, on-device only.
+When and where did we meet?
+This is a question i often ask myself since i meet so many people on a daily basis. 
+I tried sending selfies to the people i find interesting, but this doesnt scale
+I can name 5 times off the top of my head when i needed something from a person i met at some point of time but could not find their name on my phone.
 
 Contacts stay the source of truth for *who*. TouchedTips owns *when* and *where*: it notices new contacts
 through the contact store's change history, and gives each one a place from the visit that woke the app.
