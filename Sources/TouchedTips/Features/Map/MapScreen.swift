@@ -34,7 +34,9 @@ struct MapScreen: View {
         .mapControls {
             MapCompass()
         }
-        // No grayscale filter: it re-rendered the whole MapKit layer every frame and made pins feel slow.
+        // Muted is monotone by decision. The filter costs a re-render of the map layer per frame, so
+        // it applies to that one style only; the other three are MapKit's own colour.
+        .grayscale(styleChoice == .muted ? 1 : 0)
         .overlay(alignment: .topLeading) {
             Button {
                 HapticManager.light()
@@ -46,7 +48,8 @@ struct MapScreen: View {
             }
             .glassEffect(.clear.interactive(), in: .circle)
             .accessibilityLabel("Map style")
-            .padding(16)
+            .padding(.horizontal, 16)
+            .padding(.top, 2)
         }
         .overlay(alignment: .topTrailing) {
             Button {
@@ -61,7 +64,8 @@ struct MapScreen: View {
             }
             .glassEffect(.clear.interactive(), in: .circle)
             .accessibilityLabel("Recentre on me")
-            .padding(16)
+            .padding(.horizontal, 16)
+            .padding(.top, 2)
         }
         .onChange(of: selection) { _, current in
             if current != nil { HapticManager.selection() }
@@ -90,7 +94,7 @@ struct MapScreen: View {
         }
         .sheet(isPresented: $showStyles) {
             MapStylesSheet(region: region ?? Self.fallbackRegion, choice: $styleChoice)
-                .presentationDetents([.height(340)])
+                .presentationDetents([.height(310)])
                 .presentationDragIndicator(.hidden)
                 .presentationBackgroundInteraction(.enabled)
         }

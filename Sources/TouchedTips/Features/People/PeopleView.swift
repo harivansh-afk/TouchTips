@@ -35,12 +35,12 @@ struct PeopleView: View {
 
     private var content: some View {
         PeopleList(sections: people.sections, undocumented: people.undocumented)
+            .hidesHeaderOnScroll($hideHeader)
             .overlay {
                 if people.rows.isEmpty {
                     emptyState
                 }
             }
-            .hidesHeaderOnScroll($hideHeader)
     }
 
     @ViewBuilder

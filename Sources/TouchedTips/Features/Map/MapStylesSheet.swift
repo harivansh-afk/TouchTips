@@ -7,25 +7,34 @@ struct MapStylesSheet: View {
     let region: MKCoordinateRegion
     @Binding var choice: MapStyleChoice
 
+    @Environment(\.dismiss) private var dismiss
     @State private var snapshots = MapSnapshots()
 
     private static let tileSize = CGSize(width: 160, height: 108)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Map")
-                .font(.display(28))
-                .padding(.horizontal, 4)
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 14) {
-                ForEach(MapStyleChoice.allCases) { option in
-                    tile(option)
-                }
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 14) {
+            ForEach(MapStyleChoice.allCases) { option in
+                tile(option)
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 22)
+        .padding(.top, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color.ground)
+        .overlay(alignment: .topTrailing) {
+            Button {
+                HapticManager.light()
+                dismiss()
+            } label: {
+                Icon(.x, size: 18)
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+            }
+            .glassEffect(.clear.interactive(), in: .circle)
+            .accessibilityLabel("Close")
+            .padding(.trailing, 14)
+            .padding(.top, 14)
+        }
         .task {
             for option in MapStyleChoice.allCases {
                 snapshots.load(option, region: region, size: Self.tileSize)
@@ -46,6 +55,7 @@ struct MapStylesSheet: View {
                         Image(uiImage: image)
                             .resizable()
                             .scaledToFill()
+                            .grayscale(option == .muted ? 1 : 0)
                     }
                 }
                 .aspectRatio(Self.tileSize.width / Self.tileSize.height, contentMode: .fit)
