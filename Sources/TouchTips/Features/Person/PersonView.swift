@@ -1,4 +1,3 @@
-import GRDB
 import SwiftUI
 import TouchTipsCore
 
@@ -6,6 +5,8 @@ struct PersonView: View {
     let contactID: String
 
     @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    @State private var allowDismissalGesture: AllowedNavigationDismissalGestures = .none
     @State private var row: PersonRow?
     @State private var evidence: Visit?
     @State private var showFix = false
@@ -23,14 +24,17 @@ struct PersonView: View {
                             .multilineTextAlignment(.center)
                     }
                     MeetCard(row: row)
+                        .smoothAppear()
                     EvidenceList(row: row, visit: evidence)
                     VStack(spacing: 10) {
                         Button {
+                            HapticManager.medium()
                             showFix = true
                         } label: {
                             Text(row.meet == nil ? "Set when you met" : "Fix date or place").frame(maxWidth: .infinity)
                         }
                         Button {
+                            HapticManager.medium()
                             showCard = true
                         } label: {
                             Text("Open in Contacts").frame(maxWidth: .infinity)
@@ -46,6 +50,25 @@ struct PersonView: View {
         }
         .background(Color.black)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationAllowDismissalGestures(allowDismissalGesture)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.body)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                }
+                .accessibilityLabel("Back")
+            }
+        }
+        .task {
+            try? await Task.sleep(for: .seconds(1))
+            allowDismissalGesture = .all
+        }
         .sheet(isPresented: $showFix) {
             if let row { FixSheet(row: row) }
         }
@@ -64,9 +87,11 @@ struct PersonView: View {
         }
         do {
             for try await (row, visit) in observation.values(in: app.database.reader) {
-                self.row = row
-                evidence = visit
+                if self.row != row { self.row = row }
+                if evidence != visit { evidence = visit }
             }
+        } catch is CancellationError {
+            // The view went away. Not an error.
         } catch {
             Log.ui.error("person observation ended: \(error.localizedDescription)")
         }
@@ -100,7 +125,7 @@ private struct MeetCard: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 10)
             } else {
-                Text("Before touchtips").font(.display(32))
+                Text("Undocumented").font(.display(32))
                 Text("Saved before the app was installed. Nothing to go on yet.")
                     .font(.callout)
                     .foregroundStyle(.secondary)

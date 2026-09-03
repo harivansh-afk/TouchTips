@@ -10,6 +10,12 @@ public struct PersonRow: Decodable, FetchableRecord, Hashable, Identifiable, Sen
     public var place: Place?
 
     public var id: String { person.contactID }
+
+    public init(person: Person, meet: Meet?, place: Place?) {
+        self.person = person
+        self.meet = meet
+        self.place = place
+    }
 }
 
 public extension Person {

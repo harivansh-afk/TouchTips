@@ -12,3 +12,13 @@ struct InitialsAvatar: View {
             .glassEffect(.clear, in: .circle)
     }
 }
+
+#Preview {
+    HStack(spacing: 16) {
+        InitialsAvatar(initials: "DP")
+        InitialsAvatar(initials: "MK", size: 96)
+    }
+    .padding()
+    .background(Color.black)
+    .preferredColorScheme(.dark)
+}

@@ -1,4 +1,3 @@
-import GRDB
 import MapKit
 import SwiftUI
 import TouchTipsCore
@@ -72,10 +71,24 @@ struct FixSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button {
+                        HapticManager.light()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .fontWeight(.medium)
+                    }
+                    .accessibilityLabel("Cancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await save() } }
+                    Button {
+                        HapticManager.medium()
+                        Task { await save() }
+                    } label: {
+                        Image(systemName: "checkmark")
+                            .fontWeight(.semibold)
+                    }
+                    .accessibilityLabel("Save")
                 }
             }
             .task(id: window) { await loadSuggestions() }
@@ -156,6 +169,7 @@ struct FixSheet: View {
         do {
             guard let window else {
                 try Ingest.clearMeet(contactID: row.id, to: database)
+                HapticManager.success()
                 dismiss()
                 return
             }
@@ -176,8 +190,10 @@ struct FixSheet: View {
                 contactID: row.id, start: window.start, end: window.end.addingTimeInterval(-1),
                 precision: precision.precision, placeID: placeID, now: .now, to: database
             )
+            HapticManager.success()
             dismiss()
         } catch {
+            HapticManager.error()
             problem = error.localizedDescription
         }
     }

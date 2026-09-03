@@ -25,3 +25,16 @@ struct ConfidenceDot: View {
         }
     }
 }
+
+#Preview {
+    HStack(spacing: 16) {
+        ConfidenceDot(tier: .exact)
+        ConfidenceDot(tier: .witnessed)
+        ConfidenceDot(tier: .inferred)
+        ConfidenceDot(tier: .dateOnly)
+        ConfidenceDot(tier: nil)
+    }
+    .padding()
+    .background(Color.black)
+    .preferredColorScheme(.dark)
+}

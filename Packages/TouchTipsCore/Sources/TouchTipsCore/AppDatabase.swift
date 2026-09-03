@@ -1,7 +1,7 @@
 // Opens the database and owns the schema. Migrations are additive only; this data exists nowhere else.
 
 import Foundation
-import GRDB
+@_exported import GRDB
 
 public final class AppDatabase: Sendable {
     public let writer: any DatabaseWriter

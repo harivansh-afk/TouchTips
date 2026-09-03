@@ -34,7 +34,7 @@ enum PeopleSections {
             }
         }
         if !undated.isEmpty {
-            sections.append(PeopleSection(id: "before-install", title: "Before touchtips", rows: undated))
+            sections.append(PeopleSection(id: "before-install", title: "Undocumented", rows: undated))
         }
         return sections
     }

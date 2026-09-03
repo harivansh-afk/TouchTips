@@ -30,3 +30,20 @@ struct PersonRowView: View {
         .padding(.vertical, 4)
     }
 }
+
+#Preview {
+    let now = Date()
+    let place = Place(id: 1, key: "c:37.776,-122.423", latitude: 37.776, longitude: -122.423, name: "Blue Bottle, Hayes Valley")
+    let meet = Meet(
+        contactID: "dp", start: now.addingTimeInterval(-3600), end: now, precision: .day, placeID: 1, tier: .witnessed,
+        userSet: false, addSeenStart: nil, addSeenEnd: nil, computedAt: now
+    )
+    List {
+        PersonRowView(row: PersonRow(person: Person(contactID: "dp", name: "Dev Patel", beforeInstall: false, createdAt: now), meet: meet, place: place))
+        PersonRowView(row: PersonRow(person: Person(contactID: "ln", name: "Lena Novak", beforeInstall: true, createdAt: now), meet: nil, place: nil))
+    }
+    .listStyle(.plain)
+    .scrollContentBackground(.hidden)
+    .background(Color.black)
+    .preferredColorScheme(.dark)
+}

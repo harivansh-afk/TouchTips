@@ -59,7 +59,7 @@ final class Geocoder {
 
             let title = name?.title
             do {
-                try await database.writer.write { db in
+                _ = try await database.writer.write { db in
                     try Place.filter(key: placeID).updateAll(
                         db,
                         Place.Columns.name.set(to: title),

@@ -14,6 +14,9 @@ configFiles:
 packages:
   TouchTipsCore:
     path: Packages/TouchTipsCore
+  Lottie:
+    url: https://github.com/airbnb/lottie-spm
+    exactVersion: 4.5.2
 
 settings:
   base:
@@ -29,6 +32,7 @@ targets:
       - path: Sources/TouchTips
     dependencies:
       - package: TouchTipsCore
+      - package: Lottie
     info:
       path: Sources/TouchTips/Info.plist
       properties:
@@ -41,6 +45,7 @@ targets:
         UIBackgroundModes: [location]
         UIAppFonts: [InstrumentSerif-Italic.ttf]
         ITSAppUsesNonExemptEncryption: false
+        UIApplicationSupportsIndirectInputEvents: true
         NSContactsUsageDescription: touchtips watches for new contacts so it can remember when you met them. It needs full access; limited access cannot see changes.
         NSLocationWhenInUseUsageDescription: touchtips uses your location to remember where you met people.
         NSLocationAlwaysAndWhenInUseUsageDescription: Always access lets touchtips notice a visit ending while it is closed, which is how a new contact gets a place.

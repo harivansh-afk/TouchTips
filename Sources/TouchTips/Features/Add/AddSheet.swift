@@ -69,10 +69,25 @@ struct AddSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button {
+                        HapticManager.light()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .fontWeight(.medium)
+                    }
+                    .accessibilityLabel("Cancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }.disabled(trimmedName.isEmpty)
+                    Button {
+                        HapticManager.medium()
+                        save()
+                    } label: {
+                        Image(systemName: "checkmark")
+                            .fontWeight(.semibold)
+                    }
+                    .disabled(trimmedName.isEmpty)
+                    .accessibilityLabel("Save")
                 }
             }
             .task {
@@ -140,8 +155,10 @@ struct AddSheet: View {
                 }
             }
             try Ingest.addExact(contactID: contact.identifier, name: trimmedName, at: .now, placeID: placeID, to: app.database)
+            HapticManager.success()
             dismiss()
         } catch {
+            HapticManager.error()
             problem = error.localizedDescription
         }
     }

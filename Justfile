@@ -28,7 +28,7 @@ device: gen
     xcodebuild -project TouchTips.xcodeproj -scheme TouchTips -destination 'generic/platform=iOS' \
         -allowProvisioningUpdates -derivedDataPath build/dd -quiet build
     id=$(xcrun devicectl list devices --hide-headers --hide-default-columns --columns Identifier --columns State \
-        | awk '$2 == "available" { print $1; exit }')
+        | awk '$2 == "connected" || $2 == "available" { print $1; exit }')
     if [ -z "$id" ]; then
         echo "no available iPhone: plug one in, unlock it, and trust this Mac" >&2
         exit 1

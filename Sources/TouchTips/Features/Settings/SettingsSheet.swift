@@ -1,4 +1,3 @@
-import GRDB
 import SwiftUI
 import TouchTipsCore
 import UniformTypeIdentifiers
@@ -74,14 +73,24 @@ struct SettingsSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button {
+                        HapticManager.light()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "checkmark")
+                            .fontWeight(.semibold)
+                    }
+                    .accessibilityLabel("Done")
                 }
             }
             .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
                 Task { await importFile(result) }
             }
             .confirmationDialog("Delete everything touchtips knows?", isPresented: $confirmDelete, titleVisibility: .visible) {
-                Button("Delete all data", role: .destructive) { deleteAll() }
+                Button("Delete all data", role: .destructive) {
+                    HapticManager.warning()
+                    deleteAll()
+                }
             } message: {
                 Text("Contacts themselves are untouched. Meetings, visits and imports are removed.")
             }
@@ -116,7 +125,9 @@ struct SettingsSheet: View {
                 return summary
             }.value
             app.geocoder.kick()
+            HapticManager.success()
         } catch {
+            HapticManager.error()
             problem = error.localizedDescription
         }
     }
@@ -127,6 +138,7 @@ struct SettingsSheet: View {
             importSummary = nil
             app.capture.scheduleTick()
         } catch {
+            HapticManager.error()
             problem = error.localizedDescription
         }
     }
@@ -138,9 +150,11 @@ struct SettingsSheet: View {
         }
         do {
             for try await (named, total) in observation.values(in: app.database.reader) {
-                self.named = named
-                self.total = total
+                if self.named != named { self.named = named }
+                if self.total != total { self.total = total }
             }
+        } catch is CancellationError {
+            // The view went away. Not an error.
         } catch {
             Log.ui.error("count observation ended: \(error.localizedDescription)")
         }

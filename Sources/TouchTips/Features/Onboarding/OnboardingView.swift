@@ -35,6 +35,7 @@ struct OnboardingView: View {
 
             Spacer()
             Button {
+                HapticManager.heavy()
                 done = true
             } label: {
                 Text("Start").frame(maxWidth: .infinity)
@@ -64,9 +65,12 @@ private struct PermissionRow: View {
                 Text(detail).font(.footnote).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            Button(granted ? "Allowed" : "Allow", action: action)
-                .buttonStyle(.glass)
-                .disabled(granted)
+            Button(granted ? "Allowed" : "Allow") {
+                HapticManager.heavy()
+                action()
+            }
+            .buttonStyle(.glass)
+            .disabled(granted)
         }
         .padding(16)
         .glassEffect(.clear, in: .rect(cornerRadius: 20))

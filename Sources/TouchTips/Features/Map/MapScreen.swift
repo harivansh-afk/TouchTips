@@ -1,4 +1,3 @@
-import GRDB
 import MapKit
 import SwiftUI
 import TouchTipsCore
@@ -24,10 +23,28 @@ struct MapScreen: View {
         }
         .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll, showsTraffic: false))
         .mapControls {
-            MapUserLocationButton()
             MapCompass()
         }
         .grayscale(Self.desaturate ? 1 : 0)
+        .overlay(alignment: .topTrailing) {
+            Button {
+                HapticManager.light()
+                withAnimation(.appleMusic) {
+                    camera = .userLocation(fallback: .automatic)
+                }
+            } label: {
+                Image(systemName: "location")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+            }
+            .glassEffect(.clear.interactive(), in: .circle)
+            .accessibilityLabel("Recentre on me")
+            .padding(16)
+        }
+        .onChange(of: selection) { _, current in
+            if current != nil { HapticManager.selection() }
+        }
         .overlay {
             if places.isEmpty {
                 ContentUnavailableView(
@@ -57,8 +74,10 @@ struct MapScreen: View {
         let observation = ValueObservation.tracking { db in try PlaceSummary.all().fetchAll(db) }
         do {
             for try await value in observation.values(in: app.database.reader) {
-                places = value
+                if places != value { places = value }
             }
+        } catch is CancellationError {
+            // The view went away. Not an error.
         } catch {
             Log.ui.error("map observation ended: \(error.localizedDescription)")
         }

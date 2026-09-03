@@ -1,4 +1,3 @@
-import GRDB
 import SwiftUI
 import TouchTipsCore
 
@@ -7,6 +6,7 @@ struct PlaceSheet: View {
     let place: PlaceSummary
 
     @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
     @State private var rows: [PersonRow] = []
 
     var body: some View {
@@ -23,6 +23,18 @@ struct PlaceSheet: View {
             .navigationTitle(place.name ?? Format.coordinates(place.latitude, place.longitude))
             .navigationSubtitle("\(place.people) people · \(Format.yearSpan(place.first, place.last))")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        HapticManager.light()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .fontWeight(.medium)
+                    }
+                    .accessibilityLabel("Close")
+                }
+            }
             .navigationDestination(for: String.self) { contactID in
                 PersonView(contactID: contactID)
             }
@@ -37,8 +49,11 @@ struct PlaceSheet: View {
         }
         do {
             for try await value in observation.values(in: app.database.reader) {
-                rows = value.sorted { ($0.meet?.start ?? .distantPast) > ($1.meet?.start ?? .distantPast) }
+                let sorted = value.sorted { ($0.meet?.start ?? .distantPast) > ($1.meet?.start ?? .distantPast) }
+                if rows != sorted { rows = sorted }
             }
+        } catch is CancellationError {
+            // The view went away. Not an error.
         } catch {
             Log.ui.error("place observation ended: \(error.localizedDescription)")
         }

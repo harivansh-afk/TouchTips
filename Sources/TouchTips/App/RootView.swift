@@ -19,25 +19,32 @@ struct RootView: View {
 
     private var tabs: some View {
         TabView(selection: $tab) {
-            Tab("People", systemImage: "person.2", value: .people) {
+            Tab(value: .people) {
                 PeopleView()
+            } label: {
+                Image(systemName: "person.2")
             }
-            Tab("Map", systemImage: "map", value: .map) {
+            Tab(value: .map) {
                 MapScreen()
+            } label: {
+                Image(systemName: "map")
             }
             // The search role renders as the separated glass circle on the right. We borrow it for the one write action.
-            Tab("Add", systemImage: "plus", value: .add, role: .search) {
+            Tab(value: .add, role: .search) {
                 Color.black
+            } label: {
+                Image(systemName: "plus")
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tint(.white)
         .onChange(of: tab) { previous, current in
+            // Haptic feedback on tab change. Skipped for the bounce back from the plus slot.
+            if previous != .add { HapticManager.selection() }
             guard current == .add else { return }
             showAdd = true
             tab = previous
         }
-        .sensoryFeedback(.selection, trigger: tab)
         .sheet(isPresented: $showAdd) {
             AddSheet()
         }

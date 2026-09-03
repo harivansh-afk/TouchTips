@@ -56,7 +56,7 @@ enum Format {
     /// Second line of a people row.
     static func rowSubtitle(_ row: PersonRow) -> String {
         if let name = placeName(row) { return name }
-        return row.meet == nil ? "Before touchtips" : "Date only"
+        return row.meet == nil ? "Undocumented" : "Date only"
     }
 
     static func window(_ meet: Meet?) -> String? {
