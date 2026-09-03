@@ -24,7 +24,7 @@ struct PeopleSearchView: View {
                 .hidesHeaderOnScroll($hideHeader)
                 .safeAreaInset(edge: .top, spacing: 0) {
                     if showField {
-                        field
+                        GlassSearchField(prompt: "Name or place", text: $query, focused: $focused)
                             .padding(.horizontal, 16)
                             .padding(.top, 4)
                             .padding(.bottom, 8)
@@ -56,32 +56,6 @@ struct PeopleSearchView: View {
                 }
                 .task { await people.run(in: app.database) }
         }
-    }
-
-    private var field: some View {
-        HStack(spacing: 10) {
-            Icon(.magnifyingGlass, size: 18)
-                .foregroundStyle(.secondary)
-            TextField("Name or place", text: $query)
-                .focused($focused)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .submitLabel(.search)
-            if !query.isEmpty {
-                Button {
-                    HapticManager.light()
-                    query = ""
-                } label: {
-                    Icon(.x, size: 16)
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear")
-            }
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 46)
-        .glassEffect(.clear, in: .capsule)
     }
 
     /// The field has to exist before it can take focus. Ask a few times over the first frames;

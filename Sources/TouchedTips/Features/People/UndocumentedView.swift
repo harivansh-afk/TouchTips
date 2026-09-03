@@ -9,6 +9,7 @@ struct UndocumentedView: View {
     @State private var people = PeopleObserver()
     @State private var query = ""
     @State private var visible: [PersonRow] = []
+    @FocusState private var focused: Bool
 
     var body: some View {
         List {
@@ -39,8 +40,21 @@ struct UndocumentedView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.ground)
-        .serifTitle("Undocumented")
-        .searchable(text: $query, prompt: "Name")
+        // No navigation bar, so a push from here animates nothing but the zoom. The title and
+        // the field are content, like the roots.
+        .toolbar(.hidden, for: .navigationBar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Undocumented")
+                    .font(.display(36))
+                    .fixedSize()
+                GlassSearchField(prompt: "Name", text: $query, focused: $focused)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 2)
+            .padding(.bottom, 8)
+        }
+        .scrollDismissesKeyboard(.immediately)
         .onChange(of: query) { _, _ in refilter() }
         .onChange(of: people.undocumented) { _, _ in refilter() }
         .task { await people.run(in: app.database) }
