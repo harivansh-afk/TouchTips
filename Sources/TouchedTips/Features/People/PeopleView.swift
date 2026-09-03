@@ -16,8 +16,10 @@ struct PeopleView: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .safeAreaInset(edge: .top, spacing: 0) {
                     ScreenHeader(title: "People", hidden: hideHeader) {
-                        HeaderButton(glyph: .plus, label: "Add") { showAdd = true }
-                        HeaderButton(glyph: .gearSix, label: "Settings") { showSettings = true }
+                        HeaderButtons {
+                            HeaderButton(glyph: .plus, label: "Add") { showAdd = true }
+                            HeaderButton(glyph: .gearSix, label: "Settings") { showSettings = true }
+                        }
                     }
                 }
                 .sheet(isPresented: $showAdd) {

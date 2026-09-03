@@ -16,7 +16,7 @@ struct ScreenHeader<Trailing: View>: View {
             trailing()
         }
         .padding(.horizontal, 16)
-        .padding(.top, 4)
+        .padding(.top, 2)
         .padding(.bottom, 8)
         .opacity(hidden ? 0 : 1)
         .allowsHitTesting(!hidden)
@@ -24,7 +24,22 @@ struct ScreenHeader<Trailing: View>: View {
     }
 }
 
-/// A glyph in a system glass circle, the size the navigation bar would have used.
+/// Bar buttons the way iOS 26 draws adjacent toolbar items: one shared glass capsule, 44 points
+/// tall, each glyph in its own 44-point hit area, no gap between them.
+struct HeaderButtons<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        GlassEffectContainer {
+            HStack(spacing: 0) {
+                content()
+            }
+            .glassEffect(.clear.interactive(), in: .capsule)
+        }
+    }
+}
+
+/// One glyph inside `HeaderButtons`. Sized like a navigation bar item: a 44-point square.
 struct HeaderButton: View {
     let glyph: ImageResource
     let label: String
@@ -35,12 +50,12 @@ struct HeaderButton: View {
             HapticManager.light()
             action()
         } label: {
-            Icon(glyph)
-                .frame(width: 26, height: 26)
-                .contentShape(.circle)
+            Icon(glyph, size: 22)
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .contentShape(.rect)
         }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
+        .buttonStyle(.plain)
         .accessibilityLabel(label)
     }
 }
