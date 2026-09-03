@@ -12,7 +12,7 @@ struct PlaceSheet: View {
     var body: some View {
         NavigationStack {
             List(rows) { row in
-                NavigationLink(value: row.id) {
+                NavigationLink(value: Destination.person(row.id)) {
                     PersonRowView(row: row)
                 }
                 .listRowSeparatorTint(.white.opacity(0.12))
@@ -35,8 +35,8 @@ struct PlaceSheet: View {
                     .accessibilityLabel("Close")
                 }
             }
-            .navigationDestination(for: String.self) { contactID in
-                PersonView(contactID: contactID)
+            .navigationDestination(for: Destination.self) { destination in
+                DestinationView(destination: destination)
             }
             .task { await observe() }
         }

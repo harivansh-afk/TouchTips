@@ -1,12 +1,8 @@
 import SwiftUI
 
-enum AppTab: Hashable {
-    case people, map, search
-}
-
 struct RootView: View {
     @AppStorage("onboardingDone") private var onboardingDone = false
-    @State private var tab: AppTab = .people
+    @State private var router = Router()
 
     var body: some View {
         if onboardingDone {
@@ -17,7 +13,8 @@ struct RootView: View {
     }
 
     private var tabs: some View {
-        TabView(selection: $tab) {
+        @Bindable var router = router
+        return TabView(selection: $router.selectedTab) {
             Tab(value: .people) {
                 PeopleView()
             } label: {
@@ -38,7 +35,8 @@ struct RootView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewSearchActivation(.searchTabSelection)
         .tint(.white)
-        .onChange(of: tab) { _, _ in
+        .environment(router)
+        .onChange(of: router.selectedTab) { _, _ in
             // Haptic feedback on tab change
             HapticManager.selection()
         }
