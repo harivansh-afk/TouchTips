@@ -1,5 +1,5 @@
 {
-  description = "touchtips dev shell: xcodegen, just, swiftformat";
+  description = "TouchedTips dev shell: xcodegen, just, swiftformat";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 

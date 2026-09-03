@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TouchedTips · v0</title>
+<style>
+  :root{
+    --page:#0a0a0a; --ink:#f2f2f2; --muted:#8a8a8a; --rule:#222; --code:#141414;
+    --bg:#000; --label:#fff; --label2:rgba(255,255,255,.58); --label3:rgba(255,255,255,.3);
+    --sep:rgba(255,255,255,.12);
+    --glass:rgba(255,255,255,.06); --glass-edge:rgba(255,255,255,.22); --glass-hi:rgba(255,255,255,.35);
+    --map1:#161616; --map2:#1e1e1e; --road:#262626; --road2:#2e2e2e; --water:#101010;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  .wrap{max-width:1380px;margin:0 auto;padding:0 28px 120px}
+  header.top{position:sticky;top:0;z-index:20;background:rgba(10,10,10,.85);backdrop-filter:blur(14px);border-bottom:1px solid var(--rule)}
+  header.top .wrap{display:flex;align-items:center;gap:22px;padding:14px 28px}
+  header.top h1{font:italic 400 26px/1 "Instrument Serif",Georgia,serif;margin:0}
+  header.top nav{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+  header.top nav a{text-decoration:none}
+  header.top nav a:hover{color:var(--ink)}
+  h2{font:italic 400 36px/1.1 "Instrument Serif",Georgia,serif;margin:72px 0 8px}
+  h3{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:40px 0 12px;font-weight:600}
+  p{max-width:720px;color:#cfcfcf}
+  p.lede{font-size:17px;color:#e6e6e6;margin:0 0 18px}
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(390px,1fr));gap:40px 40px;align-items:start}
+  .screen{display:flex;flex-direction:column;gap:14px}
+  .screen .note{font-size:13.5px;color:#bdbdbd;max-width:390px}
+  .screen .note b{color:#fff;font-weight:600}
+  .screen .api{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--code);border:1px solid var(--rule);border-radius:8px;padding:10px 12px;line-height:1.7;max-width:390px;white-space:pre-wrap;color:#d8d8d8}
+  .screen .api i{color:#c9a15a;font-style:normal}
+  .tag{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:1px solid var(--rule);border-radius:999px;padding:2px 8px;margin-right:6px}
+  pre{background:var(--code);border:1px solid var(--rule);border-radius:10px;padding:16px 18px;font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:auto;color:#d8d8d8}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--rule);vertical-align:top;color:#d8d8d8}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+  td code,p code,li code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:var(--code);border:1px solid var(--rule);padding:1px 5px;border-radius:5px;color:#eee}
+  ul.tight{margin:0;padding-left:18px;color:#cfcfcf}
+  ul.tight li{margin:5px 0}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:#cfcfcf;align-items:center;margin:8px 0 18px}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .callout{border-left:2px solid #fff;padding:6px 16px;margin:18px 0;color:#cfcfcf;max-width:720px}
+  .cut{color:var(--muted);text-decoration:line-through}
+
+  /* ===== phone ===== */
+  .phone{width:390px;height:844px;border-radius:54px;background:var(--bg);position:relative;overflow:hidden;flex:none;
+         box-shadow:0 0 0 10px #151515,0 0 0 11px #3a3a3a,0 30px 60px -20px rgba(0,0,0,.8);color:var(--label);font-size:17px;line-height:1.3}
+  .island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:124px;height:36px;background:#000;border-radius:20px;z-index:5;box-shadow:0 0 0 1px #111}
+  .status{position:absolute;top:0;left:0;right:0;height:54px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 34px 8px;font-weight:600;font-size:15px;z-index:4}
+  .status .r{display:flex;gap:6px;align-items:center}
+  .status .r span{display:inline-block;height:11px;border-radius:2px;background:#fff}
+  .content{position:absolute;inset:0;overflow:hidden}
+  .scroll{padding:0 0 120px}
+  .navbar{padding:64px 22px 6px;display:flex;justify-content:space-between;align-items:flex-end}
+  .navbar h1{font-size:40px;font-weight:700;letter-spacing:-.035em;margin:0;line-height:1}
+  .navbar h1 em{font:italic 400 42px "Instrument Serif",Georgia,serif;letter-spacing:0}
+  .navbar .sub{color:var(--label2);font-size:14px;margin-top:8px}
+  .navbar .sym{width:38px;height:38px;border-radius:50%;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-edge),inset 0 1px 0 var(--glass-hi);display:grid;place-items:center;font-size:16px;margin-left:8px}
+  .navbar .syms{display:flex;margin-bottom:4px}
+  .back{position:absolute;left:14px;top:60px;z-index:6;width:38px;height:38px;border-radius:50%;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-edge),inset 0 1px 0 var(--glass-hi);display:grid;place-items:center;font-size:18px;backdrop-filter:blur(12px)}
+  .section-h{padding:26px 22px 8px;display:flex;justify-content:space-between;align-items:baseline}
+  .section-h .m{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--label2)}
+  .section-h .c{font-size:12px;color:var(--label3)}
+  .row-p{display:flex;align-items:center;gap:14px;padding:12px 22px;position:relative}
+  .row-p+.row-p::before{content:"";position:absolute;left:78px;right:22px;top:0;height:1px;background:var(--sep)}
+  .avatar{width:42px;height:42px;border-radius:50%;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-edge);display:grid;place-items:center;font-size:14px;font-weight:600;flex:none;letter-spacing:.03em}
+  .avatar.lg{width:96px;height:96px;font-size:34px;font-weight:500}
+  .row-p .txt{flex:1;min-width:0}
+  .row-p .t{font-size:17px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+  .row-p .s{font-size:14px;color:var(--label2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .row-p .meta{text-align:right;font-size:13px;color:var(--label2);flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-variant-numeric:tabular-nums}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;border:1.5px solid #fff}
+  .dot.t0{background:#fff}
+  .dot.t1{background:#fff;opacity:.72}
+  .dot.t2{background:#fff;opacity:.4}
+  .dot.t3{background:transparent}
+  .dot.tu{background:transparent;border-style:dashed;opacity:.55}
+  /* glass primitives */
+  .glass{background:var(--glass);backdrop-filter:blur(18px) saturate(1.3);box-shadow:inset 0 0 0 1px var(--glass-edge),inset 0 1px 0 var(--glass-hi),0 10px 30px rgba(0,0,0,.5)}
+  .tabbar{position:absolute;left:16px;bottom:16px;height:64px;border-radius:32px;display:flex;align-items:center;padding:0 10px;gap:6px;z-index:6}
+  .tabbar .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:600;color:var(--label3);letter-spacing:.02em;width:96px;height:52px;border-radius:26px}
+  .tabbar .tab .ic{width:22px;height:22px;border-radius:6px;border:2px solid currentColor}
+  .tabbar .tab.on{color:#fff;background:rgba(255,255,255,.10)}
+  .tabbar .tab.on .ic{background:currentColor}
+  .plus{position:absolute;right:16px;bottom:16px;width:64px;height:64px;border-radius:32px;display:grid;place-items:center;font-size:30px;font-weight:300;z-index:6;color:#fff}
+  .tabbar.mini{height:44px;left:50%;transform:translateX(-50%);width:120px;justify-content:center;font-size:11px;color:var(--label2)}
+  .card{border-radius:22px;margin:0 16px 14px;padding:20px 22px}
+  .card h4{margin:0 0 6px;font-size:12px;font-weight:600;color:var(--label2);text-transform:uppercase;letter-spacing:.1em}
+  .card .big{font-size:30px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+  .card .big em{font:italic 400 32px "Instrument Serif",Georgia,serif;letter-spacing:0}
+  .card .sub{color:var(--label2);font-size:15px;margin-top:6px}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border-radius:999px;padding:4px 10px;color:var(--label2);background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-edge)}
+  .btn{display:block;text-align:center;font-size:17px;font-weight:600;padding:16px;border-radius:999px;color:#fff;margin:0 16px 10px}
+  .btn.solid{background:#fff;color:#000}
+  .btn.rowb{display:flex;justify-content:space-between;align-items:center;font-weight:500;padding:16px 20px}
+  .sheet{position:absolute;left:8px;right:8px;bottom:8px;border-radius:40px;z-index:7;padding:12px 0 22px;overflow:hidden}
+  .grab{width:36px;height:5px;border-radius:3px;background:var(--label3);margin:0 auto 12px}
+  .sheet .hd{display:flex;justify-content:space-between;align-items:center;padding:0 22px 8px}
+  .sheet .hd .title{font-size:22px;font-weight:700;letter-spacing:-.02em}
+  .sheet .hd .x{width:32px;height:32px;border-radius:50%;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-edge);display:grid;place-items:center;font-size:14px}
+  .field{display:flex;justify-content:space-between;align-items:center;padding:14px 22px;font-size:17px;position:relative}
+  .field+.field::before{content:"";position:absolute;left:22px;right:22px;top:0;height:1px;background:var(--sep)}
+  .field .v{color:var(--label2)}
+  .field .v.on{color:#fff;font-weight:500}
+  .seg{display:flex;border-radius:999px;padding:3px;margin:4px 22px 12px}
+  .seg span{flex:1;text-align:center;font-size:13px;font-weight:600;padding:8px;border-radius:999px;color:var(--label2)}
+  .seg span.on{background:rgba(255,255,255,.14);color:#fff;box-shadow:inset 0 0 0 1px var(--glass-edge)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;padding:6px 22px 14px}
+  .chip{font-size:15px;font-weight:500;padding:10px 16px;border-radius:999px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-edge)}
+  .chip.on{background:#fff;color:#000}
+  .prog{height:3px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:8px}
+  .prog i{display:block;height:100%;background:#fff}
+  .icon-sq{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-edge)}
+  /* map */
+  .map{position:absolute;inset:0;background:
+       linear-gradient(var(--road) 1px,transparent 1px) 0 0/ 100% 52px,
+       linear-gradient(90deg,var(--road) 1px,transparent 1px) 0 0/ 64px 100%,
+       linear-gradient(var(--road2) 3px,transparent 3px) 0 210px/ 100% 100%,
+       linear-gradient(90deg,var(--road2) 3px,transparent 3px) 150px 0/ 100% 100%,
+       radial-gradient(ellipse at 78% 22%,var(--water) 0 110px,transparent 111px),
+       radial-gradient(circle at 18% 66%,var(--map2) 0 150px,transparent 151px), var(--map1)}
+  .pin{position:absolute;transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px #000,0 0 0 4px rgba(255,255,255,.35)}
+  .pin.cluster{width:34px;height:34px;display:grid;place-items:center;color:#000;font-size:13px;font-weight:700}
+  .pin.hollow{background:#000;box-shadow:0 0 0 2px #fff}
+  .pin.sel{box-shadow:0 0 0 3px #000,0 0 0 5px #fff,0 0 0 14px rgba(255,255,255,.12)}
+  .searchbar{position:absolute;top:62px;left:16px;right:70px;height:46px;border-radius:23px;display:flex;align-items:center;padding:0 18px;color:var(--label2);font-size:16px;gap:8px;z-index:4}
+  .gear{position:absolute;top:62px;right:16px;width:46px;height:46px;border-radius:23px;display:grid;place-items:center;z-index:4;font-size:16px}
+  .empty{position:absolute;inset:200px 40px 240px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px}
+  .empty .t{font:italic 400 30px "Instrument Serif",Georgia,serif}
+  .empty .s{color:var(--label2);font-size:15px}
+  /* onboarding */
+  .ob{position:absolute;inset:0;display:flex;flex-direction:column;padding:130px 26px 34px}
+  .ob h2{font:italic 400 52px/1.02 "Instrument Serif",Georgia,serif;margin:0 0 16px;color:#fff}
+  .ob p{font-size:16px;color:var(--label2);margin:0 0 26px;max-width:none}
+  .perm{display:flex;gap:14px;align-items:center;padding:14px 18px;border-radius:20px;margin-bottom:10px}
+  .perm .t{font-weight:600;font-size:16px}
+  .perm .s{font-size:13px;color:var(--label2);margin-top:2px}
+  .perm .st{margin-left:auto;font-size:13px;font-weight:600;color:var(--label2);flex:none}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <h1>TouchedTips</h1>
+  <nav><a href="#rules">Rules</a><a href="#screens">Screens</a><a href="#apis">APIs</a><a href="#map">Map</a><a href="#data">Data</a><a href="#cut">Cut</a><a href="#build">Build</a></nav>
+</div></header>
+
+<div class="wrap">
+
+<section id="rules">
+  <h2>v0. Black, glass, two tabs and a plus.</h2>
+  <p class="lede">Contacts stay the source of truth for who. TouchedTips owns when and where. Everything runs on the phone. No server, no faces, no calendar, no email. Five surfaces.</p>
+  <div class="legend">
+    <span><i class="dot t0"></i> exact · added from the app or set by you</span>
+    <span><i class="dot t1"></i> witnessed · a visit contained the add</span>
+    <span><i class="dot t2"></i> inferred · nearest visit within 2h</span>
+    <span><i class="dot t3"></i> date only</span>
+    <span><i class="dot tu"></i> before TouchedTips · no date</span>
+  </div>
+  <ul class="tight">
+    <li><b>Pure black.</b> <code>Color.black</code> everywhere, white type, secondary at 58 percent. No greys as surfaces. Surfaces are glass or nothing.</li>
+    <li><b>Clear glass on every component.</b> Tab bar, plus button, toolbar buttons, avatars, chips, cards, sheets: <code>.glassEffect(.clear, in: …)</code>. Over solid black, clear glass reads as an edge highlight and a faint lift. That is the look. If a surface disappears, switch that one to <code>.regular</code>; it is one token.</li>
+    <li><b>Type does the work.</b> SF Pro Display bold with tight tracking for titles and dates. Instrument Serif Italic for one word per screen: the tab title, the hero weekday, the onboarding headline. No icons where a word will do.</li>
+    <li><b>Confidence is a dot, never a colour.</b> Fill and stroke encode the tier. The whole app is monochrome.</li>
+    <li><b>Two tabs, one action.</b> People and Map. The plus lives in the tab bar's right-side slot using the search-role trick, so it is native glass and minimises with the bar.</li>
+    <li><b>Lists are bare.</b> No inset cards, no backgrounds on rows. Hairline separators at 12 percent. One glass card on the person screen for the hero fact.</li>
+  </ul>
+</section>
+
+<!-- =============================== SCREENS =============================== -->
+<section id="screens">
+  <h2>Screens</h2>
+  <div class="cols">
+
+  <!-- ---------- 1 onboarding ---------- -->
+  <div class="screen">
+    <div><span class="tag">1</span><span class="tag">onboarding · once</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status"><span>9:41</span><div class="r"><span style="width:16px"></span><span style="width:14px"></span><span style="width:24px;border-radius:3px"></span></div></div>
+      <div class="ob">
+        <h2>Where did<br>you meet<br>everyone?</h2>
+        <p>TouchedTips watches new contacts and your visits, and remembers when and where each person came in. Nothing leaves this phone.</p>
+        <div class="perm glass"><div class="icon-sq">C</div><div><div class="t">Contacts</div><div class="s">Full access, so new people can be noticed.</div></div><div class="st">Allow</div></div>
+        <div class="perm glass"><div class="icon-sq">L</div><div><div class="t">Location, Always</div><div class="s">Visits wake the app and give the place.</div></div><div class="st">Allow</div></div>
+        <div class="perm glass" style="opacity:.75"><div class="icon-sq">G</div><div><div class="t">Google Timeline file</div><div class="s">Optional. Puts your old contacts on the map.</div></div><div class="st">Import</div></div>
+        <div style="margin-top:auto"></div>
+        <div class="btn solid" style="margin:0">Start</div>
+      </div>
+    </div>
+    <div class="note"><b>One screen.</b> Two permissions and one optional import, each a glass row with a single verb. The import instructions live in Settings so this screen stays quiet. Start is the only solid button in the app.</div>
+    <div class="api">VStack(alignment: .leading) { Text(...).font(.custom("InstrumentSerif-Italic", size: 52)) ... }
+Row: HStack { glyph; VStack; Spacer; Button(verb) }.padding().glassEffect(.clear, in: .rect(cornerRadius: 20))
+CNContactStore().requestAccess(for: .contacts)
+CLLocationManager: requestWhenInUseAuthorization() then requestAlwaysAuthorization()
+.fileImporter(isPresented:, allowedContentTypes: [.json])
+Start: Button("Start").buttonStyle(.glassProminent).tint(.white)</div>
+  </div>
+
+  <!-- ---------- 2 people ---------- -->
+  <div class="screen">
+    <div><span class="tag">2</span><span class="tag">tab · home</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status"><span>9:41</span><div class="r"><span style="width:16px"></span><span style="width:14px"></span><span style="width:24px;border-radius:3px"></span></div></div>
+      <div class="content"><div class="scroll">
+        <div class="navbar"><div><h1><em>People</em></h1><div class="sub">214 · 61 placed · 38 before TouchedTips</div></div><div class="syms"><div class="sym">⌕</div><div class="sym">⚙</div></div></div>
+        <div class="section-h"><span class="m">September 2026</span><span class="c">3</span></div>
+        <div class="row-p"><div class="avatar">MK</div><div class="txt"><div class="t">Maya Kapoor</div><div class="s">Grit Coffee, Charlottesville</div></div><div class="meta"><span>Tue 1</span><i class="dot t1"></i></div></div>
+        <div class="row-p"><div class="avatar">JO</div><div class="txt"><div class="t">Jonah Okafor</div><div class="s">Rotunda, UVA</div></div><div class="meta"><span>Tue 1</span><i class="dot t0"></i></div></div>
+        <div class="row-p"><div class="avatar">RS</div><div class="txt"><div class="t">Rhea Sethi</div><div class="s">near Downtown Mall</div></div><div class="meta"><span>Sat 29 Aug</span><i class="dot t2"></i></div></div>
+        <div class="section-h"><span class="m">August 2026</span><span class="c">7</span></div>
+        <div class="row-p"><div class="avatar">TL</div><div class="txt"><div class="t">Tomás Leal</div><div class="s">Date only</div></div><div class="meta"><span>Thu 20</span><i class="dot t3"></i></div></div>
+        <div class="row-p"><div class="avatar">DP</div><div class="txt"><div class="t">Dev Patel</div><div class="s">Blue Bottle, Hayes Valley</div></div><div class="meta"><span>Sat 8</span><i class="dot t1"></i></div></div>
+        <div class="row-p"><div class="avatar">LN</div><div class="txt"><div class="t">Lena Novak</div><div class="s">Blue Bottle, Hayes Valley</div></div><div class="meta"><span>Sat 8</span><i class="dot t1"></i></div></div>
+        <div class="section-h"><span class="m">July 2026</span><span class="c">4</span></div>
+        <div class="row-p"><div class="avatar">SB</div><div class="txt"><div class="t">Sam Brightwater</div><div class="s">Dolores Park</div></div><div class="meta"><span>Sun 12</span><i class="dot t2"></i></div></div>
+        <div class="row-p"><div class="avatar">KH</div><div class="txt"><div class="t">Kai Huang</div><div class="s">Mission District</div></div><div class="meta"><span>Fri 3</span><i class="dot t1"></i></div></div>
+      </div></div>
+      <div class="tabbar glass" style="width:210px">
+        <div class="tab on"><div class="ic"></div>People</div>
+        <div class="tab"><div class="ic"></div>Map</div>
+      </div>
+      <div class="plus glass">+</div>
+    </div>
+    <div class="note"><b>Home.</b> Reverse-chronological, grouped by month, bare rows on black. Initials in a glass circle, name, place or "Date only", day, dot. People saved before install sit in a final section called "Before TouchedTips" with a dashed dot; tapping one goes to the person screen where you can set the date. Search and settings are two glass circles in the corner.</div>
+    <div class="api">TabView(selection:) { Tab("People", ...) ; Tab("Map", ...) ; Tab("Add", systemImage: "plus", value: .add, role: .search) { EmptyView() } }
+.tabBarMinimizeBehavior(.onScrollDown) .tint(.white)
+.onChange(of: selection) { if new == .add { showAdd = true; selection = old } }   <i>// Kavsoft UjR2FK6_DuQ</i>
+List(.plain) + Section(header:) with .listRowBackground(.clear) .scrollContentBackground(.hidden) .background(.black)
+.listRowSeparatorTint(.white.opacity(0.12)) .listRowInsets(...)
+.searchable(text:)   .toolbar { ToolbarItem { Button { } label: { Image(systemName: "gearshape") } } }  <i>// toolbar is glass by default</i>
+Row → NavigationLink(value:) + .matchedTransitionSource(id:in:) ; destination .navigationTransition(.zoom(...))
+Data: ValueObservation on GRDB → @Observable PeopleModel</div>
+  </div>
+
+  <!-- ---------- 3 map ---------- -->
+  <div class="screen">
+    <div><span class="tag">3</span><span class="tag">tab</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status"><span>9:41</span><div class="r"><span style="width:16px"></span><span style="width:14px"></span><span style="width:24px;border-radius:3px"></span></div></div>
+      <div class="map">
+        <div class="pin cluster" style="left:36%;top:30%">12</div>
+        <div class="pin" style="left:62%;top:20%"></div>
+        <div class="pin hollow" style="left:72%;top:42%"></div>
+        <div class="pin cluster sel" style="left:46%;top:49%">4</div>
+        <div class="pin" style="left:22%;top:60%"></div>
+        <div class="pin hollow" style="left:58%;top:62%"></div>
+        <div class="pin" style="left:82%;top:34%"></div>
+      </div>
+      <div class="searchbar glass">⌕ Places or people</div>
+      <div class="gear glass">◎</div>
+      <div class="sheet glass" style="height:300px">
+        <div class="grab"></div>
+        <div class="hd"><div><div class="title">Blue Bottle, Hayes Valley</div><div style="font-size:14px;color:var(--label2)">4 people · 2024 to 2026</div></div><div class="x">✕</div></div>
+        <div class="row-p"><div class="avatar">DP</div><div class="txt"><div class="t">Dev Patel</div><div class="s">Sat 8 Aug 2026</div></div><div class="meta"><i class="dot t1"></i></div></div>
+        <div class="row-p"><div class="avatar">LN</div><div class="txt"><div class="t">Lena Novak</div><div class="s">Sat 8 Aug 2026</div></div><div class="meta"><i class="dot t1"></i></div></div>
+        <div class="row-p"><div class="avatar">KH</div><div class="txt"><div class="t">Kai Huang</div><div class="s">Wed 3 Apr 2025</div></div><div class="meta"><i class="dot t2"></i></div></div>
+      </div>
+    </div>
+    <div class="note"><b>Map.</b> Dark, muted, no points of interest, no traffic, flat. Pins are places; repeat venues cluster with a count. Filled means someone was witnessed there, hollow means inferred only. Tap a pin and a clear-glass sheet lists everyone met there. The tab bar hides behind the sheet. The right glass circle recentres on you.</div>
+    <div class="api">Map(position: $camera, selection: $selectedPlace) {
+  ForEach(places) { Annotation("", coordinate:) { PlacePin(count:, filled:) } }
+  UserAnnotation()
+}
+.mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll, showsTraffic: false))
+.preferredColorScheme(.dark)   .mapControlVisibility(.hidden)
+.grayscale(1)   <i>// kills the blue water; verify on device, see Map section</i>
+.sheet(item: $selectedPlace) { PlaceSheet }
+  .presentationDetents([.height(140), .medium, .large])
+  .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+  .presentationBackground(.clear)  + inner .glassEffect(.clear, in: .rect(cornerRadius: 40))
+Search: MKLocalSearchCompleter for places, GRDB LIKE for people</div>
+  </div>
+
+  <!-- ---------- 4 person ---------- -->
+  <div class="screen">
+    <div><span class="tag">4</span><span class="tag">push</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status"><span>9:41</span><div class="r"><span style="width:16px"></span><span style="width:14px"></span><span style="width:24px;border-radius:3px"></span></div></div>
+      <div class="back glass">‹</div>
+      <div class="content"><div class="scroll">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:118px 20px 22px">
+          <div class="avatar lg">DP</div>
+          <div style="font-size:30px;font-weight:700;letter-spacing:-.03em">Dev Patel</div>
+        </div>
+        <div class="card glass">
+          <h4>First met</h4>
+          <div class="big"><em>Saturday</em><br>8 August 2026</div>
+          <div class="sub">Blue Bottle, Hayes Valley<br>between 10:41 and 11:02</div>
+          <div style="margin-top:14px;display:flex;gap:8px"><span class="badge"><i class="dot t1"></i> witnessed</span></div>
+        </div>
+        <div class="section-h" style="padding-top:10px"><span class="m">How we know</span></div>
+        <div class="row-p"><div class="icon-sq">C</div><div class="txt"><div class="t">Contact appeared</div><div class="s">Between 10:41 and 11:02</div></div></div>
+        <div class="row-p"><div class="icon-sq">L</div><div class="txt"><div class="t">You were at Blue Bottle</div><div class="s">10:12 to 11:40</div></div></div>
+        <div style="height:18px"></div>
+        <div class="btn glass rowb"><span>Fix date or place</span><span style="color:var(--label3)">›</span></div>
+        <div class="btn glass rowb"><span>Open in Contacts</span><span style="color:var(--label3)">›</span></div>
+      </div></div>
+    </div>
+    <div class="note"><b>Person.</b> Zoom transition from the row. One glass card with the weekday in serif and the date in bold, then the two facts that produced it, then two glass pills. For someone from before install the card says "Before TouchedTips" and the first pill says "Set when you met". That replaces the separate tagging flow.</div>
+    <div class="api">ScrollView { VStack } .background(.black)
+.navigationTransition(.zoom(sourceID: person.id, in: ns))  .toolbar(.hidden) + custom glass back button
+Card: VStack(alignment: .leading).padding(22).glassEffect(.clear, in: .rect(cornerRadius: 22))
+Text("Saturday").font(.custom("InstrumentSerif-Italic", size: 32)) ; Text(date).font(.system(size: 30, weight: .bold)).kerning(-0.9)
+Pills: Button { }.buttonStyle(.glass).buttonBorderShape(.capsule).frame(maxWidth: .infinity)
+Open in Contacts: CNContactViewController(for:) in UIViewControllerRepresentable, pushed
+Fix → .sheet { FixSheet } (5)</div>
+  </div>
+
+  <!-- ---------- 5 fix sheet ---------- -->
+  <div class="screen">
+    <div><span class="tag">5</span><span class="tag">sheet</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status"><span>9:41</span><div class="r"><span style="width:16px"></span><span style="width:14px"></span><span style="width:24px;border-radius:3px"></span></div></div>
+      <div class="content" style="opacity:.3"><div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:118px 20px 22px"><div class="avatar lg">DP</div><div style="font-size:30px;font-weight:700">Dev Patel</div></div></div>
+      <div class="sheet glass" style="height:560px">
+        <div class="grab"></div>
+        <div class="hd"><div class="title">Fix</div><div class="x">✕</div></div>
+        <div class="section-h" style="padding-top:6px"><span class="m">When</span></div>
+        <div class="seg glass"><span class="on">Day</span><span>Month</span><span>Year</span><span>Unknown</span></div>
+        <div class="field"><span>Date</span><span class="v on">8 Aug 2026</span></div>
+        <div class="section-h"><span class="m">Where</span></div>
+        <div class="row-p"><div class="txt"><div class="t">Blue Bottle, Hayes Valley</div><div class="s">You were here</div></div><i class="dot t1"></i></div>
+        <div class="row-p"><div class="txt"><div class="t">Proxy Coffee</div><div class="s">2h later</div></div><i class="dot t2"></i></div>
+        <div class="row-p"><div class="txt"><div class="t" style="color:var(--label2)">Search a place…</div></div></div>
+        <div class="row-p"><div class="txt"><div class="t" style="color:var(--label2)">No place</div></div></div>
+        <div style="height:10px"></div>
+        <div class="btn solid">Save</div>
+      </div>
+    </div>
+    <div class="note"><b>Fix.</b> Precision first, because "sometime in 2023" is a real answer. Place suggestions are your own visits around that time, so the usual fix is one tap. Saving writes a user-set meeting, which outranks every inference and shows as a solid dot.</div>
+    <div class="api">.sheet { FixSheet }.presentationDetents([.large]).presentationBackground(.clear)
+Picker(selection: $precision).pickerStyle(.segmented)   <i>// segmented is glass on iOS 26</i>
+DatePicker(displayedComponents: precision == .day ? [.date] : [.date]).datePickerStyle(.compact)
+   <i>// month/year: two Picker wheels in an HStack, .pickerStyle(.wheel)</i>
+Suggestions: VisitStore.around(date, ±3h) → rows ; Search: MKLocalSearchCompleter
+Save: MeetStore.setUser(personID, start, end, precision, placeID) → PeopleModel refreshes via ValueObservation</div>
+  </div>
+
+  <!-- ---------- 6 add sheet ---------- -->
+  <div class="screen">
+    <div><span class="tag">6</span><span class="tag">the plus</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status"><span>9:41</span><div class="r"><span style="width:16px"></span><span style="width:14px"></span><span style="width:24px;border-radius:3px"></span></div></div>
+      <div class="content" style="opacity:.3"><div class="navbar"><div><h1><em>People</em></h1><div class="sub">214 · 61 placed · 38 before TouchedTips</div></div></div></div>
+      <div class="sheet glass" style="height:470px">
+        <div class="grab"></div>
+        <div class="hd"><div class="title">Just met</div><div class="x">✕</div></div>
+        <div class="field"><span style="color:var(--label2)">Name</span></div>
+        <div class="field"><span style="color:var(--label2)">Phone</span></div>
+        <div class="section-h"><span class="m">Where</span></div>
+        <div class="row-p"><div class="txt"><div class="t">Grit Coffee, Charlottesville</div><div class="s">You are here · since 09:02</div></div><i class="dot t0"></i></div>
+        <div class="row-p"><div class="txt"><div class="t" style="color:var(--label2)">Somewhere else…</div></div></div>
+        <div style="height:16px"></div>
+        <div class="btn solid">Save</div>
+        <div style="text-align:center;font-size:13px;color:var(--label2)">Saves to Contacts. Exact time and place.</div>
+      </div>
+    </div>
+    <div class="note"><b>Add.</b> The right-side tab-bar slot opens this. Name, phone, current place pre-filled. Saving writes a real contact through the system store and an exact meeting in TouchedTips. This is the only way to get a solid dot without fixing later.</div>
+    <div class="api">Tab("Add", systemImage: "plus", value: .add, role: .search) { EmptyView() }
+.onChange(of: selection) { old, new in if new == .add { showAdd = true; selection = old } }
+.sheet(isPresented: $showAdd) { AddSheet }.presentationDetents([.medium, .large]).presentationBackground(.clear)
+TextField("Name") ; TextField("Phone").keyboardType(.phonePad) ; .focused($field) .submitLabel(.next)
+Place: VisitMonitor.current ?? last CLLocation, named via MKReverseGeocodingRequest once
+Save: CNMutableContact + CNSaveRequest.add(_, toContainerWithIdentifier: nil) → store.execute
+      MeetStore.setExact(contactID, now, placeID)</div>
+  </div>
+
+  </div>
+
+  <h3>Settings sheet, not drawn</h3>
+  <p>The gear opens a short glass sheet: permission status for Contacts and Location, Import Google Timeline with the four-step path spelled out, a line showing how many places have names yet, and Delete all data. That is the whole former Sources tab.</p>
+</section>
+
+<!-- =============================== APIS =============================== -->
+<section id="apis">
+  <h2>APIs, locked</h2>
+  <table>
+    <tr><th style="width:18%">Layer</th><th style="width:42%">API</th><th>Notes</th></tr>
+    <tr><td>Platform</td><td>SwiftUI, iOS 26.0 minimum, Swift 6</td><td>Same target as mixbridge. Nothing older, so every glass API is unconditional.</td></tr>
+    <tr><td>Shell</td><td><code>TabView</code> + <code>Tab(value:)</code>, <code>Tab(role: .search)</code> as the plus, <code>.tabBarMinimizeBehavior(.onScrollDown)</code>, <code>.tint(.white)</code></td><td>Native glass bar. The search-role tab renders as the separated right-side circle; selection is intercepted to present the Add sheet. Kavsoft, May 2026, youtu.be/UjR2FK6_DuQ. Fallback if the intercept feels wrong: ryanashcraft/FabBar (MIT).</td></tr>
+    <tr><td>Glass</td><td><code>.glassEffect(.clear, in: .capsule / .rect(cornerRadius:))</code>, <code>.glassEffect(.clear.interactive())</code> on tappables, <code>GlassEffectContainer</code> around sibling glass, <code>.buttonStyle(.glass)</code>, <code>.buttonStyle(.glassProminent)</code> for Start and Save</td><td>Clear everywhere by decision. Apple's guidance is regular for legibility; on black with white bold type the contrast is already there.</td></tr>
+    <tr><td>Navigation</td><td><code>NavigationStack</code>, <code>NavigationLink(value:)</code>, <code>.navigationDestination(for:)</code>, <code>.matchedTransitionSource</code> + <code>.navigationTransition(.zoom)</code></td><td>Row to person zooms. Toolbar hidden on the person screen; custom glass back circle.</td></tr>
+    <tr><td>Sheets</td><td><code>.sheet</code>, <code>.presentationDetents</code>, <code>.presentationBackgroundInteraction</code>, <code>.presentationBackground(.clear)</code>, <code>.presentationCornerRadius(40)</code></td><td>Clear presentation background so the sheet itself can be a glass rectangle floating over the map.</td></tr>
+    <tr><td>Lists</td><td><code>List(.plain)</code>, <code>Section</code>, <code>.listRowBackground(.clear)</code>, <code>.scrollContentBackground(.hidden)</code>, <code>.listRowSeparatorTint</code>, <code>.searchable</code></td><td>Bare rows on black. Month headers are uppercase small caps with a count.</td></tr>
+    <tr><td>Map</td><td>MapKit for SwiftUI: <code>Map</code>, <code>MapCameraPosition</code>, <code>Annotation</code>, <code>UserAnnotation</code>, <code>.mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll, showsTraffic: false))</code></td><td>See the Map section for the greyscale plan.</td></tr>
+    <tr><td>Geocoding</td><td><code>MKReverseGeocodingRequest</code> (iOS 26), <code>MKLocalSearchCompleter</code></td><td>Names resolve lazily, about 40 a minute, cached forever in the place table. CLGeocoder is deprecated in 26.</td></tr>
+    <tr><td>Contacts</td><td><code>CNContactStore</code>, <code>CNChangeHistoryFetchRequest</code> with a persisted token, <code>CNSaveRequest</code>, <code>CNContactViewController</code></td><td>Full access required. First run with a nil token returns every contact; those become "before TouchedTips".</td></tr>
+    <tr><td>Location</td><td><code>CLLocationManager.startMonitoringVisits()</code>, <code>CLVisit</code>, Always authorization, background mode <code>location</code></td><td>The only thing that relaunches the app when it is dead. Visits carry arrival, departure, coordinate.</td></tr>
+    <tr><td>Import</td><td><code>.fileImporter</code> + <code>JSONDecoder</code> on the Google Timeline iOS export</td><td>Bare JSON array of segments; <code>placeID</code> with capital D, <code>placeLocation</code> as a <code>geo:lat,lon</code> string, probabilities as strings. Normalise into visit rows.</td></tr>
+    <tr><td>Storage</td><td>GRDB 7, <code>DatabasePool</code> in Application Support, <code>DatabaseMigrator</code> additive only, <code>ValueObservation</code> into <code>@Observable</code> models</td><td>Same layout as mixbridge's DB package minus <code>eraseDatabaseOnSchemaChange</code>. Included in iCloud device backup.</td></tr>
+    <tr><td>Feel</td><td>mixbridge <code>HapticManager</code> and <code>View+Animations</code> lifted verbatim</td><td>Springs: response 0.4 damping 0.75 for layout, 0.3 and 0.7 for taps.</td></tr>
+  </table>
+</section>
+
+<!-- =============================== MAP =============================== -->
+<section id="map">
+  <h2>Map: how to get it grey</h2>
+  <p class="lede">MapKit has no greyscale style. Muted dark is close: dark grey land, slightly lighter roads, and blue-black water. Two ways to finish the job.</p>
+  <table>
+    <tr><th style="width:22%">Option</th><th style="width:40%">How</th><th>Verdict</th></tr>
+    <tr><td>A. MapKit muted dark plus desaturation</td><td><code>.mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll, showsTraffic: false))</code>, force dark, then <code>.grayscale(1)</code> or <code>.saturation(0)</code> on the Map view.</td><td><b>Try first, day one.</b> Zero dependencies, Apple's own labels and roads. Whether SwiftUI's desaturation applies to a MapKit-backed view is unverified; I found no source either way. Fifteen minutes on device settles it.</td></tr>
+    <tr><td>B. MapKit muted dark, no filter</td><td>Same style, skip the filter. Pins and the glass sheet carry the monochrome; water stays faintly blue.</td><td>The fallback if A does nothing. Still clean, not strictly grey.</td></tr>
+    <tr><td>C. MapLibre Native with a monochrome vector style</td><td>MapLibre Native iOS via Swift Package Manager, Protomaps basemap in the "black" theme, tiles from the Protomaps API or a PMTiles file you host on spark.</td><td>True greyscale, every colour yours, offline capable. Costs a dependency, a tile source, and losing Apple's map data. Only if A fails and B bothers you.</td></tr>
+  </table>
+  <div class="callout">Recommendation: A, and let the on-device test decide between B and C. Do not start with C; it pulls a server into a project that otherwise has none.</div>
+</section>
+
+<!-- =============================== DATA =============================== -->
+<section id="data">
+  <h2>Data</h2>
+  <p class="lede">Four tables and a key-value row. Meetings are recomputed from visits and contact-add intervals unless the user set them.</p>
+<pre>
+person   contact_id TEXT PRIMARY KEY, name, initials, before_install BOOL, created_at
+
+place    id INTEGER PK, key TEXT UNIQUE ('g:&lt;placeID&gt;' | 'c:&lt;lat5&gt;,&lt;lon5&gt;'), lat, lon, name?, named_at?
+         INDEX(lat), INDEX(lon)                       -- viewport query is a lat/lon range; no R*Tree
+
+visit    id INTEGER PK, place_id → place, start, end, source ('timeline'|'live'), accuracy_m
+         INDEX(start), INDEX(end)
+
+meet     contact_id TEXT PRIMARY KEY → person,
+         start, end, precision ('exact'|'day'|'month'|'year'|'unknown'),
+         place_id? → place, tier (0|1|2|3|NULL), user_set BOOL, add_seen_start?, add_seen_end?, computed_at
+
+kv       key TEXT PRIMARY KEY, value BLOB            -- contacts history token, last tick, onboarding done
+</pre>
+  <h3>The resolver in six lines</h3>
+<pre>
+tick():                                   runs on every launch, including background relaunch from a visit
+  visits += VisitMonitor.flush()
+  adds    = ContactsDiff.run(token)       -- CNChangeHistoryAddContactEvent since last tick
+  for each add:  interval = [last_tick, now]
+     v = visit containing interval          → meet(tier 1, place v, start/end = interval ∩ v)
+     ?? nearest visit within 2h             → meet(tier 2)
+     ?? none                                → meet(tier 3, date only)
+  user_set rows are never touched
+</pre>
+</section>
+
+<!-- =============================== CUT =============================== -->
+<section id="cut">
+  <h2>Cut from v0</h2>
+  <ul class="tight">
+    <li><span class="cut">Calendar, EventKit, attendee emails</span>. Gone, and with it the handle table.</li>
+    <li><span class="cut">Sources tab</span>. Folded into a settings sheet.</li>
+    <li><span class="cut">Unknown-tagging game</span>. Replaced by "Set when you met" on the person screen.</li>
+    <li><span class="cut">HealthKit routes, Journal suggestions, Swift Charts, background processing tasks, R*Tree</span>.</li>
+    <li><span class="cut">Photos and face matching</span>. Later.</li>
+    <li><span class="cut">Mac companion, any server</span>. Later or never.</li>
+  </ul>
+</section>
+
+<!-- =============================== BUILD =============================== -->
+<section id="build">
+  <h2>Build order</h2>
+  <table>
+    <tr><th style="width:8%">Step</th><th style="width:40%">Deliverable</th><th>Proves</th></tr>
+    <tr><td>1</td><td>Xcode project, black glass shell: two tabs, plus slot, empty People list, Map with option A</td><td>The look. Settles the greyscale question on device.</td></tr>
+    <tr><td>2</td><td>GRDB package with the four tables; ContactsDiff; VisitMonitor; tick() wired to background relaunch</td><td>Live capture over a real week. The premise.</td></tr>
+    <tr><td>3</td><td>People list, Person screen, Add sheet</td><td>Usable daily with zero history</td></tr>
+    <tr><td>4</td><td>Timeline importer, geocode queue, Map pins and place sheet</td><td>Backfill puts old contacts on the map</td></tr>
+    <tr><td>5</td><td>Fix sheet, Settings sheet, Onboarding</td><td>Wrong answers are fixable; cold install is clean</td></tr>
+  </table>
+</section>
+
+</div>
+</body>
+</html>
