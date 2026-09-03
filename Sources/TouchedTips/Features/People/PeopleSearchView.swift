@@ -11,6 +11,9 @@ struct PeopleSearchView: View {
     @State private var groups = PeopleGroups()
     @State private var hideHeader = false
     @State private var showField = false
+    /// The last request this view acted on. The tab is built lazily, so the first request can
+    /// land before the view exists; comparing counts on appear catches it.
+    @State private var handledRequests = 0
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -31,13 +34,11 @@ struct PeopleSearchView: View {
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
                 }
-                .onChange(of: router.searchRequests) { _, _ in
+                .onChange(of: router.searchRequests, initial: true) { _, count in
+                    guard count > handledRequests else { return }
+                    handledRequests = count
                     withAnimation(.appleMusic) { showField = true }
-                    // The field has to exist before it can take focus; one tick is enough.
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(50))
-                        focused = true
-                    }
+                    focusWhenReady()
                 }
                 .onChange(of: focused) { _, focused in
                     guard !focused, query.isEmpty else { return }
@@ -81,6 +82,18 @@ struct PeopleSearchView: View {
         .padding(.horizontal, 16)
         .frame(height: 46)
         .glassEffect(.clear, in: .capsule)
+    }
+
+    /// The field has to exist before it can take focus. Ask a few times over the first frames;
+    /// the first that lands wins, the rest are no-ops.
+    private func focusWhenReady() {
+        Task {
+            for _ in 0 ..< 6 {
+                focused = true
+                try? await Task.sleep(for: .milliseconds(40))
+                if focused { return }
+            }
+        }
     }
 
     private func regroup() {
