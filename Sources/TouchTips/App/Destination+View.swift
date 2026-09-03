@@ -15,6 +15,8 @@ struct DestinationView: View {
             } else {
                 PersonView(contactID: contactID)
             }
+        case .undocumented:
+            UndocumentedView()
         }
     }
 }

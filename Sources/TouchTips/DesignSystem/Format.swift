@@ -59,10 +59,10 @@ enum Format {
         return place.name ?? coordinates(place.latitude, place.longitude)
     }
 
-    /// Second line of a people row.
+    /// Second line of a people row. Empty for someone with no date, since their list already says so.
     static func rowSubtitle(_ row: PersonRow) -> String {
         if let name = placeName(row) { return name }
-        return row.meet == nil ? "Undocumented" : "Date only"
+        return row.meet == nil ? "" : "Date only"
     }
 
     static func window(_ meet: Meet?) -> String? {
