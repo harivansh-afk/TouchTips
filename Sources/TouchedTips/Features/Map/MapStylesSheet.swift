@@ -2,15 +2,17 @@ import MapKit
 import SwiftUI
 
 /// Four pictures of the block you are looking at, one per style. Tap one and the map behind
-/// changes at once; the sheet is the confirmation.
+/// changes at once; the sheet is the confirmation. Swipe down to leave.
 struct MapStylesSheet: View {
     let region: MKCoordinateRegion
     @Binding var choice: MapStyleChoice
+    /// The grid's measured height, so the sheet can be exactly that plus equal padding.
+    @Binding var contentHeight: CGFloat
 
-    @Environment(\.dismiss) private var dismiss
-    @State private var snapshots = MapSnapshots()
+    @Environment(MapSnapshots.self) private var snapshots
 
-    private static let tileSize = CGSize(width: 160, height: 108)
+    static let padding: CGFloat = 24
+    static let tileSize = CGSize(width: 160, height: 108)
 
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 14) {
@@ -18,28 +20,11 @@ struct MapStylesSheet: View {
                 tile(option)
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         .padding(.horizontal, 20)
-        .padding(.top, 24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .overlay(alignment: .topTrailing) {
-            Button {
-                HapticManager.light()
-                dismiss()
-            } label: {
-                Icon(.x, size: 18)
-                    .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-            }
-            .glassEffect(.clear.interactive(), in: .circle)
-            .accessibilityLabel("Close")
-            .padding(.trailing, 14)
-            .padding(.top, 14)
-        }
-        .task {
-            for option in MapStyleChoice.allCases {
-                snapshots.load(option, region: region, size: Self.tileSize)
-            }
-        }
+        .padding(.vertical, Self.padding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .task { snapshots.prefetch(region: region) }
     }
 
     private func tile(_ option: MapStyleChoice) -> some View {
@@ -56,8 +41,10 @@ struct MapStylesSheet: View {
                             .resizable()
                             .scaledToFill()
                             .grayscale(option == .muted ? 1 : 0)
+                            .transition(.opacity)
                     }
                 }
+                .animation(.easeOut(duration: 0.2), value: snapshots.image(for: option, region: region) != nil)
                 .aspectRatio(Self.tileSize.width / Self.tileSize.height, contentMode: .fit)
                 .clipShape(.rect(cornerRadius: 14))
                 .overlay {
