@@ -21,6 +21,8 @@ final class Router {
     var paths: [AppTab: [Destination]] = [:]
     /// Bumped when the current tab is tapped while already at its root. Roots scroll to top on it.
     var scrollToTop: [AppTab: Int] = [:]
+    /// A place the map should centre on and select the next time it looks. Consumed by MapScreen.
+    var pendingPlace: Int64?
 
     var isOnRoot: Bool { paths[selectedTab, default: []].isEmpty }
 
@@ -39,6 +41,12 @@ final class Router {
         } else {
             paths[selectedTab] = []
         }
+    }
+
+    /// Jump to the map with this place selected.
+    func showPlace(_ placeID: Int64) {
+        pendingPlace = placeID
+        selectedTab = .map
     }
 
     func path(for tab: AppTab) -> Binding<[Destination]> {

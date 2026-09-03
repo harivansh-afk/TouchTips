@@ -24,22 +24,10 @@ struct PlaceSheet: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(Color.black)
             .serifTitle(
                 place.name ?? Format.coordinates(place.latitude, place.longitude),
                 subtitle: "\(place.people) people · \(Format.yearSpan(place.first, place.last))"
             )
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button {
-                        HapticManager.light()
-                        dismiss()
-                    } label: {
-                        Icon("x")
-                    }
-                    .accessibilityLabel("Close")
-                }
-            }
             .task { await observe() }
         }
     }
