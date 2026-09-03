@@ -7,6 +7,7 @@ struct SettingsSheet: View {
     @Environment(\.openURL) private var openURL
 
     @AppStorage("mapStyle") private var mapStyle = MapStyleChoice.muted
+    @AppStorage("onboardingDone") private var onboardingDone = false
     @State private var problem: String?
     @State private var confirmDelete = false
 
@@ -31,7 +32,9 @@ struct SettingsSheet: View {
                             Text("Always")
                         } else if app.capture.locationStatus == .denied || app.capture.locationStatus == .restricted {
                             Button("Open Settings") {
-                                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    openURL(url)
+                                }
                             }
                         } else {
                             Button("Allow") { app.capture.requestLocation() }
@@ -51,6 +54,20 @@ struct SettingsSheet: View {
                         Text(problem).foregroundStyle(.secondary)
                     }
                 }
+
+                if BuildEnvironment.isDev {
+                    Section {
+                        Button("Replay onboarding") {
+                            HapticManager.medium()
+                            onboardingDone = false
+                            dismiss()
+                        }
+                    } header: {
+                        Text("Dev")
+                    } footer: {
+                        Text("Debug and TestFlight builds only.")
+                    }
+                }
             }
             .scrollContentBackground(.hidden)
             // Into the keyboard region too, or the translucent keyboard shows a hard edge where the black stops.
@@ -67,7 +84,11 @@ struct SettingsSheet: View {
                     .accessibilityLabel("Done")
                 }
             }
-            .confirmationDialog("Delete everything TouchedTips knows?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            .confirmationDialog(
+                "Delete everything TouchedTips knows?",
+                isPresented: $confirmDelete,
+                titleVisibility: .visible
+            ) {
                 Button("Delete all data", role: .destructive) {
                     HapticManager.warning()
                     deleteAll()
