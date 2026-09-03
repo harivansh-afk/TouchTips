@@ -86,6 +86,7 @@ struct PersonView: View {
 
 private struct MeetCard: View {
     let row: PersonRow
+    @Environment(Router.self) private var router
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -100,7 +101,24 @@ private struct MeetCard: View {
                 Text(headline.body).font(.system(size: 30, weight: .bold)).kerning(-0.9)
                 let detail = Format.placeAndWindow(row)
                 if !detail.isEmpty {
-                    Text(detail).font(.callout).foregroundStyle(.secondary).padding(.top, 4)
+                    if let placeID = row.place?.id {
+                        Button {
+                            HapticManager.selection()
+                            router.showPlace(placeID)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(detail)
+                                Icon("map-trifold", size: 14).opacity(0.7)
+                            }
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 4)
+                        .accessibilityHint("Shows this place on the map")
+                    } else {
+                        Text(detail).font(.callout).foregroundStyle(.secondary).padding(.top, 4)
+                    }
                 }
                 Label {
                     Text(Format.tierName(meet.tier))

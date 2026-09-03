@@ -55,6 +55,8 @@ struct MapScreen: View {
         .onChange(of: selection) { _, current in
             if current != nil { HapticManager.selection() }
         }
+        .onChange(of: router.pendingPlace, initial: true) { _, _ in showPendingPlace() }
+        .onChange(of: places) { _, _ in showPendingPlace() }
         .overlay {
             if places.isEmpty {
                 ContentUnavailableView(
@@ -72,6 +74,16 @@ struct MapScreen: View {
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .task { await observe() }
+    }
+
+    /// Selects the place another screen asked for, once it is in the list.
+    private func showPendingPlace() {
+        guard let id = router.pendingPlace, let place = places.first(where: { $0.id == id }) else { return }
+        router.pendingPlace = nil
+        withAnimation(.appleMusic) {
+            camera = .region(MKCoordinateRegion(center: place.coordinate, latitudinalMeters: 600, longitudinalMeters: 600))
+        }
+        selection = id
     }
 
     private var selectedPlace: Binding<PlaceSummary?> {
