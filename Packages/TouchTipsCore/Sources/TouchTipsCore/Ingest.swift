@@ -51,6 +51,8 @@ public struct IngestSummary: Hashable, Sendable {
     public var snapshotted = 0
     public var updated = 0
     public var deleted = 0
+
+    public init() {}
 }
 
 public enum Ingest {

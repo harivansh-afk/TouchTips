@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import Testing
 @testable import TouchTipsCore
 
@@ -63,6 +64,9 @@ import Testing
         #expect(second.visitsAdded == 0)
         #expect(second.placesAdded == 0)
         #expect(try db.reader.read { try Visit.fetchCount($0) } == 2)
-        #expect(try db.reader.read { try Place.filter(Place.Columns.key == PlaceKey.google("ChIJabc")).fetchCount($0) } == 1)
+        let googlePlaces = try db.reader.read { db in
+            try Place.filter(Place.Columns.key == PlaceKey.google("ChIJabc")).fetchCount(db)
+        }
+        #expect(googlePlaces == 1)
     }
 }

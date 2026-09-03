@@ -10,11 +10,8 @@ extension VisitSource: DatabaseValueConvertible {}
 extension Person: FetchableRecord, PersistableRecord {
     public static let databaseTableName = "person"
 
-    public enum Columns {
-        public static let contactID = Column(CodingKeys.contactID)
-        public static let name = Column(CodingKeys.name)
-        public static let beforeInstall = Column(CodingKeys.beforeInstall)
-        public static let createdAt = Column(CodingKeys.createdAt)
+    public enum Columns: String, ColumnExpression {
+        case contactID, name, beforeInstall, createdAt
     }
 
     public static let meet = hasOne(Meet.self)
@@ -24,13 +21,8 @@ extension Person: FetchableRecord, PersistableRecord {
 extension Place: FetchableRecord, MutablePersistableRecord {
     public static let databaseTableName = "place"
 
-    public enum Columns {
-        public static let id = Column(CodingKeys.id)
-        public static let key = Column(CodingKeys.key)
-        public static let latitude = Column(CodingKeys.latitude)
-        public static let longitude = Column(CodingKeys.longitude)
-        public static let name = Column(CodingKeys.name)
-        public static let namedAt = Column(CodingKeys.namedAt)
+    public enum Columns: String, ColumnExpression {
+        case id, key, latitude, longitude, name, namedAt
     }
 
     public static let visits = hasMany(Visit.self)
@@ -61,13 +53,8 @@ extension Place: FetchableRecord, MutablePersistableRecord {
 extension Visit: FetchableRecord, MutablePersistableRecord {
     public static let databaseTableName = "visit"
 
-    public enum Columns {
-        public static let id = Column(CodingKeys.id)
-        public static let placeID = Column(CodingKeys.placeID)
-        public static let start = Column(CodingKeys.start)
-        public static let end = Column(CodingKeys.end)
-        public static let source = Column(CodingKeys.source)
-        public static let accuracyMeters = Column(CodingKeys.accuracyMeters)
+    public enum Columns: String, ColumnExpression {
+        case id, placeID, start, end, source, accuracyMeters
     }
 
     public static let place = belongsTo(Place.self)
@@ -80,17 +67,8 @@ extension Visit: FetchableRecord, MutablePersistableRecord {
 extension Meet: FetchableRecord, PersistableRecord {
     public static let databaseTableName = "meet"
 
-    public enum Columns {
-        public static let contactID = Column(CodingKeys.contactID)
-        public static let start = Column(CodingKeys.start)
-        public static let end = Column(CodingKeys.end)
-        public static let precision = Column(CodingKeys.precision)
-        public static let placeID = Column(CodingKeys.placeID)
-        public static let tier = Column(CodingKeys.tier)
-        public static let userSet = Column(CodingKeys.userSet)
-        public static let addSeenStart = Column(CodingKeys.addSeenStart)
-        public static let addSeenEnd = Column(CodingKeys.addSeenEnd)
-        public static let computedAt = Column(CodingKeys.computedAt)
+    public enum Columns: String, ColumnExpression {
+        case contactID, start, end, precision, placeID, tier, userSet, addSeenStart, addSeenEnd, computedAt
     }
 
     public static let person = belongsTo(Person.self)

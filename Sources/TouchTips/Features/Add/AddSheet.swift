@@ -89,10 +89,14 @@ struct AddSheet: View {
         if let visit = app.capture.currentVisit,
            let place = try? await app.database.reader.read({ db in try Place.fetchOne(db, key: visit.placeID) })
         {
-            let title = place.name
-                ?? (try? await Geocoder.reverseGeocode(latitude: place.latitude, longitude: place.longitude))?.title
-                ?? Format.coordinates(place.latitude, place.longitude)
-            here = Here(name: title, latitude: place.latitude, longitude: place.longitude)
+            var title = place.name
+            if title == nil {
+                title = (try? await Geocoder.reverseGeocode(latitude: place.latitude, longitude: place.longitude))?.title
+            }
+            here = Here(
+                name: title ?? Format.coordinates(place.latitude, place.longitude),
+                latitude: place.latitude, longitude: place.longitude
+            )
             return
         }
 
@@ -100,8 +104,8 @@ struct AddSheet: View {
             for try await update in CLLocationUpdate.liveUpdates() {
                 if let location = update.location {
                     let coordinate = location.coordinate
-                    let title = (try? await Geocoder.reverseGeocode(latitude: coordinate.latitude, longitude: coordinate.longitude))?.title
-                        ?? Format.coordinates(coordinate.latitude, coordinate.longitude)
+                    let named = try? await Geocoder.reverseGeocode(latitude: coordinate.latitude, longitude: coordinate.longitude)
+                    let title = named?.title ?? Format.coordinates(coordinate.latitude, coordinate.longitude)
                     here = Here(name: title, latitude: coordinate.latitude, longitude: coordinate.longitude)
                     return
                 }

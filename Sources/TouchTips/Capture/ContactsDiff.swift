@@ -11,10 +11,9 @@ struct ContactsDiff: Sendable {
         request.additionalContactKeyDescriptors = [CNContactFormatter.descriptorForRequiredKeys(for: .fullName)]
 
         var error: NSError?
-        let result = store.enumeratorForChangeHistoryFetchRequest(request, error: &error)
-        if let error { throw error }
+        guard let result = TTChangeHistoryEnumerator(store, request, &error) else { throw error ?? CNError(.communicationError) }
 
-        var changes = ContactChangeSet(token: result.currentHistoryToken ?? store.currentHistoryToken ?? Data())
+        var changes = ContactChangeSet(token: result.currentHistoryToken)
         for case let event as CNChangeHistoryEvent in result.value {
             switch event {
             case let add as CNChangeHistoryAddContactEvent:

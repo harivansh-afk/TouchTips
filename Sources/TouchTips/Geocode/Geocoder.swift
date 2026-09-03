@@ -57,11 +57,12 @@ final class Geocoder {
                 Log.geocode.notice("no name for \(place.key): \(error.localizedDescription)")
             }
 
+            let title = name?.title
             do {
                 try await database.writer.write { db in
                     try Place.filter(key: placeID).updateAll(
                         db,
-                        Place.Columns.name.set(to: name?.title),
+                        Place.Columns.name.set(to: title),
                         Place.Columns.namedAt.set(to: Date())
                     )
                 }
@@ -82,16 +83,20 @@ final class Geocoder {
     nonisolated static func reverseGeocode(latitude: Double, longitude: Double) async throws -> PlaceName {
         let location = CLLocation(latitude: latitude, longitude: longitude)
         guard let request = MKReverseGeocodingRequest(location: location) else { throw GeocodeError.invalidLocation }
-        let items: [MKMapItem] = try await withCheckedThrowingContinuation { continuation in
+        return try await withCheckedThrowingContinuation { continuation in
             request.getMapItems { items, error in
                 if let error {
                     continuation.resume(throwing: error)
+                } else if let item = items?.first {
+                    continuation.resume(returning: Self.placeName(for: item))
                 } else {
-                    continuation.resume(returning: items ?? [])
+                    continuation.resume(throwing: GeocodeError.noResult)
                 }
             }
         }
-        guard let item = items.first else { throw GeocodeError.noResult }
+    }
+
+    private nonisolated static func placeName(for item: MKMapItem) -> PlaceName {
         let detail = item.addressRepresentations?.cityWithContext
         let title = item.name ?? item.address?.shortAddress ?? detail ?? "Unnamed place"
         return PlaceName(title: title, detail: detail)

@@ -9,9 +9,9 @@
       forAll = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in {
       devShells = forAll (pkgs: {
-        default = pkgs.mkShell {
+        default = pkgs.mkShellNoCC {
           packages = [ pkgs.just ]
-            ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.xcodegen pkgs.swiftformat ];
+            ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ pkgs.xcodegen pkgs.swiftformat ];
         };
       });
     };
