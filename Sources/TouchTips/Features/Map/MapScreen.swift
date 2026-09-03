@@ -56,7 +56,8 @@ struct MapScreen: View {
         }
         .sheet(item: selectedPlace) { place in
             PlaceSheet(place: place)
-                .presentationDetents([.height(180), .medium, .large])
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.hidden)
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .task { await observe() }
