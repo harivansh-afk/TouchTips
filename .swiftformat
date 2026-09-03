@@ -6,4 +6,4 @@
 --stripunusedargs closure-only
 --disable redundantSelf, wrapMultilineStatementBraces
 
---exclude Sources/TouchTips/Feel
+--exclude Sources/TouchedTips/Feel
