@@ -124,5 +124,20 @@ import Testing
         #expect(summaries.count == 1)
         #expect(summaries.first?.people == 2)
         #expect(summaries.first?.witnessed == true)
+        #expect(summaries.first?.soleContactID == nil)
+    }
+
+    @Test func placeSummaryNamesTheOnlyPersonMetThere() throws {
+        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:38"), to: db)
+        try Ingest.recordLiveVisit(
+            LiveVisit(latitude: 1, longitude: 2, accuracyMeters: 10, arrival: t("2026-09-02T10:00"), departure: t("2026-09-02T12:00")),
+            now: t("2026-09-02T12:00"), to: db
+        )
+        let dev = snapshot("x", "Dev Patel")
+        try Ingest.apply(ContactChangeSet(added: [dev], token: Data([2])), now: t("2026-09-02T11:00"), to: db)
+        let summary = try db.reader.read { try PlaceSummary.all().fetchOne($0) }
+        #expect(summary?.people == 1)
+        #expect(summary?.soleContactID == "x")
+        #expect(summary?.soleName == "Dev Patel")
     }
 }
