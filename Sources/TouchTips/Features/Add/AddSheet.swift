@@ -73,8 +73,7 @@ struct AddSheet: View {
                         HapticManager.light()
                         dismiss()
                     } label: {
-                        Image(systemName: "xmark")
-                            .fontWeight(.medium)
+                        Icon("x")
                     }
                     .accessibilityLabel("Cancel")
                 }
@@ -83,8 +82,7 @@ struct AddSheet: View {
                         HapticManager.medium()
                         save()
                     } label: {
-                        Image(systemName: "checkmark")
-                            .fontWeight(.semibold)
+                        Icon("check")
                     }
                     .disabled(trimmedName.isEmpty)
                     .accessibilityLabel("Save")

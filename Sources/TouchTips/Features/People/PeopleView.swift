@@ -36,7 +36,7 @@ struct PeopleView: View {
                             HapticManager.light()
                             isSearchPresented = true
                         } label: {
-                            Image(systemName: "magnifyingglass")
+                            Icon("magnifying-glass")
                         }
                         .accessibilityLabel("Search")
                     }
@@ -46,7 +46,7 @@ struct PeopleView: View {
                             HapticManager.light()
                             showSettings = true
                         } label: {
-                            Image(systemName: "gearshape")
+                            Icon("gear-six")
                         }
                         .accessibilityLabel("Settings")
                     }

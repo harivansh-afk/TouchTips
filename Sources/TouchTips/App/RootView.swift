@@ -22,18 +22,18 @@ struct RootView: View {
             Tab(value: .people) {
                 PeopleView()
             } label: {
-                Image(systemName: "person.2")
+                Image("users")
             }
             Tab(value: .map) {
                 MapScreen()
             } label: {
-                Image(systemName: "map")
+                Image("map-trifold")
             }
             // The search role renders as the separated glass circle on the right. We borrow it for the one write action.
             Tab(value: .add, role: .search) {
                 Color.black
             } label: {
-                Image(systemName: "plus")
+                Image("plus")
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)

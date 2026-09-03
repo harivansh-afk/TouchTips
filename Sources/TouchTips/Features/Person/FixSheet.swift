@@ -75,8 +75,7 @@ struct FixSheet: View {
                         HapticManager.light()
                         dismiss()
                     } label: {
-                        Image(systemName: "xmark")
-                            .fontWeight(.medium)
+                        Icon("x")
                     }
                     .accessibilityLabel("Cancel")
                 }
@@ -85,8 +84,7 @@ struct FixSheet: View {
                         HapticManager.medium()
                         Task { await save() }
                     } label: {
-                        Image(systemName: "checkmark")
-                            .fontWeight(.semibold)
+                        Icon("check")
                     }
                     .accessibilityLabel("Save")
                 }

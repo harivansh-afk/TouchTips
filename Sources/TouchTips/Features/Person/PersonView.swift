@@ -57,9 +57,7 @@ struct PersonView: View {
                 Button {
                     dismiss()
                 } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.body)
-                        .fontWeight(.semibold)
+                    Icon("caret-left")
                         .foregroundStyle(.primary)
                 }
                 .accessibilityLabel("Back")

@@ -29,8 +29,7 @@ struct PlaceSheet: View {
                         HapticManager.light()
                         dismiss()
                     } label: {
-                        Image(systemName: "xmark")
-                            .fontWeight(.medium)
+                        Icon("x")
                     }
                     .accessibilityLabel("Close")
                 }
