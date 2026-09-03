@@ -99,6 +99,8 @@ struct PeopleList: View {
                     ConfidenceDot(tier: nil)
                 }
                 .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(.rect)
             }
             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             .listRowSeparator(.hidden)
