@@ -7,44 +7,17 @@ struct PeopleView: View {
     @State private var people = PeopleObserver()
     @State private var showAdd = false
     @State private var showSettings = false
-    @State private var hideToolbar = false
+    @State private var hideHeader = false
 
     var body: some View {
         NavigationStack(path: router.path(for: .people)) {
             content
-                .navigationBarTitleDisplayMode(.inline)
-                .contentMargins(.top, 0, for: .scrollContent)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Text("People")
-                            .font(.display(36))
-                            .fixedSize()
-                            .padding(.leading, -4)
-                            .opacity(hideToolbar ? 0 : 1)
-                    }
-                    .sharedBackgroundVisibility(.hidden)
-
-                    // Native glass circles, so size and spacing are the system's. They leave the bar on scroll.
-                    if !hideToolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button {
-                                HapticManager.light()
-                                showAdd = true
-                            } label: {
-                                Icon(.plus)
-                            }
-                            .accessibilityLabel("Add")
-                        }
-                        ToolbarSpacer(.fixed, placement: .topBarTrailing)
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button {
-                                HapticManager.light()
-                                showSettings = true
-                            } label: {
-                                Icon(.gearSix)
-                            }
-                            .accessibilityLabel("Settings")
-                        }
+                // No navigation bar on a root: a push then animates nothing but the zoom.
+                .toolbar(.hidden, for: .navigationBar)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    ScreenHeader(title: "People", hidden: hideHeader) {
+                        HeaderButton(glyph: .plus, label: "Add") { showAdd = true }
+                        HeaderButton(glyph: .gearSix, label: "Settings") { showSettings = true }
                     }
                 }
                 .sheet(isPresented: $showAdd) {
@@ -67,16 +40,7 @@ struct PeopleView: View {
                     emptyState
                 }
             }
-            .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentOffset.y
-            } action: { _, newValue in
-                let shouldHide = newValue > 0
-                if shouldHide != hideToolbar {
-                    withAnimation(.easeOut(duration: 0.15)) {
-                        hideToolbar = shouldHide
-                    }
-                }
-            }
+            .hidesHeaderOnScroll($hideHeader)
     }
 
     @ViewBuilder

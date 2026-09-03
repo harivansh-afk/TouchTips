@@ -47,9 +47,9 @@ struct PersonView: View {
             }
         }
         .background(Color.ground)
-        .navigationBarTitleDisplayMode(.inline)
+        // No bar at all: the push is the zoom and nothing else. Back is the tab bar's capsule, or the swipe.
+        .toolbar(.hidden, for: .navigationBar)
         .navigationAllowDismissalGestures(allowDismissalGesture)
-        // The tab bar's back circle is the only way back, plus the swipe.
         .navigationBarBackButtonHidden(true)
         .task {
             try? await Task.sleep(for: .seconds(1))
