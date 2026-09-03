@@ -15,11 +15,18 @@ struct TabBar: View {
             Spacer()
             HStack(spacing: 12) {
                 if !router.isOnRoot {
-                    backButton
-                        .transition(.blurReplace)
+                    sideButton(.caretLeft, label: "Back") {
+                        HapticManager.medium()
+                        router.back()
+                    }
+                    .transition(.blurReplace)
                 }
                 capsule
-                searchButton
+                sideButton(.magnifyingGlass, label: "Search", selected: router.selectedTab == .search) {
+                    HapticManager.selection()
+                    router.selectedTab = .search
+                    router.searchRequests += 1
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -28,20 +35,19 @@ struct TabBar: View {
         .animation(.easeInOut, value: router.isOnRoot)
     }
 
-    /// A capsule the height of the bar, so it reads as part of it and the whole thing is the target.
-    private var backButton: some View {
-        Button {
-            HapticManager.medium()
-            router.back()
-        } label: {
-            Icon(.caretLeft, size: 22)
-                .foregroundStyle(.white)
+    /// Back and search share one shape: a capsule the height of the bar, glass button style, so the
+    /// whole shape is the target and the two sides of the bar match.
+    private func sideButton(_ glyph: ImageResource, label: String, selected: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Icon(glyph, size: 22)
+                .foregroundStyle(.white.opacity(selected ? 1 : 0.85))
                 .frame(width: 44, height: Self.height - 16)
                 .contentShape(.capsule)
         }
         .buttonStyle(.glass)
         .buttonBorderShape(.capsule)
-        .accessibilityLabel("Back")
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var capsule: some View {
@@ -78,23 +84,6 @@ struct TabBar: View {
             }
         }
         .accessibilityLabel(tab.label)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-
-    /// Search lives in its own circle, like the system's search tab and phia's trailing slot.
-    private var searchButton: some View {
-        let selected = router.selectedTab == .search
-        return Button {
-            select(.search)
-        } label: {
-            Icon(.magnifyingGlass, size: 22)
-                .foregroundStyle(.white.opacity(selected ? 1 : 0.6))
-                .frame(width: Self.height - 16, height: Self.height - 16)
-                .contentShape(.circle)
-        }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .accessibilityLabel("Search")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 

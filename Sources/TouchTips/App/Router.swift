@@ -25,6 +25,8 @@ final class Router {
     var scrollToTop: [AppTab: Int] = [:]
     /// A place the map should centre on and select the next time it looks. Consumed by MapScreen.
     var pendingPlace: Int64?
+    /// Bumped every time the search button is tapped. The search tab shows its field and the keyboard on it.
+    var searchRequests = 0
 
     var isOnRoot: Bool { paths[selectedTab, default: []].isEmpty }
 
