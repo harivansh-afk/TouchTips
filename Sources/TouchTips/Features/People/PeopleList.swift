@@ -22,6 +22,7 @@ struct PeopleList: View {
     /// The active search text, only used to pick the empty state.
     var query = ""
 
+    @Environment(Router.self) private var router
     @Namespace private var zoom
 
     private var isEmpty: Bool { sections.isEmpty && undocumented.isEmpty }
@@ -72,9 +73,13 @@ struct PeopleList: View {
         return ForEach(rows) { indexed in
             let row = indexed.item
             let index = indexed.index
-            NavigationLink(value: Destination.person(row.id)) {
+            Button {
+                HapticManager.selection()
+                router.open(person: row.id)
+            } label: {
                 PersonRowView(row: row)
             }
+            .buttonStyle(.press)
             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             .listRowSeparatorTint(.hairline)
             .listRowSeparator(index == 0 ? .hidden : .visible, edges: .top)

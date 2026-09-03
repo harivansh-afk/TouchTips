@@ -4,6 +4,7 @@ import TouchTipsCore
 /// Everyone saved before touchtips, alphabetical. Tapping one opens the person screen, where a date can be set.
 struct UndocumentedView: View {
     @Environment(AppModel.self) private var app
+    @Environment(Router.self) private var router
     @Environment(\.zoomNamespace) private var zoom
     @State private var people = PeopleObserver()
     @State private var query = ""
@@ -20,9 +21,13 @@ struct UndocumentedView: View {
                 ForEach(rows) { indexed in
                     let row = indexed.item
                     let index = indexed.index
-                    NavigationLink(value: Destination.person(row.id)) {
+                    Button {
+                        HapticManager.selection()
+                        router.open(person: row.id)
+                    } label: {
                         PersonRowView(row: row)
                     }
+                    .buttonStyle(.press)
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                     .listRowSeparatorTint(.hairline)
                     .listRowSeparator(index == 0 ? .hidden : .visible, edges: .top)

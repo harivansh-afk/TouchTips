@@ -28,14 +28,30 @@ final class Router {
     /// Bumped every time the search button is tapped. The search tab shows its field and the keyboard on it.
     var searchRequests = 0
 
+    /// Where a person was opened from, when it was not the People tab. Back returns there.
+    private var returnTab: AppTab?
+    /// The place whose sheet was open at the time, so the map can put it back.
+    private var returnPlace: Int64?
+
     var isOnRoot: Bool { paths[selectedTab, default: []].isEmpty }
 
     func navigate(to destination: Destination) {
         paths[selectedTab, default: []].append(destination)
     }
 
+    /// The person screen lives on the People tab only. From any other tab this switches there,
+    /// pushes, and remembers the way back.
+    func open(person contactID: String, fromPlace placeID: Int64? = nil) {
+        if selectedTab != .people {
+            returnTab = selectedTab
+            returnPlace = placeID
+            selectedTab = .people
+        }
+        paths[.people, default: []].append(.person(contactID))
+    }
+
     func back() {
-        _ = paths[selectedTab, default: []].popLast()
+        setPath(Array(paths[selectedTab, default: []].dropLast()), for: selectedTab)
     }
 
     /// Tap on the tab you are already on: pop to its root, or scroll to top if already there.
@@ -43,7 +59,7 @@ final class Router {
         if isOnRoot {
             scrollToTop[selectedTab, default: 0] += 1
         } else {
-            paths[selectedTab] = []
+            setPath([], for: selectedTab)
         }
     }
 
@@ -56,7 +72,17 @@ final class Router {
     func path(for tab: AppTab) -> Binding<[Destination]> {
         Binding(
             get: { self.paths[tab, default: []] },
-            set: { self.paths[tab] = $0 }
+            set: { self.setPath($0, for: tab) }
         )
+    }
+
+    /// Every pop goes through here, the swipe included, so returning to the origin tab is consistent.
+    private func setPath(_ path: [Destination], for tab: AppTab) {
+        paths[tab] = path
+        guard path.isEmpty, tab == .people, let returnTab else { return }
+        self.returnTab = nil
+        pendingPlace = returnPlace
+        returnPlace = nil
+        selectedTab = returnTab
     }
 }

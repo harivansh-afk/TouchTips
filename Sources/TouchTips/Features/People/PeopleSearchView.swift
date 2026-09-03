@@ -31,9 +31,8 @@ struct PeopleSearchView: View {
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
                 }
-                .animation(.appleMusic, value: showField)
                 .onChange(of: router.searchRequests) { _, _ in
-                    showField = true
+                    withAnimation(.appleMusic) { showField = true }
                     // The field has to exist before it can take focus; one tick is enough.
                     Task {
                         try? await Task.sleep(for: .milliseconds(50))
@@ -41,7 +40,13 @@ struct PeopleSearchView: View {
                     }
                 }
                 .onChange(of: focused) { _, focused in
-                    if !focused, query.isEmpty { showField = false }
+                    guard !focused, query.isEmpty else { return }
+                    // Let the keyboard finish leaving before the field does, or the two fight and the list jitters.
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(350))
+                        guard !self.focused, query.isEmpty else { return }
+                        withAnimation(.appleMusic) { showField = false }
+                    }
                 }
                 .onChange(of: query) { _, _ in regroup() }
                 .onChange(of: people.rows) { _, _ in regroup() }

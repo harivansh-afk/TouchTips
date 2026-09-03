@@ -10,15 +10,11 @@ struct MapScreen: View {
     @State private var selection: Int64?
     /// A person tapped in the place sheet. Pushed once the sheet has finished closing.
     @State private var pendingPerson: String?
+    /// The place whose sheet was open when a person was tapped, so back can reopen it.
+    @State private var lastPlace: Int64?
 
     var body: some View {
-        NavigationStack(path: router.path(for: .map)) {
-            map
-                .toolbar(.hidden, for: .navigationBar)
-                .navigationDestination(for: Destination.self) { destination in
-                    DestinationView(destination: destination)
-                }
-        }
+        map
     }
 
     private var map: some View {
@@ -68,6 +64,7 @@ struct MapScreen: View {
         .sheet(item: selectedPlace, onDismiss: pushPendingPerson) { place in
             PlaceSheet(place: place) { contactID in
                 pendingPerson = contactID
+                lastPlace = place.id
                 selection = nil
             }
                 .presentationDetents([.medium, .large])
@@ -80,7 +77,7 @@ struct MapScreen: View {
     private func pushPendingPerson() {
         guard let contactID = pendingPerson else { return }
         pendingPerson = nil
-        router.navigate(to: .person(contactID))
+        router.open(person: contactID, fromPlace: lastPlace)
     }
 
     /// Selects the place another screen asked for, once it is in the list.
