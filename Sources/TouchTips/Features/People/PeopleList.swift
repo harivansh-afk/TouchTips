@@ -30,7 +30,7 @@ struct PeopleList: View {
                     ForEach(rows) { indexed in
                         let row = indexed.item
                         let index = indexed.index
-                        NavigationLink(value: row.id) {
+                        NavigationLink(value: Destination.person(row.id)) {
                             PersonRowView(row: row)
                         }
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
@@ -45,9 +45,8 @@ struct PeopleList: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.black)
-        .navigationDestination(for: String.self) { contactID in
-            PersonView(contactID: contactID)
-                .navigationTransition(.zoom(sourceID: contactID, in: zoom))
+        .navigationDestination(for: Destination.self) { destination in
+            DestinationView(destination: destination, zoom: zoom)
         }
     }
 }
