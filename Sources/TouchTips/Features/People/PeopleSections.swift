@@ -9,7 +9,7 @@ struct PeopleSection: Identifiable, Hashable {
 
 enum PeopleSections {
     /// Newest month first, then everyone we have no date for.
-    static func make(from rows: [PersonRow], matching query: String, calendar: Calendar = .current) -> [PeopleSection] {
+    static func make(from rows: [PersonRow], matching query: String = "", calendar: Calendar = .current) -> [PeopleSection] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         let visible = trimmed.isEmpty ? rows : rows.filter { row in
             row.person.name.localizedCaseInsensitiveContains(trimmed)

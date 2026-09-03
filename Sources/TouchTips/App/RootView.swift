@@ -1,13 +1,12 @@
 import SwiftUI
 
 enum AppTab: Hashable {
-    case people, map, add
+    case people, map, search
 }
 
 struct RootView: View {
     @AppStorage("onboardingDone") private var onboardingDone = false
     @State private var tab: AppTab = .people
-    @State private var showAdd = false
 
     var body: some View {
         if onboardingDone {
@@ -29,24 +28,19 @@ struct RootView: View {
             } label: {
                 Image("map-trifold")
             }
-            // The search role renders as the separated glass circle on the right. We borrow it for the one write action.
-            Tab(value: .add, role: .search) {
-                Color.black
+            // The search role is the separated glass circle on the right; the bar becomes the field.
+            Tab(value: .search, role: .search) {
+                PeopleSearchView()
             } label: {
-                Image("plus")
+                Image("magnifying-glass")
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        .tabViewSearchActivation(.searchTabSelection)
         .tint(.white)
-        .onChange(of: tab) { previous, current in
-            // Haptic feedback on tab change. Skipped for the bounce back from the plus slot.
-            if previous != .add { HapticManager.selection() }
-            guard current == .add else { return }
-            showAdd = true
-            tab = previous
-        }
-        .sheet(isPresented: $showAdd) {
-            AddSheet()
+        .onChange(of: tab) { _, _ in
+            // Haptic feedback on tab change
+            HapticManager.selection()
         }
     }
 }
