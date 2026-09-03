@@ -9,8 +9,6 @@ struct MapScreen: View {
     @State private var camera: MapCameraPosition = .automatic
     @State private var selection: Int64?
     @State private var showStyles = false
-    @State private var region: MKCoordinateRegion?
-    @State private var snapshots = MapSnapshots()
     @State private var stylesHeight: CGFloat = 260
     @AppStorage("mapStyle") private var styleChoice = MapStyleChoice.muted
     /// A person tapped in the place sheet. Pushed once the sheet has finished closing.
@@ -32,10 +30,6 @@ struct MapScreen: View {
             UserAnnotation()
         }
         .mapStyle(styleChoice.style)
-        .onMapCameraChange(frequency: .onEnd) { context in
-            region = context.region
-            snapshots.prefetch(region: context.region)
-        }
         .mapControls {
             MapCompass()
         }
@@ -98,8 +92,7 @@ struct MapScreen: View {
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .sheet(isPresented: $showStyles) {
-            MapStylesSheet(region: region ?? Self.fallbackRegion, choice: $styleChoice, contentHeight: $stylesHeight)
-                .environment(snapshots)
+            MapStylesSheet(choice: $styleChoice, contentHeight: $stylesHeight)
                 .presentationDetents([.height(stylesHeight + MapStylesSheet.padding * 2)])
                 .presentationDragIndicator(.hidden)
                 .presentationBackgroundInteraction(.enabled)
@@ -107,11 +100,6 @@ struct MapScreen: View {
         .task { await observe() }
     }
 
-    /// Only reached if the sheet opens before the camera has ever reported. Somewhere with streets.
-    private static let fallbackRegion = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 38.0293, longitude: -78.4767),
-        latitudinalMeters: 1500, longitudinalMeters: 1500
-    )
 
     private func pushPendingPerson() {
         guard let contactID = pendingPerson else { return }
