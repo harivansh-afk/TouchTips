@@ -17,7 +17,7 @@ struct PersonView: View {
             if let row {
                 VStack(spacing: 28) {
                     VStack(spacing: 12) {
-                        InitialsAvatar(initials: row.person.initials, size: 96)
+                        ContactAvatar(contactID: row.id, initials: row.person.initials, size: 96)
                         Text(row.person.name)
                             .font(.display(36))
                             .multilineTextAlignment(.center)

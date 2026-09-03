@@ -9,13 +9,17 @@ final class AppModel {
     let database: AppDatabase
     let capture: CaptureCoordinator
     let geocoder: Geocoder
+    let photos = ContactPhotos()
     let contactsAccess = ContactsAccess()
 
     init() {
         database = AppModel.openDatabase()
         capture = CaptureCoordinator(database: database)
         geocoder = Geocoder(database: database)
-        capture.didIngest = { [geocoder] in geocoder.kick() }
+        capture.didIngest = { [geocoder, photos] in
+            geocoder.kick()
+            photos.reset()
+        }
     }
 
     func start() {

@@ -6,7 +6,7 @@ struct PersonRowView: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            InitialsAvatar(initials: row.person.initials)
+            ContactAvatar(contactID: row.id, initials: row.person.initials)
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.person.name)
                     .font(.body.weight(.medium))
