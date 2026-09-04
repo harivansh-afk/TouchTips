@@ -255,11 +255,11 @@ struct PlaceChooser: View {
     }
 }
 
-/// The chosen spot: a white dot with a black rim, so it reads on any map style.
+/// The chosen spot: a green dot with a black rim, so it reads on any map style.
 private struct PinDot: View {
     var body: some View {
         Circle()
-            .fill(.white)
+            .fill(Color.placed)
             .overlay { Circle().strokeBorder(Color.ground, lineWidth: 3) }
             .frame(width: 18, height: 18)
             .shadow(color: .black.opacity(0.5), radius: 5, y: 2)

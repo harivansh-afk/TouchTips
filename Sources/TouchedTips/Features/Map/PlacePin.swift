@@ -2,7 +2,7 @@ import SwiftUI
 import TouchedTipsCore
 
 /// A place on the map. One person is drawn as themselves, their photo or initials; more than one
-/// is a count. The ring is solid when someone was witnessed here and faint when only inferred.
+/// is a count. The ring is green, solid when someone was witnessed here and faint when only inferred.
 struct PlacePin: View {
     let place: PlaceSummary
     /// The sole person's contact photo, when Contacts has one and it has loaded.
@@ -31,7 +31,7 @@ struct PlacePin: View {
             }
         }
         .overlay {
-            Circle().strokeBorder(.white.opacity(place.witnessed ? 1 : 0.45), lineWidth: 2)
+            Circle().strokeBorder(Color.placed.opacity(place.witnessed ? 1 : 0.45), lineWidth: 2)
         }
         .shadow(color: .black.opacity(0.5), radius: 6, y: 2)
         .scaleEffect(selected ? 1.15 : 1)
