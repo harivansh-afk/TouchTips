@@ -30,8 +30,8 @@ struct OnboardingView: View {
         }
     }
 
-    /// Bottom up, the way it came in: Start, the rows, the body, then the headline sweeps out. The
-    /// app starts coming in while the last glyphs are still going, so there is no empty frame.
+    /// Everything under the headline falls away, the headline sweeps out on its heels, and the
+    /// overlay starts fading while the last glyphs are still going, so there is no empty frame.
     private func leave() {
         leaving = true
         Task {
@@ -106,7 +106,8 @@ struct OnboardingView: View {
             .staged(revealed, leaving: leaving, order: 3)
         }
         .padding(26)
-        .background(Color.ground)
+        // Edge to edge: this is an overlay on the finished app, nothing may show around it.
+        .background { Color.ground.ignoresSafeArea() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 app.contactsAccess.refresh()
@@ -116,17 +117,16 @@ struct OnboardingView: View {
 }
 
 private extension View {
-    /// Hidden until `shown`, then fades up into place; on `leaving` it falls back out. Siblings are
-    /// staggered by `order`, first in and last out.
+    /// Hidden until `shown`, then fades up into place, `order` beats after its siblings. On
+    /// `leaving` everything falls away together; the headline's sweep carries the sequence.
     func staged(_ shown: Bool, leaving: Bool, order: Int) -> some View {
         let visible = shown && !leaving
-        let delay = leaving ? Double(3 - order) * 0.03 : Double(order) * 0.09
         return opacity(visible ? 1 : 0)
             .offset(y: visible ? 0 : 14)
             .allowsHitTesting(visible)
             .animation(
-                leaving ? .easeIn(duration: 0.28).delay(delay) : .spring(response: 0.55, dampingFraction: 0.85)
-                    .delay(delay),
+                leaving ? .easeIn(duration: 0.28) : .spring(response: 0.55, dampingFraction: 0.85)
+                    .delay(Double(order) * 0.09),
                 value: visible
             )
     }

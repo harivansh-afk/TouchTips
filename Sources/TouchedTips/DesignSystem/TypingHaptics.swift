@@ -1,8 +1,8 @@
 import CoreHaptics
 
 /// Every tap for a run of typing, handed to CoreHaptics as one pattern before the first glyph, so
-/// the gaps between taps are exact rather than whatever the main thread was doing. Falls back to
-/// nothing on hardware without haptics.
+/// the gaps between taps are exact rather than whatever the main thread was doing. Does nothing
+/// on hardware without haptics.
 @MainActor
 final class TypingHaptics {
     struct Tap {
@@ -26,16 +26,18 @@ final class TypingHaptics {
         }
     }
 
-    private let engine: CHHapticEngine?
+    private static let supported = CHHapticEngine.capabilitiesForHardware().supportsHaptics
 
-    init() {
-        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else {
-            engine = nil
-            return
-        }
-        engine = try? CHHapticEngine()
+    /// Made on first use, not when the view is built.
+    private lazy var engine: CHHapticEngine? = {
+        guard Self.supported else { return nil }
+        let engine = try? CHHapticEngine()
         engine?.isAutoShutdownEnabled = true
-    }
+        return engine
+    }()
+
+    /// Held for the length of the pattern so it cannot be released mid-play.
+    private var player: CHHapticPatternPlayer?
 
     /// Spins the engine up so `play` starts on the first tap and not a few milliseconds after.
     func prepare() {
@@ -59,6 +61,7 @@ final class TypingHaptics {
             try engine.start()
             let player = try engine.makePlayer(with: CHHapticPattern(events: events, parameters: []))
             try player.start(atTime: CHHapticTimeImmediate)
+            self.player = player
         } catch {
             Log.ui.error("typing haptics: \(error.localizedDescription)")
         }
