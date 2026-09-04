@@ -54,11 +54,6 @@ enum Format {
         }
     }
 
-    /// "Blue Bottle · between 10:41 and 11:02"
-    static func placeAndWindow(_ row: PersonRow) -> String {
-        [placeName(row), window(row.meet)].compactMap { $0 }.joined(separator: " · ")
-    }
-
     static func placeName(_ row: PersonRow) -> String? {
         guard let place = row.place else { return nil }
         return place.name ?? coordinates(place.latitude, place.longitude)
@@ -70,28 +65,9 @@ enum Format {
         return row.meet == nil ? "" : "Date only"
     }
 
-    static func window(_ meet: Meet?) -> String? {
-        guard let meet, meet.precision == .exact || meet.precision == .day else { return nil }
-        if meet.precision == .exact { return time(meet.start) }
-        guard meet.end > meet.start, Calendar.current.isDate(meet.start, inSameDayAs: meet.end) else { return nil }
-        return "between \(time(meet.start)) and \(time(meet.end))"
-    }
-
-    static func visitSpan(_ visit: Visit) -> String {
-        if visit.source == .fix { return "at \(time(visit.start))" }
-        return visit.isOngoing ? "since \(time(visit.start))" : "\(time(visit.start)) to \(time(visit.end))"
-    }
-
     /// Notification body: "Blue Bottle · 2:14 pm", or whichever half is known.
     static func notice(placeName: String?, at date: Date?) -> String {
         [placeName, date.map(time)].compactMap { $0 }.joined(separator: " · ")
-    }
-
-    /// "Between 10:41 and 11:02, 8 August 2026", or "At 10:41, 8 August 2026" for an instant.
-    static func appeared(_ start: Date, _ end: Date) -> String {
-        start == end
-            ? "At \(time(start)), \(longDate(end))."
-            : "Between \(time(start)) and \(time(end)), \(longDate(end))."
     }
 
     /// "92%"
@@ -114,5 +90,34 @@ enum Format {
         let a = first.formatted(.dateTime.year())
         let b = last.formatted(.dateTime.year())
         return a == b ? a : "\(a) to \(b)"
+    }
+
+    /// "Sat 8 Aug 2026", or as much of it as was known. The second line of a row whose place is the heading.
+    static func dateLine(_ meet: Meet) -> String {
+        switch meet.precision {
+        case .exact, .day: meet.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).year())
+        case .month: month(meet.start)
+        case .year: meet.start.formatted(.dateTime.year())
+        }
+    }
+
+    /// "1 person" or "4 people"
+    static func peopleCount(_ count: Int) -> String {
+        count == 1 ? "1 person" : "\(count) people"
+    }
+
+    /// "Twelve quiet days", "Three quiet months", "A quiet year". Words, because it is set in the serif.
+    static func quiet(days: Int) -> String {
+        let (count, unit) = days < 60 ? (days, "day") : days < 365 ? (days / 30, "month") : (days / 365, "year")
+        let number = count == 1 ? "A" : spelled(count)
+        return "\(number) quiet \(unit)\(count == 1 ? "" : "s")"
+    }
+
+    /// "Twelve". Digits from a hundred up, where the words stop reading at a glance.
+    private static func spelled(_ count: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .spellOut
+        guard count < 100, let words = formatter.string(from: NSNumber(value: count)) else { return String(count) }
+        return words.prefix(1).uppercased() + words.dropFirst()
     }
 }

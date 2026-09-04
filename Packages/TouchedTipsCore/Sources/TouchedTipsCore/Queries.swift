@@ -31,8 +31,13 @@ public extension Person {
     }
 
     static func rows(atPlace placeID: Int64) -> QueryInterfaceRequest<PersonRow> {
+        rows(atPlaces: [placeID])
+    }
+
+    /// Everyone met at any of these places. The map asks for this when pins have merged.
+    static func rows(atPlaces placeIDs: [Int64]) -> QueryInterfaceRequest<PersonRow> {
         Person
-            .including(required: Person.meet.filter(Meet.Columns.placeID == placeID))
+            .including(required: Person.meet.filter(placeIDs.contains(Meet.Columns.placeID)))
             .including(optional: Person.place)
             .asRequest(of: PersonRow.self)
     }

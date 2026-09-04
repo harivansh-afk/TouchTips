@@ -7,28 +7,14 @@ struct GlassSearchField: View {
     var focused: FocusState<Bool>.Binding
 
     var body: some View {
-        HStack(spacing: 10) {
-            Icon(.magnifyingGlass, size: 18)
-                .foregroundStyle(.secondary)
-            TextField(prompt, text: $text)
-                .focused(focused)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .submitLabel(.search)
-            if !text.isEmpty {
-                Button {
-                    HapticManager.light()
-                    text = ""
-                } label: {
-                    Icon(.x, size: 16)
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear")
-            }
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 46)
-        .glassEffect(.clear, in: .capsule)
+        TextField(prompt, text: $text)
+            .focused(focused)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .submitLabel(.search)
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity)
+            .frame(height: 46)
+            .glassEffect(.clear, in: .capsule)
     }
 }

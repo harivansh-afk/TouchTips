@@ -7,6 +7,7 @@ struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
+    @AppStorage(PeopleLayout.key) private var peopleLayout = PeopleLayout.byDate
     @AppStorage("mapStyle") private var mapStyle = MapStyleChoice.muted
     @AppStorage("onboardingDone") private var onboardingDone = false
     @AppStorage(PresencePolicy.key) private var presence = PresencePolicy.always
@@ -68,6 +69,20 @@ struct SettingsSheet: View {
                     }
                 } footer: {
                     Text("Run Check for new people when Contacts closes. Put I just met someone on the Action Button.")
+                }
+
+                Section {
+                    Picker("Layout", selection: $peopleLayout) {
+                        ForEach(PeopleLayout.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                } header: {
+                    Text("People")
+                } footer: {
+                    Text(peopleLayout.detail)
                 }
 
                 Section("Map") {
@@ -134,6 +149,7 @@ struct SettingsSheet: View {
             } message: {
                 Text("Contacts themselves are untouched. Meetings, visits and places are removed.")
             }
+            .onChange(of: peopleLayout) { _, _ in HapticManager.selection() }
             .onAppear { app.contactsAccess.refresh() }
             .task {
                 await app.notifier.refresh()

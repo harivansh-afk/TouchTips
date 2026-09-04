@@ -70,15 +70,10 @@ struct PlaceChooser: View {
         mapView
             .frame(height: 210)
             .clipShape(.rect(cornerRadius: 22))
-            .overlay {
-                RoundedRectangle(cornerRadius: 22).strokeBorder(Color.hairline)
-            }
-            .opacity(selection == nil ? 0.6 : 1)
             // Top left, clear of the map's own mark in the bottom corner.
             .overlay(alignment: .topLeading) {
                 caption.padding(10)
             }
-            .animation(.appleMusic, value: selection == nil)
     }
 
     /// The dot sits over the map, not in it, so Muted's filter greys the map and not the dot.
@@ -216,18 +211,15 @@ struct PlaceChooser: View {
                     Button {
                         choose(result)
                     } label: {
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(result.name)
-                                    .font(.body.weight(.medium))
-                                    .lineLimit(1)
-                                if let detail = result.detail {
-                                    Text(detail).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
-                                }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(result.name)
+                                .font(.body.weight(.medium))
+                                .lineLimit(1)
+                            if let detail = result.detail {
+                                Text(detail).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
                             }
-                            Spacer(minLength: 8)
-                            Icon(.mapTrifold, size: 16).foregroundStyle(.secondary)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 18)
                         .padding(.vertical, 12)
                         .contentShape(.rect)

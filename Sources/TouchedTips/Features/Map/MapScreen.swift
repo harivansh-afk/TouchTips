@@ -7,15 +7,18 @@ struct MapScreen: View {
     @Environment(Router.self) private var router
     @State private var places: [PlaceSummary] = []
     @State private var camera: MapCameraPosition = .automatic
-    /// The place whose sheet is open, or whose pin is held while it opens.
-    @State private var selection: Int64?
+    /// The pin whose sheet is open, or which is held while it opens.
+    @State private var selection: PlaceGroup?
     /// Bumped as the camera moves, so the pins are placed again from the map's current frame.
     @State private var cameraTick = 0
     @AppStorage("mapStyle") private var styleChoice = MapStyleChoice.muted
     /// A person tapped in the place sheet. Pushed once the sheet has finished closing.
     @State private var pendingPerson: String?
-    /// The place whose sheet was open when a person was tapped, so back can reopen it.
-    @State private var lastPlace: Int64?
+    /// The pin whose sheet was open when a person was tapped, so back can reopen it.
+    @State private var lastGroup: PlaceGroup?
+
+    /// Two pins closer than this, centre to centre, become one. A pin is 44 points across.
+    private static let mergeDistance: CGFloat = 52
 
     var body: some View {
         NavigationStack(path: router.path(for: .map)) {
@@ -27,9 +30,9 @@ struct MapScreen: View {
         }
         // Back from a person lands here with the same place sheet open again.
         .onChange(of: router.paths[.map]?.count ?? 0) { _, count in
-            guard count == 0, let place = lastPlace else { return }
-            lastPlace = nil
-            selection = place
+            guard count == 0, let group = lastGroup else { return }
+            lastGroup = nil
+            selection = group
         }
     }
 
@@ -75,16 +78,14 @@ struct MapScreen: View {
             for id in places.compactMap(\.soleContactID) { app.photos.load(id) }
             showPendingPlace()
         }
-        .sheet(item: sheetPlace, onDismiss: pushPendingPerson) { place in
-            PlaceSheet(place: place) { contactID in
+        .sheet(item: $selection, onDismiss: pushPendingPerson) { group in
+            PlaceSheet(group: group) { contactID in
                 pendingPerson = contactID
-                lastPlace = place.id
+                lastGroup = group
                 selection = nil
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-            // Frosted, not clear: the list has to read over whatever the map is showing.
-            .presentationBackground(.regularMaterial)
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .task { await observe() }
@@ -93,34 +94,67 @@ struct MapScreen: View {
     /// The pins sit over the map, not in it, so Muted's filter greys the map and not the pins.
     /// Reading the tick makes this body run again on every camera move. Points are taken in
     /// global space and moved into the layer's own, so no safe area can put a pin off its target.
+    /// Places whose pins would overlap are drawn as one; the split and merge cross-fade.
     private func pins(in proxy: MapProxy) -> some View {
         let _ = cameraTick
         return GeometryReader { layer in
             let origin = layer.frame(in: .global).origin
-            ForEach(places) { place in
-                if let point = proxy.convert(place.coordinate, to: .global) {
+            let pins = clustered(in: proxy)
+            ZStack {
+                ForEach(pins, id: \.group.id) { pin in
                     PlacePin(
-                        place: place,
-                        image: place.soleContactID.flatMap(app.photos.image(for:)),
+                        group: pin.group,
+                        image: pin.group.soleContactID.flatMap(app.photos.image(for:)),
                         tint: styleChoice.placeTint,
-                        selected: selection == place.id
+                        selected: selection?.id == pin.group.id
                     )
                     .contentShape(.circle)
-                    .tapOverMap { open(place) }
-                    .position(x: point.x - origin.x, y: point.y - origin.y)
+                    .tapOverMap { open(pin.group) }
+                    .position(x: pin.point.x - origin.x, y: pin.point.y - origin.y)
+                    .transition(.blurReplace)
                 }
             }
+            .animation(.appleMusic, value: pins.map(\.group.id))
         }
         .ignoresSafeArea()
     }
 
+    private struct Pin {
+        let group: PlaceGroup
+        let point: CGPoint
+    }
+
+    /// Greedy, in screen space: each place joins the first group whose centre is within reach,
+    /// or starts its own. Places go in id order, so the same zoom always makes the same groups.
+    private func clustered(in proxy: MapProxy) -> [Pin] {
+        var groups: [(places: [PlaceSummary], sum: CGPoint)] = []
+        for place in places.sorted(by: { $0.id < $1.id }) {
+            guard let point = proxy.convert(place.coordinate, to: .global) else { continue }
+            let near = groups.firstIndex { group in
+                let count = CGFloat(group.places.count)
+                return hypot(group.sum.x / count - point.x, group.sum.y / count - point.y) < Self.mergeDistance
+            }
+            if let near {
+                groups[near].places.append(place)
+                groups[near].sum.x += point.x
+                groups[near].sum.y += point.y
+            } else {
+                groups.append((places: [place], sum: point))
+            }
+        }
+        return groups.map { group in
+            let count = CGFloat(group.places.count)
+            return Pin(group: PlaceGroup(places: group.places), point: CGPoint(x: group.sum.x / count, y: group.sum.y / count))
+        }
+    }
+
     /// One person is the pin, so the tap goes straight to them; more open the sheet.
-    private func open(_ place: PlaceSummary) {
+    private func open(_ group: PlaceGroup) {
         HapticManager.selection()
-        if let contactID = place.soleContactID {
+        if let contactID = group.soleContactID {
             router.open(person: contactID)
         } else {
-            selection = place.id
+            selection = group
         }
     }
 
@@ -154,15 +188,7 @@ struct MapScreen: View {
         withAnimation(.appleMusic) {
             camera = .region(MKCoordinateRegion(center: place.coordinate, latitudinalMeters: 600, longitudinalMeters: 600))
         }
-        if place.soleContactID == nil { selection = id }
-    }
-
-    /// The sheet is for places with more than one person; a single person is pushed instead.
-    private var sheetPlace: Binding<PlaceSummary?> {
-        Binding(
-            get: { places.first { $0.id == selection && $0.soleContactID == nil } },
-            set: { selection = $0?.id }
-        )
+        if place.soleContactID == nil { selection = PlaceGroup(places: [place]) }
     }
 
     private func observe() async {
