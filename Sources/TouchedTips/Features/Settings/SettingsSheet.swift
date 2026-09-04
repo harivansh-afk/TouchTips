@@ -53,25 +53,6 @@ struct SettingsSheet: View {
                 }
 
                 Section {
-                    Picker("Stay awake", selection: $presence) {
-                        ForEach(PresencePolicy.allCases) { policy in
-                            Text(policy.title).tag(policy)
-                        }
-                    }
-                    .onChange(of: presence) { _, policy in app.capture.presencePolicy = policy }
-                } footer: {
-                    Text("Awake, a new contact is noticed the moment it is saved.")
-                }
-
-                Section {
-                    Button("Open Shortcuts") {
-                        if let url = URL(string: "shortcuts://") { openURL(url) }
-                    }
-                } footer: {
-                    Text("Run Check for new people when Contacts closes. Put I just met someone on the Action Button.")
-                }
-
-                Section {
                     Picker("Layout", selection: $peopleLayout) {
                         ForEach(PeopleLayout.allCases) { option in
                             Text(option.title).tag(option)
@@ -100,6 +81,13 @@ struct SettingsSheet: View {
 
                 if BuildEnvironment.isDev {
                     Section {
+                        // Stays here until a week of numbers picks the default. Awake, an add is heard the moment it is saved.
+                        Picker("Stay awake", selection: $presence) {
+                            ForEach(PresencePolicy.allCases) { policy in
+                                Text(policy.title).tag(policy)
+                            }
+                        }
+                        .onChange(of: presence) { _, policy in app.capture.presencePolicy = policy }
                         if let stats {
                             LabeledContent("Awake", value: Format.percent(stats.uptime))
                             LabeledContent("Wakes", value: wakesText(stats))

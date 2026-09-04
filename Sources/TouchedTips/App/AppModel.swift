@@ -6,9 +6,6 @@ import TouchedTipsCore
 @MainActor
 @Observable
 final class AppModel {
-    /// The running app's model, for App Intents. Set by the delegate; previews never set it.
-    static var shared: AppModel?
-
     let database: AppDatabase
     let capture: CaptureCoordinator
     let geocoder: Geocoder
