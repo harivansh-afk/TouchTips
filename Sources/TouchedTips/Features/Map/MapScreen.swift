@@ -89,13 +89,14 @@ struct MapScreen: View {
     }
 
     /// The pins sit over the map, not in it, so Muted's filter greys the map and not the pins.
-    /// Reading the tick makes this body run again on every camera move. The layer spans the
-    /// map's whole frame, safe areas included, since that is the space the proxy converts into.
+    /// Reading the tick makes this body run again on every camera move. Points are taken in
+    /// global space and moved into the layer's own, so no safe area can put a pin off its target.
     private func pins(in proxy: MapProxy) -> some View {
         let _ = cameraTick
-        return ZStack {
+        return GeometryReader { layer in
+            let origin = layer.frame(in: .global).origin
             ForEach(places) { place in
-                if let point = proxy.convert(place.coordinate, to: .local) {
+                if let point = proxy.convert(place.coordinate, to: .global) {
                     Button {
                         open(place)
                     } label: {
@@ -107,7 +108,7 @@ struct MapScreen: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .position(point)
+                    .position(x: point.x - origin.x, y: point.y - origin.y)
                 }
             }
         }

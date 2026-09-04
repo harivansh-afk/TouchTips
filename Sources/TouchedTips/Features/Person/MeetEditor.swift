@@ -3,7 +3,8 @@ import SwiftUI
 import TouchedTipsCore
 
 /// When and where, edited on the person screen itself. Every change is saved as the user's answer
-/// the moment it is made; there is no button. Suggestions are your own visits around that day.
+/// the moment it is made; there is no button and no sound for it, since the tap that made the
+/// change already had one. Suggestions are your own visits around that day.
 struct MeetEditor: View {
     let row: PersonRow
 
@@ -128,7 +129,6 @@ struct MeetEditor: View {
                 contactID: row.id, start: window.start, end: window.end.addingTimeInterval(-1),
                 precision: .day, placeID: placeID, now: .now, to: database
             )
-            HapticManager.success()
             problem = nil
         } catch {
             HapticManager.error()

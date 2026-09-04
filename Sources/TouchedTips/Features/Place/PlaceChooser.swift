@@ -93,9 +93,11 @@ struct PlaceChooser: View {
             .onMapCameraChange(frequency: .continuous) { _ in cameraTick += 1 }
             .overlay {
                 let _ = cameraTick
-                ZStack {
-                    if let selection, let point = proxy.convert(selection.coordinate, to: .local) {
-                        PinDot(tint: styleChoice.placeTint).position(point)
+                GeometryReader { layer in
+                    let origin = layer.frame(in: .global).origin
+                    if let selection, let point = proxy.convert(selection.coordinate, to: .global) {
+                        PinDot(tint: styleChoice.placeTint)
+                            .position(x: point.x - origin.x, y: point.y - origin.y)
                     }
                 }
                 .ignoresSafeArea()
@@ -261,8 +263,8 @@ struct PlaceChooser: View {
         }
     }
 
+    /// The row's press already ticked; the pick itself is silent.
     private func choose(_ choice: PlaceChoice) {
-        HapticManager.selection()
         selection = choice
         focused = false
         query = ""
