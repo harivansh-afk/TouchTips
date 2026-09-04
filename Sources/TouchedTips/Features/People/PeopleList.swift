@@ -69,32 +69,27 @@ struct PeopleList: View {
                     HapticManager.selection()
                     router.showPlace(placeID)
                 } label: {
-                    headingLabel(title, subtitle: subtitle, onMap: true)
+                    headingLabel(title, subtitle: subtitle)
                 }
                 .buttonStyle(.press)
                 .accessibilityHint("Shows this place on the map")
             } else {
-                headingLabel(title, subtitle: subtitle, onMap: false)
+                headingLabel(title, subtitle: subtitle)
             }
         }
         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
         .listRowSeparator(.hidden)
     }
 
-    private func headingLabel(_ title: String, subtitle: String?, onMap: Bool) -> some View {
+    private func headingLabel(_ title: String, subtitle: String?) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.display(26))
                 .foregroundColor(Color.primary)
             if let subtitle {
-                HStack(spacing: 6) {
-                    Text(subtitle)
-                    if onMap {
-                        Icon(.mapTrifold, size: 12).opacity(0.7)
-                    }
-                }
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

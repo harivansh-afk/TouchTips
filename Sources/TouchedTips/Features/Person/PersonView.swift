@@ -93,12 +93,9 @@ private struct MeetCard: View {
                             HapticManager.selection()
                             router.showPlace(placeID)
                         } label: {
-                            HStack(spacing: 6) {
-                                Text(detail)
-                                Icon(.mapTrifold, size: 14).opacity(0.7)
-                            }
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
+                            Text(detail)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.press)
                         .padding(.top, 4)
@@ -107,14 +104,6 @@ private struct MeetCard: View {
                         Text(detail).font(.callout).foregroundStyle(.secondary).padding(.top, 4)
                     }
                 }
-                Label {
-                    Text(Format.tierName(meet.tier))
-                } icon: {
-                    ConfidenceDot(tier: meet.tier)
-                }
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.top, 10)
             } else {
                 Text("Undocumented").font(.display(32))
                 Text("Saved before the app was installed. Nothing to go on yet.")
@@ -137,13 +126,9 @@ private struct EvidenceList: View {
             VStack(alignment: .leading, spacing: 14) {
                 SectionLabel(text: "How we know")
                 ForEach(lines(for: meet), id: \.title) { line in
-                    Label {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(line.title)
-                            Text(line.detail).font(.footnote).foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        Image(systemName: line.symbol)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(line.title)
+                        Text(line.detail).font(.footnote).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -153,7 +138,6 @@ private struct EvidenceList: View {
     }
 
     private struct Line {
-        let symbol: String
         let title: String
         let detail: String
     }
@@ -162,7 +146,6 @@ private struct EvidenceList: View {
         if meet.userSet {
             let fromApp = meet.precision == .exact && meet.addSeenStart == meet.start
             return [Line(
-                symbol: fromApp ? "plus.circle" : "hand.point.up.left",
                 title: fromApp ? "Added from TouchedTips" : "Set by you",
                 detail: fromApp ? "Exact time and place." : "Your answer outranks everything else."
             )]
@@ -171,18 +154,17 @@ private struct EvidenceList: View {
         var lines: [Line] = []
         if let seenStart = meet.addSeenStart, let seenEnd = meet.addSeenEnd {
             lines.append(Line(
-                symbol: "person.crop.circle.badge.plus",
                 title: "Contact appeared",
                 detail: "Between \(Format.time(seenStart)) and \(Format.time(seenEnd)), \(Format.longDate(seenEnd))."
             ))
         }
         switch (meet.tier, visit) {
         case (.witnessed, let visit?):
-            lines.append(Line(symbol: "mappin.and.ellipse", title: "You were here", detail: Format.visitSpan(visit)))
+            lines.append(Line(title: "You were here", detail: Format.visitSpan(visit)))
         case (.inferred, let visit?):
-            lines.append(Line(symbol: "mappin", title: "You were nearby", detail: "Closest visit, \(Format.visitSpan(visit))."))
+            lines.append(Line(title: "You were nearby", detail: "Closest visit, \(Format.visitSpan(visit))."))
         default:
-            lines.append(Line(symbol: "mappin.slash", title: "No visit close to that time", detail: "Set the place if you remember it."))
+            lines.append(Line(title: "No visit close to that time", detail: "Set the place if you remember it."))
         }
         return lines
     }
