@@ -68,7 +68,7 @@ struct MapScreen: View {
             .padding(.horizontal, 16)
             .padding(.top, 2)
         }
-        .overlay(alignment: .bottom) {
+        .overlay {
             if places.isEmpty {
                 emptyState
                     .transition(.blurReplace)
@@ -102,7 +102,7 @@ struct MapScreen: View {
         .task { await observe() }
     }
 
-    /// One line in the app's voice, low on the map, in place of a system placeholder.
+    /// One line in the app's voice, centred on the map, in place of a system placeholder.
     private var emptyState: some View {
         VStack(spacing: 2) {
             Text("Nowhere yet")
@@ -115,7 +115,6 @@ struct MapScreen: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 14)
         .glassEffect(.clear, in: .rect(cornerRadius: 24))
-        .padding(.bottom, 12)
         .allowsHitTesting(false)
     }
 
