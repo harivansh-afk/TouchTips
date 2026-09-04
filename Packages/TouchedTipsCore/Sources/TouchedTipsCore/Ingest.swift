@@ -211,6 +211,14 @@ public enum Ingest {
         _ = try database.writer.write { db in try Meet.deleteOne(db, key: contactID) }
     }
 
+    /// The user's note about a person. Whitespace-only clears it.
+    public static func setNote(contactID: String, note: String, to database: AppDatabase) throws {
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        try database.writer.write { db in
+            _ = try Person.filter(key: contactID).updateAll(db, Person.Columns.note.set(to: trimmed.isEmpty ? nil : trimmed))
+        }
+    }
+
     /// A contact created from inside the app: exact time, chosen place.
     public static func addExact(contactID: String, name: String, at now: Date, placeID: Int64?, to database: AppDatabase) throws {
         try database.writer.write { db in

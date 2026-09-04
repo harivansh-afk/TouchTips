@@ -22,6 +22,7 @@ struct PersonView: View {
                     MeetCard(row: row)
                         .smoothAppear()
                     MeetEditor(row: row)
+                    NoteField(row: row)
                     Button {
                         HapticManager.medium()
                         showCard = true

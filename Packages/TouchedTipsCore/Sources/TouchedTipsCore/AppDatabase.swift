@@ -96,6 +96,12 @@ public final class AppDatabase: Sendable {
             try db.create(indexOn: "heartbeat", columns: ["at"])
         }
 
+        migrator.registerMigration("v3") { db in
+            try db.alter(table: "person") { t in
+                t.add(column: "note", .text)
+            }
+        }
+
         return migrator
     }
 }

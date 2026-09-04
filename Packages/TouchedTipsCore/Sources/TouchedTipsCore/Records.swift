@@ -44,14 +44,17 @@ public struct Person: Codable, Hashable, Identifiable, Sendable {
     /// Existed before the first run. No meeting can be inferred for these.
     public var beforeInstall: Bool
     public var createdAt: Date
+    /// A line or two the user wrote about them. Ours, never Contacts'. nil rather than empty.
+    public var note: String?
 
     public var id: String { contactID }
 
-    public init(contactID: String, name: String, beforeInstall: Bool, createdAt: Date) {
+    public init(contactID: String, name: String, beforeInstall: Bool, createdAt: Date, note: String? = nil) {
         self.contactID = contactID
         self.name = name
         self.beforeInstall = beforeInstall
         self.createdAt = createdAt
+        self.note = note
     }
 
     public var initials: String { Person.initials(for: name) }

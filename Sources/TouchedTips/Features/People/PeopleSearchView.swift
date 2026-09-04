@@ -26,7 +26,7 @@ struct PeopleSearchView: View {
                 .minimizesTabBarOnScroll()
                 .safeAreaInset(edge: .top, spacing: 0) {
                     if showField {
-                        GlassSearchField(prompt: "Name or place", text: $query, focused: $focused)
+                        GlassSearchField(prompt: "Name, place or note", text: $query, focused: $focused)
                             .padding(.horizontal, 16)
                             .padding(.top, 4)
                             .padding(.bottom, 8)

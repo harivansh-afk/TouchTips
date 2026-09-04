@@ -193,3 +193,33 @@ import Testing
         #expect(summary?.soleName == "Dev Patel")
     }
 }
+
+@Suite struct NoteTests {
+    let db: AppDatabase
+
+    init() throws {
+        db = try AppDatabase.inMemory()
+        try Ingest.addExact(contactID: "a", name: "Alice", at: t("2026-09-01T09:00"), placeID: nil, to: db)
+    }
+
+    private func note() throws -> String? {
+        try db.reader.read { try Person.fetchOne($0, key: "a")?.note }
+    }
+
+    @Test func aNoteIsSavedTrimmedAndClearedWhenBlank() throws {
+        try Ingest.setNote(contactID: "a", note: "  runs a sailing school in Goa \n", to: db)
+        #expect(try note() == "runs a sailing school in Goa")
+        try Ingest.setNote(contactID: "a", note: "   ", to: db)
+        #expect(try note() == nil)
+    }
+
+    @Test func aNameUpdateFromContactsKeepsTheNote() throws {
+        try Ingest.setNote(contactID: "a", note: "sailing", to: db)
+        _ = try Ingest.apply(
+            ContactChangeSet(added: [], updated: [ContactSnapshot(contactID: "a", name: "Alice Chen")], token: Data([2])),
+            now: t("2026-09-02T09:00"), to: db
+        )
+        #expect(try note() == "sailing")
+        #expect(try db.reader.read { try Person.fetchOne($0, key: "a")?.name } == "Alice Chen")
+    }
+}

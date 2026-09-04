@@ -12,7 +12,7 @@ extension Person: FetchableRecord, PersistableRecord {
     public static let databaseTableName = "person"
 
     public enum Columns: String, ColumnExpression {
-        case contactID, name, beforeInstall, createdAt
+        case contactID, name, beforeInstall, createdAt, note
     }
 
     public static let meet = hasOne(Meet.self)

@@ -38,6 +38,7 @@ enum PeopleSections {
         let visible = trimmed.isEmpty ? rows : rows.filter { row in
             row.person.name.localizedCaseInsensitiveContains(trimmed)
                 || (row.place?.name?.localizedCaseInsensitiveContains(trimmed) ?? false)
+                || (row.person.note?.localizedCaseInsensitiveContains(trimmed) ?? false)
         }
 
         let dated = visible
