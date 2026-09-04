@@ -67,7 +67,6 @@ struct OnboardingView: View {
 
             PermissionRow(
                 title: "Contacts",
-                detail: "So new people get noticed.",
                 missing: "New people won't be noticed.",
                 state: contactsState,
                 openSettings: openSettings
@@ -81,7 +80,6 @@ struct OnboardingView: View {
 
             PermissionRow(
                 title: "Location, Always",
-                detail: "So new contacts get a venue.",
                 missing: "Venues can't be captured.",
                 state: locationState,
                 openSettings: openSettings
@@ -138,7 +136,6 @@ private enum PermissionState {
 
 private struct PermissionRow: View {
     let title: String
-    let detail: String
     /// What the app loses without it. Shown only once the answer was no.
     let missing: String
     let state: PermissionState
@@ -149,7 +146,6 @@ private struct PermissionRow: View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
-                Text(detail).font(.footnote).foregroundStyle(.secondary)
                 if state == .denied {
                     Text(missing).font(.footnote).foregroundStyle(.primary)
                 }
