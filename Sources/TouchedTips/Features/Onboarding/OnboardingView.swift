@@ -81,8 +81,8 @@ struct OnboardingView: View {
 
             PermissionRow(
                 title: "Location, Always",
-                detail: "So each new contact gets a place.",
-                missing: "Places can't be captured.",
+                detail: "So new contacts get a venue.",
+                missing: "Venues can't be captured.",
                 state: locationState,
                 openSettings: openSettings
             ) {

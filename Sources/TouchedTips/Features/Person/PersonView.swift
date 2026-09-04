@@ -8,7 +8,6 @@ struct PersonView: View {
     @State private var allowDismissalGesture: AllowedNavigationDismissalGestures = .none
     @State private var row: PersonRow?
     @State private var evidence: Visit?
-    @State private var showFix = false
     @State private var showCard = false
 
     var body: some View {
@@ -24,19 +23,12 @@ struct PersonView: View {
                     MeetCard(row: row)
                         .smoothAppear()
                     EvidenceList(row: row, visit: evidence)
-                    VStack(spacing: 10) {
-                        Button {
-                            HapticManager.medium()
-                            showFix = true
-                        } label: {
-                            Text(row.meet == nil ? "Set when you met" : "Fix date or place").frame(maxWidth: .infinity)
-                        }
-                        Button {
-                            HapticManager.medium()
-                            showCard = true
-                        } label: {
-                            Text("Open in Contacts").frame(maxWidth: .infinity)
-                        }
+                    MeetEditor(row: row)
+                    Button {
+                        HapticManager.medium()
+                        showCard = true
+                    } label: {
+                        Text("Open in Contacts").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glass)
                     .controlSize(.large)
@@ -46,6 +38,7 @@ struct PersonView: View {
                 .padding(.bottom, 40)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(Color.ground)
         // No bar at all: the push is the zoom and nothing else. Back is the tab bar's capsule, or the swipe.
         .toolbar(.hidden, for: .navigationBar)
@@ -54,9 +47,6 @@ struct PersonView: View {
         .task {
             try? await Task.sleep(for: .seconds(1))
             allowDismissalGesture = .all
-        }
-        .sheet(isPresented: $showFix) {
-            if let row { FixSheet(row: row) }
         }
         .sheet(isPresented: $showCard) {
             ContactCard(contactID: contactID).ignoresSafeArea()
@@ -90,11 +80,7 @@ private struct MeetCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("First met")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .kerning(1)
-                .foregroundStyle(.secondary)
+            SectionLabel(text: "First met")
             if let meet = row.meet {
                 let headline = Format.headline(for: meet)
                 Text(headline.lead).font(.display(32))
@@ -148,11 +134,7 @@ private struct EvidenceList: View {
     var body: some View {
         if let meet = row.meet {
             VStack(alignment: .leading, spacing: 14) {
-                Text("How we know")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .kerning(1)
-                    .foregroundStyle(.secondary)
+                SectionLabel(text: "How we know")
                 ForEach(lines(for: meet), id: \.title) { line in
                     Label {
                         VStack(alignment: .leading, spacing: 2) {

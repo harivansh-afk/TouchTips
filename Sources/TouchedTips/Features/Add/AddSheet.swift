@@ -13,6 +13,12 @@ struct AddSheet: View {
     @State private var phone = ""
     /// Formats as you type for the device's region, and follows a typed country code instead.
     private let phoneFormatter = PartialFormatter()
+    /// The region's own example number, written the way it will be formatted: "(201) 555-0123".
+    private static let phonePrompt: String = {
+        let utility = PhoneNumberUtility()
+        guard let example = utility.getExampleNumber(forCountry: PhoneNumberUtility.defaultRegionCode()) else { return "Phone" }
+        return utility.format(example, toType: .national)
+    }()
     @State private var choices: [PlaceChoice] = []
     @State private var chosen: PlaceChoice?
     @State private var origin: CLLocationCoordinate2D?
@@ -30,12 +36,7 @@ struct AddSheet: View {
                 VStack(alignment: .leading, spacing: 24) {
                     fields
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Where")
-                            .font(.caption.weight(.semibold))
-                            .textCase(.uppercase)
-                            .kerning(1)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 6)
+                        SectionLabel(text: "Where").padding(.leading, 6)
                         PlaceChooser(candidates: choices, selection: $chosen, origin: origin, note: note)
                     }
                     if let problem {
@@ -89,7 +90,6 @@ struct AddSheet: View {
     private var fields: some View {
         VStack(spacing: 0) {
             TextField("Name", text: $name)
-                .font(.title3.weight(.semibold))
                 .textContentType(.name)
                 .focused($focus, equals: .name)
                 .submitLabel(.next)
@@ -100,7 +100,7 @@ struct AddSheet: View {
                 .fill(Color.hairline)
                 .frame(height: 1)
                 .padding(.leading, 18)
-            TextField("Phone", text: $phone)
+            TextField(Self.phonePrompt, text: $phone)
                 .textContentType(.telephoneNumber)
                 .keyboardType(.phonePad)
                 .focused($focus, equals: .phone)

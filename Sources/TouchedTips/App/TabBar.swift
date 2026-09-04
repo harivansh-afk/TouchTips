@@ -7,6 +7,8 @@ struct TabBar: View {
 
     static let height: CGFloat = 58
     static let bottomPadding: CGFloat = 24
+    /// How far above the bottom safe area content stops, so nothing ends under the capsule.
+    static let contentInset = height + bottomPadding + 8 - 34
 
     var body: some View {
         VStack(spacing: 0) {

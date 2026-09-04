@@ -9,9 +9,6 @@ struct RootView: View {
     /// Content stops this far above the bottom safe area, so lists end above the capsule.
     private static let barInset = TabBar.height + TabBar.bottomPadding + 8 - 34
 
-    /// The app is built and laid out under onboarding from launch and is never itself animated:
-    /// glass loses its backdrop under an animated ancestor and snaps back when the animation
-    /// ends. Only the onboarding overlay fades, and the bar moves by a transform.
     var body: some View {
         ZStack {
             tabs
@@ -58,7 +55,7 @@ struct RootView: View {
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                Color.clear.frame(height: Self.barInset)
+                Color.clear.frame(height: TabBar.contentInset)
             }
 
             TabBar()
