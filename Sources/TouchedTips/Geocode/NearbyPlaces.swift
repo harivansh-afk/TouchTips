@@ -2,10 +2,12 @@ import MapKit
 import SwiftUI
 import TouchedTipsCore
 
-/// MapKit lookups for the Add sheet. Everything returns Sendable values so callers stay on the main actor.
+/// MapKit lookups for the Add sheet and the notification. Main actor: MapKit asserts when a search starts off
+/// the main thread, and every caller is there anyway.
+@MainActor
 enum NearbyPlaces {
     /// Businesses within `radius` metres of a point, nearest first.
-    nonisolated static func around(
+    static func around(
         _ coordinate: CLLocationCoordinate2D, radius: CLLocationDistance = 150, limit: Int = 4
     ) async throws -> [PlaceChoice] {
         let request = MKLocalPointsOfInterestRequest(center: coordinate, radius: radius)
@@ -20,7 +22,7 @@ enum NearbyPlaces {
     }
 
     /// Free-text search, biased to a few kilometres around `coordinate` when there is one.
-    nonisolated static func search(_ query: String, near coordinate: CLLocationCoordinate2D?) async throws -> [PlaceChoice] {
+    static func search(_ query: String, near coordinate: CLLocationCoordinate2D?) async throws -> [PlaceChoice] {
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = query
         request.resultTypes = [.pointOfInterest, .address]

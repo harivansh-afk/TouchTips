@@ -79,24 +79,16 @@ final class Geocoder {
         case noResult
     }
 
-    /// One reverse geocode. Also used by the Add sheet for "you are here".
-    nonisolated static func reverseGeocode(latitude: Double, longitude: Double) async throws -> PlaceName {
+    /// One reverse geocode. Also used by the Add sheet for "you are here". Main actor on purpose: MapKit
+    /// starts the request through UIKit and asserts when that happens off the main thread.
+    static func reverseGeocode(latitude: Double, longitude: Double) async throws -> PlaceName {
         let location = CLLocation(latitude: latitude, longitude: longitude)
         guard let request = MKReverseGeocodingRequest(location: location) else { throw GeocodeError.invalidLocation }
-        return try await withCheckedThrowingContinuation { continuation in
-            request.getMapItems { items, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else if let item = items?.first {
-                    continuation.resume(returning: Self.placeName(for: item))
-                } else {
-                    continuation.resume(throwing: GeocodeError.noResult)
-                }
-            }
-        }
+        guard let item = try await request.mapItems.first else { throw GeocodeError.noResult }
+        return placeName(for: item)
     }
 
-    private nonisolated static func placeName(for item: MKMapItem) -> PlaceName {
+    private static func placeName(for item: MKMapItem) -> PlaceName {
         let detail = item.addressRepresentations?.cityWithContext
         let title = item.name ?? item.address?.shortAddress ?? detail ?? "Unnamed place"
         return PlaceName(title: title, detail: detail)
