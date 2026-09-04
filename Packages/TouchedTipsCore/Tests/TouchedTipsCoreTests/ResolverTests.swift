@@ -51,6 +51,26 @@ import Testing
         #expect(meet.addSeenStart == t("2026-09-02T10:00"))
     }
 
+    @Test func aFixInsideTheIntervalOutranksALongerStay() {
+        let visits = [
+            visit(2, "2026-09-02T08:00", "2026-09-02T18:00"),
+            visit(9, "2026-09-02T10:41", "2026-09-02T10:41", source: .fix),
+        ]
+        let meet = Resolver.meet(for: add("2026-09-02T09:30", "2026-09-02T10:41"), visits: visits, now: now)
+        #expect(meet.tier == .witnessed)
+        #expect(meet.placeID == 9)
+        #expect(meet.precision == .exact)
+        #expect(meet.start == t("2026-09-02T10:41"))
+        #expect(meet.end == t("2026-09-02T10:41"))
+    }
+
+    @Test func aFixOutsideTheIntervalNeverInfers() {
+        let visits = [visit(9, "2026-09-02T11:30", "2026-09-02T11:30", source: .fix)]
+        let meet = Resolver.meet(for: add("2026-09-02T10:00", "2026-09-02T11:00"), visits: visits, now: now)
+        #expect(meet.tier == .dateOnly)
+        #expect(meet.placeID == nil)
+    }
+
     @Test func precisionFollowsTheSpan() {
         #expect(Precision.spanning(t("2026-09-02T10:00"), t("2026-09-02T11:00")) == .day)
         #expect(Precision.spanning(t("2026-09-02T10:00"), t("2026-09-10T11:00")) == .month)

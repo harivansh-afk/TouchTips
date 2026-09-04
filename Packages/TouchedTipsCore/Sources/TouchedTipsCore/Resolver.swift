@@ -21,15 +21,23 @@ public enum Resolver {
     public static let window: TimeInterval = 2 * 3600
 
     /// Callers pass every visit overlapping `[seenStart - window, seenEnd + window]`.
+    ///
+    /// A fix inside the interval outranks everything: it is where the phone was the instant the add was heard.
+    /// Fixes are points, so they never infer; only stays do.
     public static func meet(for add: ContactAdd, visits: [Visit], now: Date) -> Meet {
         let overlapping = visits.filter { $0.start <= add.seenEnd && $0.end >= add.seenStart }
-        if let visit = overlapping.max(by: { overlap($0, add) < overlap($1, add) }) {
+        if let fix = overlapping.filter({ $0.source == .fix }).max(by: { $0.start < $1.start }) {
+            return make(add, start: fix.start, end: fix.start, precision: .exact, placeID: fix.placeID, tier: .witnessed, now: now)
+        }
+
+        let stays = overlapping.filter { $0.source != .fix }
+        if let visit = stays.max(by: { overlap($0, add) < overlap($1, add) }) {
             let start = max(add.seenStart, visit.start)
             let end = min(add.seenEnd, visit.end)
             return make(add, start: start, end: end, placeID: visit.placeID, tier: .witnessed, now: now)
         }
 
-        let nearby = visits.filter { gap($0, add) <= window }
+        let nearby = visits.filter { $0.source != .fix && gap($0, add) <= window }
         if let visit = nearby.min(by: { gap($0, add) < gap($1, add) }) {
             return make(add, start: add.seenStart, end: add.seenEnd, placeID: visit.placeID, tier: .inferred, now: now)
         }
@@ -37,12 +45,14 @@ public enum Resolver {
         return make(add, start: add.seenStart, end: add.seenEnd, placeID: nil, tier: .dateOnly, now: now)
     }
 
-    private static func make(_ add: ContactAdd, start: Date, end: Date, placeID: Int64?, tier: Tier, now: Date) -> Meet {
+    private static func make(
+        _ add: ContactAdd, start: Date, end: Date, precision: Precision? = nil, placeID: Int64?, tier: Tier, now: Date
+    ) -> Meet {
         Meet(
             contactID: add.contactID,
             start: start,
             end: end,
-            precision: .spanning(start, end),
+            precision: precision ?? .spanning(start, end),
             placeID: placeID,
             tier: tier,
             userSet: false,

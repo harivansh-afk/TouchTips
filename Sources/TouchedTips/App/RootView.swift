@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct RootView: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("onboardingDone") private var onboardingDone = false
     @State private var router = Router()
     /// True from the end of onboarding until the tab bar has risen into place.
@@ -18,6 +20,15 @@ struct RootView: View {
                 OnboardingView { arrive() }
                     .transition(.opacity)
             }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { app.capture.scheduleTick(.foreground) }
+        }
+        .onChange(of: app.notifier.pendingPerson, initial: true) { _, contactID in
+            guard let contactID, onboardingDone else { return }
+            router.selectedTab = .people
+            router.paths[.people] = [.person(contactID)]
+            app.notifier.pendingPerson = nil
         }
     }
 

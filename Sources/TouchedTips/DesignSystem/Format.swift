@@ -65,6 +65,16 @@ enum Format {
         return row.meet == nil ? "" : "Date only"
     }
 
+    /// Notification body: "Blue Bottle · 2:14 pm", or whichever half is known.
+    static func notice(placeName: String?, at date: Date?) -> String {
+        [placeName, date.map(time)].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    /// "92%"
+    static func percent(_ fraction: Double) -> String {
+        fraction.formatted(.percent.precision(.fractionLength(0)))
+    }
+
     static func tierName(_ tier: Tier?) -> String {
         switch tier {
         case .exact: "exact"

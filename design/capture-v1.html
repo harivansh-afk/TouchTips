@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TouchedTips · capture v1</title>
+<style>
+  :root{
+    --page:#0a0a0a; --ink:#f2f2f2; --muted:#8a8a8a; --rule:#222; --code:#141414;
+    --label2:rgba(255,255,255,.58); --label3:rgba(255,255,255,.3); --sep:rgba(255,255,255,.12);
+    --glass:rgba(255,255,255,.06); --glass-edge:rgba(255,255,255,.22);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:0 24px}
+  header.top{position:sticky;top:0;z-index:20;background:rgba(10,10,10,.85);backdrop-filter:blur(14px);border-bottom:1px solid var(--rule)}
+  header.top .wrap{display:flex;align-items:baseline;gap:24px;padding:14px 24px}
+  h1{font-size:17px;margin:0}
+  h1 span{color:var(--muted);font-weight:400}
+  nav a{color:var(--muted);text-decoration:none;font-size:13px;margin-right:16px}
+  nav a:hover{color:var(--ink)}
+  section{padding:48px 0 8px;border-bottom:1px solid var(--rule)}
+  h2{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
+  h3{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:32px 0 10px}
+  p.lede{color:var(--label2);font-size:16px;max-width:720px;margin:0 0 20px}
+  p{max-width:720px}
+  pre{background:var(--code);border:1px solid var(--rule);border-radius:10px;padding:16px 18px;font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:auto;color:#d8d8d8}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:var(--code);border:1px solid var(--rule);padding:1px 5px;border-radius:5px;color:#eee}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0 24px}
+  th{text-align:left;color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--rule)}
+  td{padding:10px;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--ink)}
+  td.m{color:var(--label2)}
+  .layers{display:grid;gap:10px;margin:20px 0 28px}
+  .layer{display:grid;grid-template-columns:150px 1fr 220px;gap:18px;padding:16px 18px;border-radius:14px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-edge)}
+  .layer .n{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .layer .n b{display:block;color:var(--ink);font-size:15px;letter-spacing:0;text-transform:none;margin-top:2px}
+  .layer .w{font-size:14px;color:var(--label2)}
+  .layer .w b{color:var(--ink);font-weight:500}
+  .layer .api{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:#cfcfcf;line-height:1.7}
+  .note{border-left:2px solid var(--glass-edge);padding:6px 14px;color:var(--label2);margin:16px 0;max-width:720px}
+  .note b{color:var(--ink)}
+  ul{max-width:720px;padding-left:20px}
+  li{margin:6px 0}
+  .tag{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:1px solid var(--rule);border-radius:999px;padding:2px 8px;margin-right:6px}
+  .unm{color:var(--label3);font-size:12px}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <h1>TouchedTips <span>· capture v1</span></h1>
+  <nav><a href="#idea">Idea</a><a href="#layers">Layers</a><a href="#tick">Tick</a><a href="#notif">Notification</a><a href="#setup">Setup</a><a href="#fail">Failure</a><a href="#measure">Measure</a><a href="#build">Build</a></nav>
+</div></header>
+
+<div class="wrap">
+
+<section id="idea">
+  <h2>Stay awake, so the add is an event.</h2>
+  <p class="lede">iOS never wakes a suspended app for a contact change. The only way an add can be an event on this phone is for the process to already be running when it happens. So v1 keeps TouchedTips resident with a low-power location session, and treats every other wake source as the net that catches it when iOS kills the process. One idempotent tick sits under everything. Nothing leaves the phone. Setup is three permission prompts and nothing else.</p>
+
+  <pre>
+  phone unlocked · TouchedTips resident (Presence session) · you exchange contacts
+        │
+        ▼
+  CNContactStoreDidChange ──▶ tick()
+                                 │ diff change history since token → 1 add
+                                 │ requestLocation() → witness fix (precise, one shot)
+                                 │ Resolver: fix wins → Meet(tier .witnessed, place from fix)
+                                 │ name the place (nearby POI, else reverse geocode)
+                                 ▼
+                    🔔  You just met Alice Chen at Blue Bottle
+                        [ That's right ]   [ Fix ]   [ Not a meeting ]
+
+  if the process was dead instead:
+  geofence exit / significant change / visit / refresh ──▶ relaunch ──▶ tick() ──▶ same notification,
+  place from the fence you were inside, tier .inferred, window [last heartbeat, now]</pre>
+</section>
+
+<section id="layers">
+  <h2>Five layers</h2>
+  <p class="lede">Read top to bottom as "what makes it fast", "what makes it survive", "what does the work".</p>
+
+  <div class="layers">
+    <div class="layer">
+      <div class="n">1<b>Presence</b></div>
+      <div class="w"><b>Keeps the process alive</b> so the contact-change notification arrives live. Legacy location manager: background updates allowed, automatic pausing off, three-kilometre accuracy, no distance filter. GPS stays off; fixes come from cell and Wi-Fi. Started on every launch once Always is granted. A <code>PresencePolicy</code> gates it: <b>Always</b> by default, <b>At places</b> or <b>Off</b> from Settings if the battery numbers say so.</div>
+      <div class="api">CLLocationManager
+allowsBackgroundLocationUpdates
+pausesLocationUpdatesAutomatically = false
+desiredAccuracy = 3 km
+showsBackgroundLocationIndicator = false</div>
+    </div>
+    <div class="layer">
+      <div class="n">2<b>Relaunch net</b></div>
+      <div class="w"><b>Brings the process back</b> after iOS kills it, and narrows the add window while it is dead. Visits stay. Add significant-change monitoring, one breadcrumb geofence re-dropped at the current coordinate on every wake, and a background refresh floor. Location events relaunch even after a force-quit.</div>
+      <div class="api">startMonitoringVisits()
+startMonitoringSignificantLocationChanges()
+CLMonitor + CircularGeographicCondition(150 m)
+BGAppRefreshTask</div>
+    </div>
+    <div class="layer">
+      <div class="n">3<b>Event</b></div>
+      <div class="w"><b>The add itself</b>, when Presence is holding. Coalesce for 300 ms, since one save emits several notifications, then tick. The current one-second debounce goes.</div>
+      <div class="api">CNContactStoreDidChange</div>
+    </div>
+    <div class="layer">
+      <div class="n">4<b>Tick</b></div>
+      <div class="w"><b>One function, every path.</b> Diff, witness fix, resolve, name, notify, heartbeat, re-drop fence. Idempotent through the change-history token. Runs inside a background task so a relaunch gets its thirty seconds.</div>
+      <div class="api">CaptureCoordinator.tick(source:)</div>
+    </div>
+    <div class="layer">
+      <div class="n">5<b>Core</b></div>
+      <div class="w"><b>Unchanged shape.</b> Person, Place, Visit, Meet, KV. Two additions: a <code>heartbeat</code> table (source, at, battery level) and a new <code>VisitSource.fix</code> for zero-length witness fixes, so the resolver sees a fix as a visit that contained the add.</div>
+      <div class="api">GRDB · TouchedTipsCore
+Resolver stays pure</div>
+    </div>
+  </div>
+
+  <div class="note"><b>Why the legacy API.</b> The iOS 17 live-updates API pauses when the device is stationary and lets the app suspend, which is exactly the moment you are standing in a café meeting someone. The older manager with automatic pausing disabled is the one that holds. Whether it still holds on iOS 26 is the first spike.</div>
+</section>
+
+<section id="tick">
+  <h2>The tick, in order</h2>
+  <pre>
+tick(source):
+  heartbeat(source, now, batteryLevel)                      -- every wake is measured
+  changes = ContactsDiff(since: token)
+  if changes.added.isEmpty: rearmFence(); return
+
+  fix = await requestLocation(best, timeout 8 s)            -- precise, one shot, only when there is an add
+  if fix: Visit(source: .fix, start = end = now, place = Place.findOrCreate(fix))
+
+  for add in changes.added:
+    window = [lastHeartbeat, now]                            -- seconds when Presence held, minutes to hours when it did not
+    meet   = Resolver.meet(add, visits overlapping window ± 2 h)
+             -- .fix visit inside the window wins → .witnessed
+             -- else visit containing the window → .witnessed
+             -- else nearest visit within 2 h     → .inferred    (the breadcrumb fence is one of these)
+             -- else                              → .dateOnly
+    name   = nearbyPOI(meet.place) ?? reverseGeocode(meet.place)
+    notify(add, meet, name)
+
+  save token; rearmFence()</pre>
+  <p>The resolver's only new rule is that a fix visit outranks an ongoing long visit. Without it, a zero-length overlap ties with a café you have sat in for an hour, and the tie-break is arbitrary.</p>
+</section>
+
+<section id="notif">
+  <h2>Notification</h2>
+  <table>
+    <tr><th style="width:22%">Field</th><th>Content</th></tr>
+    <tr><td>Title</td><td>You just met Alice Chen</td></tr>
+    <tr><td>Body</td><td>Blue Bottle Coffee · 2:14 pm. Whichever half is known.</td></tr>
+    <tr><td>Actions</td><td><b>That's right</b> marks the meet user-set. <b>Fix</b> opens the person screen, where when and where are edited. <b>Not a meeting</b> clears the meet.</td></tr>
+    <tr><td>Interruption</td><td>Active. Never more than one per add.</td></tr>
+    <tr><td>Tap</td><td>Opens the person screen through the router.</td></tr>
+    <tr><td>API</td><td class="m"><code>UNUserNotificationCenter</code>, one category, local only. No push entitlement.</td></tr>
+  </table>
+</section>
+
+<section id="setup">
+  <h2>Setup is three prompts</h2>
+  <table>
+    <tr><th style="width:22%">Prompt</th><th style="width:38%">Why, in the onboarding copy</th><th>Without it</th></tr>
+    <tr><td>Contacts, full</td><td>Watches for new people. Limited access cannot see changes.</td><td class="m">Nothing works. Same as v0.</td></tr>
+    <tr><td>Location, Always</td><td>Stays awake so the app hears the new contact and remembers where you were.</td><td class="m">Foreground only. Presence and the relaunch net are both off. Settings shows a banner.</td></tr>
+    <tr><td>Notifications</td><td>Tells you who you just met, and lets you fix the place in one tap.</td><td class="m">Everything still records. The person list is the only surface.</td></tr>
+  </table>
+  <p>No Shortcuts, no server, no account. An optional <code>CheckForNewPeople</code> App Intent is exposed for people who want a Shortcuts automation on Contacts or Messages closing, and an <b>I just met someone</b> intent for the Action Button records a fix on demand. Both are accelerators behind a settings row, never required.</p>
+</section>
+
+<section id="fail">
+  <h2>Failure modes</h2>
+  <table>
+    <tr><th style="width:30%">What happens</th><th>What the user sees</th></tr>
+    <tr><td>iOS kills the resident process for memory</td><td>The next fence exit, significant change or visit relaunches it. The add is caught then, with the fence you were inside as the place, at inferred tier. Presence re-arms on launch.</td></tr>
+    <tr><td>User force-quits the app</td><td>Same as above. Location events relaunch after a force-quit; the notification arrives on departure instead of on the spot.</td></tr>
+    <tr><td>Contact added with the phone in a pocket, far from any place</td><td>Fix comes back with a coordinate and no POI. Body says the street, tier witnessed.</td></tr>
+    <tr><td>Contact synced in from iCloud while stationary at home</td><td>Presence catches it live. Fix says home. The user taps Not a meeting or Fix place.</td></tr>
+    <tr><td>Always downgraded to While Using in Settings</td><td>Presence stops; the app becomes v0 with a banner in Settings.</td></tr>
+    <tr><td>Change history reset</td><td>Drop-everything event. Ingest only inserts unseen people, as today.</td></tr>
+  </table>
+</section>
+
+<section id="measure">
+  <h2>What the heartbeat table answers</h2>
+  <ul>
+    <li><b>Uptime fraction.</b> Share of five-minute slots in the last day with a heartbeat. This is how often Presence actually held. <span class="unm">Target unmeasured until the spike.</span></li>
+    <li><b>Battery per day</b> with Presence on versus off, from battery level sampled at each heartbeat. Rough, on-device, and enough to choose between the always and duringVisits policies.</li>
+    <li><b>Wakes by source</b> and the add window width at each meet. Shows whether the relaunch net is doing anything once Presence is on.</li>
+    <li><b>Add to notification latency</b>, from the first <code>CNContactStoreDidChange</code> of the burst to the notification post, split by stage: coalesce, fix, resolve, name, post. The save itself to the first change notification is not measurable from inside the app; it is milliseconds while Presence holds and the whole gap when it does not.</li>
+  </ul>
+  <p>The Dev section of Settings shows these numbers. They decide the policy default; the doc does not.</p>
+</section>
+
+<section id="build">
+  <h2>Build order</h2>
+  <table>
+    <tr><th style="width:8%">Step</th><th style="width:50%">Deliverable</th><th>Proves</th></tr>
+    <tr><td>1</td><td>Heartbeat table, <code>tick(source:)</code>, notification with the three actions, third onboarding prompt</td><td>The notification exists at all. Every current wake path posts it.</td></tr>
+    <tr><td>2</td><td>Relaunch net: significant change, breadcrumb fence, refresh floor</td><td>Add windows shrink from a day to minutes. Force-quit is survivable.</td></tr>
+    <tr><td>3</td><td>Witness fix, <code>VisitSource.fix</code>, resolver rule, POI naming inside the tick</td><td>A live-caught add gets the right place and name in one pass.</td></tr>
+    <tr><td>4</td><td>Presence session behind <code>PresencePolicy</code>, one week on device</td><td>Uptime and battery numbers. Picks Always or At places.</td></tr>
+    <tr><td>5</td><td>App Intents behind a settings row</td><td>Optional accelerators, zero cost to anyone who skips them.</td></tr>
+  </table>
+</section>
+
+</div>
+</body>
+</html>
