@@ -4,6 +4,7 @@ import SwiftUI
 @main
 struct TouchedTipsApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+    @Environment(\.scenePhase) private var scenePhase
 
     // Splash state. The wordmark plays once per process, so a warm launch never sees it.
     @State private var finishedSplash: Bool = false
@@ -13,6 +14,10 @@ struct TouchedTipsApp: App {
     private var isShowingSplash: Bool {
         !(pastFloor && finishedSplash)
     }
+
+    /// The wordmark plays for one second. A process that CoreLocation launched in the background may never
+    /// get the animation's completion, so the first active scene also ends the splash on a clock.
+    private static let splashCap: Duration = .milliseconds(1400)
 
     var body: some Scene {
         WindowGroup {
@@ -28,6 +33,13 @@ struct TouchedTipsApp: App {
                 Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(400))
                     pastFloor = true
+                }
+            }
+            .onChange(of: scenePhase, initial: true) { _, phase in
+                guard phase == .active, !finishedSplash else { return }
+                Task { @MainActor in
+                    try? await Task.sleep(for: Self.splashCap)
+                    finishedSplash = true
                 }
             }
         }

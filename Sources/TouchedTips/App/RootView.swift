@@ -26,8 +26,9 @@ struct RootView: View {
         }
         .onChange(of: app.notifier.pendingPerson, initial: true) { _, contactID in
             guard let contactID, onboardingDone else { return }
+            Log.ui.notice("opening a person from a notification")
             router.selectedTab = .people
-            router.paths[.people] = [.person(contactID)]
+            router.paths[.people] = [.person(contactID, zoom: false)]
             app.notifier.pendingPerson = nil
         }
     }

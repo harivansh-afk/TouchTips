@@ -8,8 +8,8 @@ struct DestinationView: View {
 
     var body: some View {
         switch destination {
-        case let .person(contactID):
-            if let zoom {
+        case let .person(contactID, zoom: wantsZoom):
+            if let zoom, wantsZoom {
                 PersonView(contactID: contactID)
                     .navigationTransition(.zoom(sourceID: contactID, in: zoom))
             } else {

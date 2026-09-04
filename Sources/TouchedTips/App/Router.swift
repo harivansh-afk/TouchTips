@@ -9,7 +9,8 @@ enum AppTab: Int, CaseIterable, Identifiable, Hashable {
 
 /// Every screen that can be pushed. The view for each lives in `Destination+View.swift`.
 enum Destination: Hashable {
-    case person(String)
+    /// `zoom` is off for a programmatic push, which has no row on screen to zoom out of.
+    case person(String, zoom: Bool = true)
     /// Everyone saved before TouchedTips, as its own list.
     case undocumented
 }

@@ -31,7 +31,16 @@ struct NoteField: View {
                 .onTapGesture { focused = true }
         }
         .animation(.smooth(duration: 0.25), value: text)
-        .onChange(of: text) { _, _ in schedule() }
+        // A vertical field turns Return into a newline. Here Return means done: keep the note on one
+        // breath, put the keyboard away, save.
+        .onChange(of: text) { _, new in
+            if new.contains("\n") {
+                text = new.replacingOccurrences(of: "\n", with: " ")
+                focused = false
+            } else {
+                schedule()
+            }
+        }
         .onChange(of: focused) { _, isFocused in
             if !isFocused { save(now: true) }
         }
