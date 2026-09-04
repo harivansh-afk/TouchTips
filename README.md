@@ -9,7 +9,7 @@ Contacts stay the source of truth for *who*. TouchedTips owns *when* and *where*
 low-power location session so a new contact is heard the moment it is saved, takes one precise fix, and
 tells you who you just met and where. Visits, a breadcrumb fence and significant-change monitoring bring it
 back when iOS kills it. A Google Timeline export puts older contacts on the map. Confidence is carried on
-every answer and shown as a dot. `design/capture-v1.html` is the capture architecture.
+every answer and shown as a dot. `docs/design/capture-v1.html` is the capture architecture.
 
 ## How it works
 
@@ -22,7 +22,7 @@ iOS never wakes a suspended app for a contact change, so the app stays awake ins
 5. **Relaunch net.** When iOS kills the process, visits, significant-change monitoring, a 150 m breadcrumb geofence around the last fix, and a background refresh floor bring it back. The add is caught then, with the place you were inside as an inferred answer.
 6. **Measure.** Every wake and a five-minute pulse write a heartbeat row. Dev in Settings turns it into uptime, wakes by source, battery per hour, and the last add-to-notification time by stage. Measured on an iPhone 17 Pro with Presence holding: 1.3 s from hearing the change to the banner, 0.8 s of it naming the place.
 
-Everything stays on the phone. `design/capture-v1.html` has the reasoning, failure modes and build order.
+Everything stays on the phone. `docs/design/capture-v1.html` has the reasoning, failure modes and build order.
 
 ## Layout
 
@@ -30,8 +30,8 @@ Everything stays on the phone. `design/capture-v1.html` has the reasoning, failu
 project.yml                  XcodeGen spec; TouchedTips.xcodeproj is generated, not committed
 Packages/TouchedTipsCore/      Records, schema (GRDB), resolver, ingest, queries, Timeline decoder. No UIKit.
 Sources/TouchedTips/           The app: capture (Contacts + CoreLocation), geocoder (MapKit), SwiftUI features
-design/TouchedTips-v0.html     The design doc: screens, API lock-down, data model
-design/capture-v1.html         The capture architecture: presence, relaunch net, the tick, notification, measurement
+docs/design/TouchedTips-v0.html  The design doc: screens, API lock-down, data model
+docs/design/capture-v1.html      The capture architecture: presence, relaunch net, the tick, notification, measurement
 ```
 
 ## Build
