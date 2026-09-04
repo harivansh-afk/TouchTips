@@ -57,7 +57,7 @@ struct MapScreen: View {
         // Muted is monotone by decision. The filter costs a re-render of the map layer per frame, so
         // it applies to that one style only; the other three are MapKit's own colour.
         .grayscale(styleChoice == .muted ? 1 : 0)
-        .overlay(alignment: .topTrailing) {
+        .overlay(alignment: .topLeading) {
             Button {
                 HapticManager.light()
                 withAnimation(.appleMusic) {
