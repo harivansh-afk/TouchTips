@@ -48,20 +48,20 @@ struct MapScreen: View {
         }
         .aboveTabBar()
         .overlay(alignment: .topLeading) {
-            Button {
-                HapticManager.light()
-                withAnimation(.appleMusic) {
-                    camera = .userLocation(fallback: .automatic)
+            Icon(.navigationArrow)
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .glassEffect(.clear.interactive(), in: .circle)
+                .contentShape(.circle)
+                .tapOverMap {
+                    HapticManager.light()
+                    withAnimation(.appleMusic) {
+                        camera = .userLocation(fallback: .automatic)
+                    }
                 }
-            } label: {
-                Icon(.navigationArrow)
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-            }
-            .glassEffect(.clear.interactive(), in: .circle)
-            .accessibilityLabel("Recentre on me")
-            .padding(.horizontal, 16)
-            .padding(.top, 2)
+                .accessibilityLabel("Recentre on me")
+                .padding(.horizontal, 16)
+                .padding(.top, 2)
         }
         .overlay {
             if places.isEmpty {
@@ -97,17 +97,14 @@ struct MapScreen: View {
             let origin = layer.frame(in: .global).origin
             ForEach(places) { place in
                 if let point = proxy.convert(place.coordinate, to: .global) {
-                    Button {
-                        open(place)
-                    } label: {
-                        PlacePin(
-                            place: place,
-                            image: place.soleContactID.flatMap(app.photos.image(for:)),
-                            tint: styleChoice.placeTint,
-                            selected: selection == place.id
-                        )
-                    }
-                    .buttonStyle(.plain)
+                    PlacePin(
+                        place: place,
+                        image: place.soleContactID.flatMap(app.photos.image(for:)),
+                        tint: styleChoice.placeTint,
+                        selected: selection == place.id
+                    )
+                    .contentShape(.circle)
+                    .tapOverMap { open(place) }
                     .position(x: point.x - origin.x, y: point.y - origin.y)
                 }
             }
@@ -177,6 +174,16 @@ struct MapScreen: View {
         } catch {
             Log.ui.error("map observation ended: \(error.localizedDescription)")
         }
+    }
+}
+
+private extension View {
+    /// A tap on something drawn over the map. On iOS 26 a Button or onTapGesture over a Map never
+    /// fires: the map's own recognisers take the touch first (FB19394663, in the iOS 26 release
+    /// notes). A gesture declared simultaneous is the documented way through.
+    func tapOverMap(_ action: @escaping () -> Void) -> some View {
+        simultaneousGesture(TapGesture().onEnded(action))
+            .accessibilityAddTraits(.isButton)
     }
 }
 
