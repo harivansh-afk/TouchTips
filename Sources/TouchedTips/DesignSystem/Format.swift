@@ -97,4 +97,33 @@ enum Format {
         let b = last.formatted(.dateTime.year())
         return a == b ? a : "\(a) to \(b)"
     }
+
+    /// "Sat 8 Aug 2026", or as much of it as was known. The second line of a row whose place is the heading.
+    static func dateLine(_ meet: Meet) -> String {
+        switch meet.precision {
+        case .exact, .day: meet.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).year())
+        case .month: month(meet.start)
+        case .year: meet.start.formatted(.dateTime.year())
+        }
+    }
+
+    /// "1 person" or "4 people"
+    static func peopleCount(_ count: Int) -> String {
+        count == 1 ? "1 person" : "\(count) people"
+    }
+
+    /// "Twelve quiet days", "Three quiet months", "A quiet year". Words, because it is set in the serif.
+    static func quiet(days: Int) -> String {
+        let (count, unit) = days < 60 ? (days, "day") : days < 365 ? (days / 30, "month") : (days / 365, "year")
+        let number = count == 1 ? "A" : spelled(count)
+        return "\(number) quiet \(unit)\(count == 1 ? "" : "s")"
+    }
+
+    /// "Twelve". Digits from a hundred up, where the words stop reading at a glance.
+    private static func spelled(_ count: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .spellOut
+        guard count < 100, let words = formatter.string(from: NSNumber(value: count)) else { return String(count) }
+        return words.prefix(1).uppercased() + words.dropFirst()
+    }
 }
