@@ -65,9 +65,9 @@ enum Format {
         return row.meet == nil ? "" : "Date only"
     }
 
-    /// Notification body: "Blue Bottle · 2:14 pm", or whichever half is known.
+    /// Notification body: "Blue Bottle @ 2:14 pm", or whichever half is known.
     static func notice(placeName: String?, at date: Date?) -> String {
-        [placeName, date.map(time)].compactMap { $0 }.joined(separator: " · ")
+        [placeName, date.map(time)].compactMap { $0 }.joined(separator: " @ ")
     }
 
     /// "92%"

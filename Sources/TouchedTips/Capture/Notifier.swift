@@ -53,7 +53,7 @@ final class Notifier: NSObject {
         await refresh()
     }
 
-    /// "You just met Alice Chen" over "Blue Bottle · 2:14 pm".
+    /// "You just met Alice Chen" over "Blue Bottle @ 2:14 pm".
     func postMeet(contactID: String, name: String, at date: Date?, placeName: String?) async {
         let content = UNMutableNotificationContent()
         content.title = "You just met \(name)"
