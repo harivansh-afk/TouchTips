@@ -86,6 +86,16 @@ public final class AppDatabase: Sendable {
             }
         }
 
+        migrator.registerMigration("v2") { db in
+            try db.create(table: "heartbeat") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("source", .text).notNull()
+                t.column("at", .datetime).notNull()
+                t.column("batteryLevel", .double)
+            }
+            try db.create(indexOn: "heartbeat", columns: ["at"])
+        }
+
         return migrator
     }
 }

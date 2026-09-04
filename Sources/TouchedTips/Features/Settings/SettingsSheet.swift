@@ -1,5 +1,6 @@
 import SwiftUI
 import TouchedTipsCore
+import UserNotifications
 
 struct SettingsSheet: View {
     @Environment(AppModel.self) private var app
@@ -8,6 +9,9 @@ struct SettingsSheet: View {
 
     @AppStorage("mapStyle") private var mapStyle = MapStyleChoice.muted
     @AppStorage("onboardingDone") private var onboardingDone = false
+    @AppStorage(PresencePolicy.key) private var presence = PresencePolicy.always
+    @State private var stats: CaptureStats?
+    @State private var lastNotice: TimeInterval?
     @State private var problem: String?
     @State private var confirmDelete = false
 
@@ -22,7 +26,7 @@ struct SettingsSheet: View {
                             Button("Allow") {
                                 Task {
                                     await app.contactsAccess.request()
-                                    app.capture.scheduleTick()
+                                    app.capture.scheduleTick(.user)
                                 }
                             }
                         }
@@ -31,15 +35,39 @@ struct SettingsSheet: View {
                         if app.capture.locationGranted {
                             Text("Always")
                         } else if app.capture.locationStatus == .denied || app.capture.locationStatus == .restricted {
-                            Button("Open Settings") {
-                                if let url = URL(string: UIApplication.openSettingsURLString) {
-                                    openURL(url)
-                                }
-                            }
+                            Button("Open Settings", action: openSettings)
                         } else {
                             Button("Allow") { app.capture.requestLocation() }
                         }
                     }
+                    LabeledContent("Notifications") {
+                        if app.notifier.granted {
+                            Text("On")
+                        } else if app.notifier.status == .denied {
+                            Button("Open Settings", action: openSettings)
+                        } else {
+                            Button("Allow") { Task { await app.notifier.request() } }
+                        }
+                    }
+                }
+
+                Section {
+                    Picker("Stay awake", selection: $presence) {
+                        ForEach(PresencePolicy.allCases) { policy in
+                            Text(policy.title).tag(policy)
+                        }
+                    }
+                    .onChange(of: presence) { _, policy in app.capture.presencePolicy = policy }
+                } footer: {
+                    Text("Awake, a new contact is noticed the moment it is saved.")
+                }
+
+                Section {
+                    Button("Open Shortcuts") {
+                        if let url = URL(string: "shortcuts://") { openURL(url) }
+                    }
+                } footer: {
+                    Text("Run Check for new people when Contacts closes. Put I just met someone on the Action Button.")
                 }
 
                 Section("Map") {
@@ -57,6 +85,16 @@ struct SettingsSheet: View {
 
                 if BuildEnvironment.isDev {
                     Section {
+                        if let stats {
+                            LabeledContent("Awake", value: Format.percent(stats.uptime))
+                            LabeledContent("Wakes", value: wakesText(stats))
+                            if let drain = stats.batteryPerHour {
+                                LabeledContent("Battery", value: "\(drain.formatted(.number.precision(.fractionLength(1))))% per hour")
+                            }
+                        }
+                        if let lastNotice {
+                            LabeledContent("Last notice", value: "\(lastNotice.formatted(.number.precision(.fractionLength(1)))) s")
+                        }
                         Button("Replay onboarding") {
                             HapticManager.medium()
                             onboardingDone = false
@@ -65,7 +103,7 @@ struct SettingsSheet: View {
                     } header: {
                         Text("Dev")
                     } footer: {
-                        Text("Debug and TestFlight builds only.")
+                        Text("Last 24 hours. Debug and TestFlight builds only.")
                     }
                 }
             }
@@ -97,13 +135,44 @@ struct SettingsSheet: View {
                 Text("Contacts themselves are untouched. Meetings, visits and places are removed.")
             }
             .onAppear { app.contactsAccess.refresh() }
+            .task {
+                await app.notifier.refresh()
+                await loadStats()
+            }
+        }
+    }
+
+    private func wakesText(_ stats: CaptureStats) -> String {
+        stats.wakes.isEmpty ? "None" : stats.wakes.map { "\($0.source.rawValue) \($0.count)" }.joined(separator: ", ")
+    }
+
+    private func openSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            openURL(url)
+        }
+    }
+
+    private func loadStats() async {
+        guard BuildEnvironment.isDev else { return }
+        let now = Date()
+        do {
+            let (beats, latency) = try await app.database.reader.read { db in
+                (
+                    try Heartbeat.since(now.addingTimeInterval(-CaptureStats.span)).fetchAll(db),
+                    try db.value(for: .lastNoticeLatency).flatMap { String(data: $0, encoding: .utf8) }.flatMap(TimeInterval.init)
+                )
+            }
+            stats = CaptureStats.make(from: beats, now: now)
+            lastNotice = latency
+        } catch {
+            Log.ui.error("stats failed: \(error.localizedDescription)")
         }
     }
 
     private func deleteAll() {
         do {
             try Ingest.deleteAll(app.database)
-            app.capture.scheduleTick()
+            app.capture.scheduleTick(.user)
         } catch {
             HapticManager.error()
             problem = error.localizedDescription

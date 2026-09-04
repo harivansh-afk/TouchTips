@@ -62,6 +62,58 @@ import Testing
         #expect(meet.placeID != nil)
     }
 
+    @Test func aFixTakenAsTheAddIsHeardWitnessesIt() throws {
+        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:38"), to: db)
+        let now = t("2026-09-02T14:14")
+        try Ingest.recordFix(LiveFix(latitude: 37.7764, longitude: -122.4231, accuracyMeters: 12, at: now), now: now, to: db)
+        let summary = try Ingest.apply(ContactChangeSet(added: [snapshot("new", "Alice Chen")], token: Data([2])), now: now, to: db)
+        #expect(summary.added == ["new"])
+
+        let row = try #require(try db.reader.read { try Person.row(contactID: "new").fetchOne($0) })
+        let meet = try #require(row.meet)
+        #expect(meet.tier == .witnessed)
+        #expect(meet.precision == .exact)
+        #expect(meet.start == now)
+        #expect(row.place?.key == PlaceKey.cell(latitude: 37.7764, longitude: -122.4231))
+    }
+
+    @Test func aliveSinceNarrowsTheAddInterval() throws {
+        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:00"), to: db)
+        try Ingest.apply(
+            ContactChangeSet(added: [snapshot("new")], token: Data([2])),
+            now: t("2026-09-02T14:14"), aliveSince: t("2026-09-02T13:50"), to: db
+        )
+        let meet = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
+        #expect(meet.addSeenStart == t("2026-09-02T13:50"))
+        #expect(meet.addSeenEnd == t("2026-09-02T14:14"))
+    }
+
+    @Test func aliveSinceNeverWidensTheAddInterval() throws {
+        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:00"), to: db)
+        try Ingest.apply(
+            ContactChangeSet(added: [snapshot("new")], token: Data([2])),
+            now: t("2026-09-02T14:14"), aliveSince: t("2026-09-01T08:00"), to: db
+        )
+        let meet = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
+        #expect(meet.addSeenStart == t("2026-09-02T09:00"))
+    }
+
+    @Test func confirmingKeepsTheAnswerAndMakesItTheUsers() throws {
+        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:38"), to: db)
+        try Ingest.recordLiveVisit(
+            LiveVisit(latitude: 1, longitude: 2, accuracyMeters: 10, arrival: t("2026-09-02T10:00"), departure: t("2026-09-02T12:00")),
+            now: t("2026-09-02T12:00"), to: db
+        )
+        try Ingest.apply(ContactChangeSet(added: [snapshot("new")], token: Data([2])), now: t("2026-09-02T11:00"), to: db)
+        let before = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
+        try Ingest.confirmMeet(contactID: "new", now: t("2026-09-02T11:05"), to: db)
+        let after = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
+        #expect(after.userSet)
+        #expect(after.tier == .exact)
+        #expect(after.placeID == before.placeID)
+        #expect(after.start == before.start)
+    }
+
     @Test func anOngoingVisitIsExtendedNotDuplicated() throws {
         let arrival = t("2026-09-02T10:12")
         let first = try Ingest.recordLiveVisit(

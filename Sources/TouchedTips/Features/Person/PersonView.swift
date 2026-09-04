@@ -173,7 +173,7 @@ private struct EvidenceList: View {
             lines.append(Line(
                 symbol: "person.crop.circle.badge.plus",
                 title: "Contact appeared",
-                detail: "Between \(Format.time(seenStart)) and \(Format.time(seenEnd)), \(Format.longDate(seenEnd))."
+                detail: Format.appeared(seenStart, seenEnd)
             ))
         }
         switch (meet.tier, visit) {

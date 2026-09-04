@@ -1,4 +1,4 @@
-// The five things TouchedTips stores. Plain values, no framework types.
+// The six things TouchedTips stores. Plain values, no framework types.
 // GRDB conformances live in Records+GRDB.swift so this file stays framework-free.
 
 import Foundation
@@ -33,6 +33,8 @@ public enum Precision: String, Codable, Hashable, Sendable {
 public enum VisitSource: String, Codable, Hashable, Sendable {
     case timeline
     case live
+    /// A precise one-shot location taken the instant a contact appeared. Zero length; it witnesses that add only.
+    case fix
 }
 
 /// One contact, keyed by `CNContact.identifier`.
@@ -164,4 +166,29 @@ public enum StoreKey: String, Sendable {
     case contactsHistoryToken
     /// When the last contacts diff ran. Adds seen next tick appeared after this.
     case lastTick
+    /// Seconds from hearing about the last add to posting its notification.
+    case lastNoticeLatency
+}
+
+/// What woke the app, or that it was still awake.
+public enum WakeSource: String, Codable, Hashable, Sendable, CaseIterable {
+    case launch, foreground, contacts, visit, fence, movement, refresh, intent, user
+    /// The resident process checking in on a timer. Proves uptime; is not a wake.
+    case presence
+}
+
+/// One proof the process was running. Every tick writes one; the resident process writes one on a timer.
+public struct Heartbeat: Codable, Hashable, Identifiable, Sendable {
+    public var id: Int64?
+    public var source: WakeSource
+    public var at: Date
+    /// 0 to 1, nil when the device would not say.
+    public var batteryLevel: Double?
+
+    public init(id: Int64? = nil, source: WakeSource, at: Date, batteryLevel: Double? = nil) {
+        self.id = id
+        self.source = source
+        self.at = at
+        self.batteryLevel = batteryLevel
+    }
 }

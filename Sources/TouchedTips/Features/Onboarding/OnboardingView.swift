@@ -1,6 +1,7 @@
 import Contacts
 import CoreLocation
 import SwiftUI
+import UserNotifications
 
 struct OnboardingView: View {
     @Environment(AppModel.self) private var app
@@ -26,6 +27,14 @@ struct OnboardingView: View {
         switch app.capture.locationStatus {
         case .authorizedAlways: .granted
         case .denied, .restricted: .denied
+        default: .pending
+        }
+    }
+
+    private var notificationsState: PermissionState {
+        switch app.notifier.status {
+        case .authorized, .provisional, .ephemeral: .granted
+        case .denied: .denied
         default: .pending
         }
     }
@@ -73,7 +82,7 @@ struct OnboardingView: View {
             ) {
                 Task {
                     await app.contactsAccess.request()
-                    app.capture.scheduleTick()
+                    app.capture.scheduleTick(.user)
                 }
             }
             .staged(revealed, leaving: leaving, order: 1)
@@ -88,6 +97,16 @@ struct OnboardingView: View {
             }
             .staged(revealed, leaving: leaving, order: 2)
 
+            PermissionRow(
+                title: "Notifications",
+                missing: "You won't hear who you met.",
+                state: notificationsState,
+                openSettings: openSettings
+            ) {
+                Task { await app.notifier.request() }
+            }
+            .staged(revealed, leaving: leaving, order: 3)
+
             Spacer()
             Button {
                 HapticManager.heavy()
@@ -101,7 +120,7 @@ struct OnboardingView: View {
             .buttonStyle(.glassProminent)
             .tint(.white)
             .controlSize(.large)
-            .staged(revealed, leaving: leaving, order: 3)
+            .staged(revealed, leaving: leaving, order: 4)
         }
         .padding(26)
         // Edge to edge: this is an overlay on the finished app, nothing may show around it.
@@ -109,6 +128,7 @@ struct OnboardingView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 app.contactsAccess.refresh()
+                Task { await app.notifier.refresh() }
             }
         }
     }

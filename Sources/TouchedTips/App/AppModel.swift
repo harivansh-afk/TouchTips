@@ -2,13 +2,17 @@ import Foundation
 import Observation
 import TouchedTipsCore
 
-/// The one object views reach for. Owns the database and the two long-running workers.
+/// The one object views reach for. Owns the database and the long-running workers.
 @MainActor
 @Observable
 final class AppModel {
+    /// The running app's model, for App Intents. Set by the delegate; previews never set it.
+    static var shared: AppModel?
+
     let database: AppDatabase
     let capture: CaptureCoordinator
     let geocoder: Geocoder
+    let notifier: Notifier
     let photos = ContactPhotos()
     let contactsAccess = ContactsAccess()
 
@@ -20,7 +24,8 @@ final class AppModel {
     /// Any database. Previews and tests hand in an in-memory one; nothing starts until `start()`.
     init(database: AppDatabase) {
         self.database = database
-        capture = CaptureCoordinator(database: database)
+        notifier = Notifier(database: database)
+        capture = CaptureCoordinator(database: database, notifier: notifier)
         geocoder = Geocoder(database: database)
         capture.didIngest = { [geocoder, photos] in
             geocoder.kick()
@@ -29,6 +34,7 @@ final class AppModel {
     }
 
     func start() {
+        notifier.activate()
         capture.start()
         geocoder.kick()
     }

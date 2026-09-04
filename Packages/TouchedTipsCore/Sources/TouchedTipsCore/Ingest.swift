@@ -46,11 +46,28 @@ public struct LiveVisit: Hashable, Sendable {
     }
 }
 
+/// A precise one-shot location, flattened.
+public struct LiveFix: Hashable, Sendable {
+    public var latitude: Double
+    public var longitude: Double
+    public var accuracyMeters: Double
+    public var at: Date
+
+    public init(latitude: Double, longitude: Double, accuracyMeters: Double, at: Date) {
+        self.latitude = latitude
+        self.longitude = longitude
+        self.accuracyMeters = accuracyMeters
+        self.at = at
+    }
+}
+
 public struct IngestSummary: Hashable, Sendable {
     public var newPeople = 0
     public var snapshotted = 0
     public var updated = 0
     public var deleted = 0
+    /// Contact IDs of the new people, in the order they were seen. What the notification is about.
+    public var added: [String] = []
 
     public init() {}
 }
@@ -58,11 +75,18 @@ public struct IngestSummary: Hashable, Sendable {
 public enum Ingest {
     /// Apply a contacts diff. The first run (no stored token) snapshots everyone as before-install;
     /// later runs treat unknown adds as new people who appeared since the last tick.
+    ///
+    /// `aliveSince` is when the process was last known to be continuously running. Pass it only when the
+    /// diff was prompted by a live change notification: a running process hears an add at once, so the add
+    /// cannot predate the moment the process came alive.
     @discardableResult
-    public static func apply(_ change: ContactChangeSet, now: Date, to database: AppDatabase) throws -> IngestSummary {
+    public static func apply(
+        _ change: ContactChangeSet, now: Date, aliveSince: Date? = nil, to database: AppDatabase
+    ) throws -> IngestSummary {
         try database.writer.write { db in
             let firstRun = try db.value(for: .contactsHistoryToken) == nil
-            let seenStart = try db.date(for: .lastTick) ?? now
+            var seenStart = try db.date(for: .lastTick) ?? now
+            if let aliveSince { seenStart = min(max(seenStart, aliveSince), now) }
             var summary = IngestSummary()
 
             for snapshot in change.added {
@@ -74,6 +98,7 @@ public enum Ingest {
                     let add = ContactAdd(contactID: snapshot.contactID, seenStart: seenStart, seenEnd: now)
                     try resolve(add, in: db, now: now).insert(db)
                     summary.newPeople += 1
+                    summary.added.append(snapshot.contactID)
                 }
             }
 
@@ -124,6 +149,31 @@ public enum Ingest {
         }
     }
 
+    /// Store a fix as a zero-length visit. Any add whose interval contains the instant is witnessed by it.
+    @discardableResult
+    public static func recordFix(_ fix: LiveFix, now: Date, to database: AppDatabase) throws -> Visit {
+        try database.writer.write { db in
+            let place = try Place.findOrCreate(
+                db, key: PlaceKey.cell(latitude: fix.latitude, longitude: fix.longitude),
+                latitude: fix.latitude, longitude: fix.longitude
+            )
+            var visit = Visit(placeID: place.id!, start: fix.at, end: fix.at, source: .fix, accuracyMeters: fix.accuracyMeters)
+            try visit.save(db)
+            try reresolve(around: fix.at, fix.at, in: db, now: now)
+            return visit
+        }
+    }
+
+    /// One proof of life. Cheap; the app writes one on every wake and every few minutes while resident.
+    @discardableResult
+    public static func recordHeartbeat(_ source: WakeSource, at: Date, batteryLevel: Double?, to database: AppDatabase) throws -> Heartbeat {
+        try database.writer.write { db in
+            var beat = Heartbeat(source: source, at: at, batteryLevel: batteryLevel)
+            try beat.insert(db)
+            return beat
+        }
+    }
+
     /// Recompute every inferred meeting. Used after a history import.
     public static func reresolveAll(now: Date, to database: AppDatabase) throws {
         try database.writer.write { db in
@@ -142,6 +192,17 @@ public enum Ingest {
                 contactID: contactID, start: start, end: end, precision: precision, placeID: placeID, tier: .exact,
                 userSet: true, addSeenStart: existing?.addSeenStart, addSeenEnd: existing?.addSeenEnd, computedAt: now
             ).save(db)
+        }
+    }
+
+    /// The user agrees with the inferred answer. It becomes theirs, as it stands.
+    public static func confirmMeet(contactID: String, now: Date, to database: AppDatabase) throws {
+        try database.writer.write { db in
+            guard var meet = try Meet.fetchOne(db, key: contactID) else { return }
+            meet.userSet = true
+            meet.tier = .exact
+            meet.computedAt = now
+            try meet.update(db)
         }
     }
 
@@ -167,6 +228,7 @@ public enum Ingest {
             _ = try Visit.deleteAll(db)
             _ = try Place.deleteAll(db)
             _ = try Person.deleteAll(db)
+            _ = try Heartbeat.deleteAll(db)
             _ = try KeyValue.deleteAll(db)
         }
     }

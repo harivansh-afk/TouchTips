@@ -46,13 +46,14 @@ targets:
         UILaunchScreen: {}
         UIUserInterfaceStyle: Dark
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        UIBackgroundModes: [location]
+        UIBackgroundModes: [location, fetch]
+        BGTaskSchedulerPermittedIdentifiers: [sh.harivan.touchtips.refresh]
         UIAppFonts: [InstrumentSerif-Italic.ttf]
         ITSAppUsesNonExemptEncryption: false
         UIApplicationSupportsIndirectInputEvents: true
-        NSContactsUsageDescription: TouchedTips watches for new contacts so it can remember when you met them. It needs full access; limited access cannot see changes.
-        NSLocationWhenInUseUsageDescription: TouchedTips uses your location to remember where you met people.
-        NSLocationAlwaysAndWhenInUseUsageDescription: Always access lets TouchedTips notice a visit ending while it is closed, which is how a new contact gets a place.
+        NSContactsUsageDescription: Notices new contacts. Limited access cannot see changes.
+        NSLocationWhenInUseUsageDescription: Remembers where you met people.
+        NSLocationAlwaysAndWhenInUseUsageDescription: Stays awake, so a new contact gets the place you were at.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: sh.harivan.touchtips

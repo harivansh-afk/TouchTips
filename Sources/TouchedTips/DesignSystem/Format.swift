@@ -78,7 +78,25 @@ enum Format {
     }
 
     static func visitSpan(_ visit: Visit) -> String {
-        visit.isOngoing ? "since \(time(visit.start))" : "\(time(visit.start)) to \(time(visit.end))"
+        if visit.source == .fix { return "at \(time(visit.start))" }
+        return visit.isOngoing ? "since \(time(visit.start))" : "\(time(visit.start)) to \(time(visit.end))"
+    }
+
+    /// Notification body: "Blue Bottle · 2:14 pm", or whichever half is known.
+    static func notice(placeName: String?, at date: Date?) -> String {
+        [placeName, date.map(time)].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    /// "Between 10:41 and 11:02, 8 August 2026", or "At 10:41, 8 August 2026" for an instant.
+    static func appeared(_ start: Date, _ end: Date) -> String {
+        start == end
+            ? "At \(time(start)), \(longDate(end))."
+            : "Between \(time(start)) and \(time(end)), \(longDate(end))."
+    }
+
+    /// "92%"
+    static func percent(_ fraction: Double) -> String {
+        fraction.formatted(.percent.precision(.fractionLength(0)))
     }
 
     static func tierName(_ tier: Tier?) -> String {
