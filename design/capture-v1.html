@@ -165,7 +165,7 @@ tick(source):
     <tr><td>Location, Always</td><td>Stays awake so the app hears the new contact and remembers where you were.</td><td class="m">Foreground only. Presence and the relaunch net are both off. Settings shows a banner.</td></tr>
     <tr><td>Notifications</td><td>Tells you who you just met, and lets you fix the place in one tap.</td><td class="m">Everything still records. The person list is the only surface.</td></tr>
   </table>
-  <p>No Shortcuts, no server, no account. An optional <code>CheckForNewPeople</code> App Intent is exposed for people who want a Shortcuts automation on Contacts or Messages closing, and an <b>I just met someone</b> intent for the Action Button records a fix on demand. Both are accelerators behind a settings row, never required.</p>
+  <p>No Shortcuts, no server, no account. Two App Intents were built as optional accelerators and cut once Presence proved to hear the add on its own: a second path for the same event is surface without a job.</p>
 </section>
 
 <section id="fail">
@@ -200,7 +200,7 @@ tick(source):
     <tr><td>2</td><td>Relaunch net: significant change, breadcrumb fence, refresh floor</td><td>Add windows shrink from a day to minutes. Force-quit is survivable.</td></tr>
     <tr><td>3</td><td>Witness fix, <code>VisitSource.fix</code>, resolver rule, POI naming inside the tick</td><td>A live-caught add gets the right place and name in one pass.</td></tr>
     <tr><td>4</td><td>Presence session behind <code>PresencePolicy</code>, one week on device</td><td>Uptime and battery numbers. Picks Always or At places.</td></tr>
-    <tr><td>5</td><td>App Intents behind a settings row</td><td>Optional accelerators, zero cost to anyone who skips them.</td></tr>
+    <tr><td>5</td><td class="m">App Intents behind a settings row. Built, then cut: Presence makes them redundant.</td><td class="m">Nothing. Removed.</td></tr>
   </table>
 </section>
 
