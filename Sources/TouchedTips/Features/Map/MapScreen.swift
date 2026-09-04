@@ -7,7 +7,10 @@ struct MapScreen: View {
     @Environment(Router.self) private var router
     @State private var places: [PlaceSummary] = []
     @State private var camera: MapCameraPosition = .automatic
+    /// The place whose sheet is open, or whose pin is held while it opens.
     @State private var selection: Int64?
+    /// Bumped as the camera moves, so the pins are placed again from the map's current frame.
+    @State private var cameraTick = 0
     @AppStorage("mapStyle") private var styleChoice = MapStyleChoice.muted
     /// A person tapped in the place sheet. Pushed once the sheet has finished closing.
     @State private var pendingPerson: String?
@@ -31,24 +34,17 @@ struct MapScreen: View {
     }
 
     private var map: some View {
-        Map(position: $camera, selection: $selection) {
-            ForEach(places) { place in
-                Annotation(place.name ?? "", coordinate: place.coordinate, anchor: .center) {
-                    PlacePin(
-                        place: place,
-                        image: place.soleContactID.flatMap(app.photos.image(for:)),
-                        tint: styleChoice.placeTint,
-                        selected: selection == place.id
-                    )
-                }
-                .tag(place.id)
-                .annotationTitles(.hidden)
+        MapReader { proxy in
+            Map(position: $camera) {
+                UserAnnotation()
             }
-            UserAnnotation()
-        }
-        .mapStyle(styleChoice.style)
-        .mapControls {
-            MapCompass()
+            .mapStyle(styleChoice.style)
+            .mapControls {
+                MapCompass()
+            }
+            .grayscale(styleChoice.grayscale)
+            .onMapCameraChange(frequency: .continuous) { _ in cameraTick += 1 }
+            .overlay { pins(in: proxy) }
         }
         .aboveTabBar()
         .overlay(alignment: .topLeading) {
@@ -74,15 +70,6 @@ struct MapScreen: View {
             }
         }
         .animation(.appleMusic, value: places.isEmpty)
-        .onChange(of: selection) { _, current in
-            guard let current, let place = places.first(where: { $0.id == current }) else { return }
-            HapticManager.selection()
-            // One person: they are the pin, so the tap goes straight to them.
-            if let contactID = place.soleContactID {
-                selection = nil
-                router.open(person: contactID)
-            }
-        }
         .onChange(of: router.pendingPlace, initial: true) { _, _ in showPendingPlace() }
         .onChange(of: places, initial: true) { _, places in
             for id in places.compactMap(\.soleContactID) { app.photos.load(id) }
@@ -99,6 +86,38 @@ struct MapScreen: View {
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .task { await observe() }
+    }
+
+    /// The pins sit over the map, not in it, so Muted's filter greys the map and not the pins.
+    /// Reading the tick makes this body run again on every camera move.
+    private func pins(in proxy: MapProxy) -> some View {
+        let _ = cameraTick
+        return ForEach(places) { place in
+            if let point = proxy.convert(place.coordinate, to: .local) {
+                Button {
+                    open(place)
+                } label: {
+                    PlacePin(
+                        place: place,
+                        image: place.soleContactID.flatMap(app.photos.image(for:)),
+                        tint: styleChoice.placeTint,
+                        selected: selection == place.id
+                    )
+                }
+                .buttonStyle(.plain)
+                .position(point)
+            }
+        }
+    }
+
+    /// One person is the pin, so the tap goes straight to them; more open the sheet.
+    private func open(_ place: PlaceSummary) {
+        HapticManager.selection()
+        if let contactID = place.soleContactID {
+            router.open(person: contactID)
+        } else {
+            selection = place.id
+        }
     }
 
     /// One line in the app's voice, centred on the map, in place of a system placeholder.

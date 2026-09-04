@@ -28,6 +28,8 @@ struct PlaceChooser: View {
     /// Places picked from search, so they stay on offer after "No place".
     @State private var picked: [PlaceChoice] = []
     @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
+    /// Bumped as the camera moves, so the dot is placed again from the map's current frame.
+    @State private var cameraTick = 0
     @FocusState private var focused: Bool
     @Namespace private var chips
 
@@ -73,19 +75,23 @@ struct PlaceChooser: View {
             .animation(.appleMusic, value: selection == nil)
     }
 
+    /// The dot sits over the map, not in it, so Muted's filter greys the map and not the dot.
     private var mapView: some View {
-        let modes = MapInteractionModes()
-        return Map(position: $camera, interactionModes: modes) {
-            if let selection {
-                Annotation(selection.name, coordinate: selection.coordinate, anchor: .center) {
-                    PinDot(tint: styleChoice.placeTint)
-                }
-                .annotationTitles(.hidden)
+        MapReader { proxy in
+            Map(position: $camera, interactionModes: MapInteractionModes()) {
+                UserAnnotation()
             }
-            UserAnnotation()
+            .mapStyle(styleChoice.style)
+            .mapControlVisibility(.hidden)
+            .grayscale(styleChoice.grayscale)
+            .onMapCameraChange(frequency: .continuous) { _ in cameraTick += 1 }
+            .overlay {
+                let _ = cameraTick
+                if let selection, let point = proxy.convert(selection.coordinate, to: .local) {
+                    PinDot(tint: styleChoice.placeTint).position(point)
+                }
+            }
         }
-        .mapStyle(styleChoice.style)
-        .mapControlVisibility(.hidden)
     }
 
     private var caption: some View {
