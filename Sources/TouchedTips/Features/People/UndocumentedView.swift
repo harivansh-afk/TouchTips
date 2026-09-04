@@ -37,6 +37,7 @@ struct UndocumentedView: View {
         // content, like the roots, and fades once the list scrolls under it.
         .toolbar(.hidden, for: .navigationBar)
         .hidesHeaderOnScroll($hideHeader)
+        .minimizesTabBarOnScroll()
         .safeAreaInset(edge: .top, spacing: 0) {
             Text("Undocumented")
                 .font(.display(36))

@@ -54,11 +54,6 @@ enum Format {
         }
     }
 
-    /// "Blue Bottle · between 10:41 and 11:02"
-    static func placeAndWindow(_ row: PersonRow) -> String {
-        [placeName(row), window(row.meet)].compactMap { $0 }.joined(separator: " · ")
-    }
-
     static func placeName(_ row: PersonRow) -> String? {
         guard let place = row.place else { return nil }
         return place.name ?? coordinates(place.latitude, place.longitude)
@@ -68,17 +63,6 @@ enum Format {
     static func rowSubtitle(_ row: PersonRow) -> String {
         if let name = placeName(row) { return name }
         return row.meet == nil ? "" : "Date only"
-    }
-
-    static func window(_ meet: Meet?) -> String? {
-        guard let meet, meet.precision == .exact || meet.precision == .day else { return nil }
-        if meet.precision == .exact { return time(meet.start) }
-        guard meet.end > meet.start, Calendar.current.isDate(meet.start, inSameDayAs: meet.end) else { return nil }
-        return "between \(time(meet.start)) and \(time(meet.end))"
-    }
-
-    static func visitSpan(_ visit: Visit) -> String {
-        visit.isOngoing ? "since \(time(visit.start))" : "\(time(visit.start)) to \(time(visit.end))"
     }
 
     static func tierName(_ tier: Tier?) -> String {

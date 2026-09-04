@@ -28,6 +28,12 @@ struct TabBar: View {
                     router.searchRequests += 1
                 }
             }
+            // Instagram's bar: scrolling down shrinks the three shapes together from their feet,
+            // and the first touch on the small bar brings it back before the tap lands.
+            .scaleEffect(1 - router.barProgress * 0.15, anchor: .bottom)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0).onChanged { _ in router.restoreBar() }
+            )
         }
         .padding(.horizontal, 16)
         .padding(.bottom, Self.bottomPadding)

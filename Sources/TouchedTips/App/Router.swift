@@ -18,8 +18,14 @@ enum Destination: Hashable {
 @MainActor
 @Observable
 final class Router {
-    var selectedTab: AppTab = .people
+    var selectedTab: AppTab = .people {
+        didSet { restoreBar() }
+    }
+
     var paths: [AppTab: [Destination]] = [:]
+    /// How far the tab bar has shrunk under a scroll, 0 full size to 1 minimised. Written by the
+    /// scrolling screen, read by the bar. Any change of screen restores it.
+    var barProgress: CGFloat = 0
     /// Bumped when the current tab is tapped while already at its root. Roots scroll to top on it.
     var scrollToTop: [AppTab: Int] = [:]
     /// A place the map should centre on and select the next time it looks. Consumed by MapScreen.
@@ -47,6 +53,7 @@ final class Router {
     func reselect() {
         if isOnRoot {
             scrollToTop[selectedTab, default: 0] += 1
+            restoreBar()
         } else {
             setPath([], for: selectedTab)
         }
@@ -68,5 +75,12 @@ final class Router {
     /// Every pop goes through here, the swipe included.
     private func setPath(_ path: [Destination], for tab: AppTab) {
         paths[tab] = path
+        restoreBar()
+    }
+
+    /// Back to full size, with the same spring the snap uses.
+    func restoreBar() {
+        guard barProgress != 0 else { return }
+        withAnimation(.appleMusic) { barProgress = 0 }
     }
 }

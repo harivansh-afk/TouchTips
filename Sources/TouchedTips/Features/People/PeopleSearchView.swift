@@ -23,6 +23,7 @@ struct PeopleSearchView: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .scrollDismissesKeyboard(.immediately)
                 .hidesHeaderOnScroll($hideHeader)
+                .minimizesTabBarOnScroll()
                 .safeAreaInset(edge: .top, spacing: 0) {
                     if showField {
                         GlassSearchField(prompt: "Name or place", text: $query, focused: $focused)

@@ -40,6 +40,7 @@ struct PeopleView: View {
         list
             .aboveTabBar()
             .hidesHeaderOnScroll($hideHeader)
+            .minimizesTabBarOnScroll()
             .overlay {
                 if people.rows.isEmpty {
                     emptyState
