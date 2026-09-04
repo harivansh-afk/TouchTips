@@ -48,7 +48,7 @@ just device  # build for the plugged-in iPhone and install it, no debugger attac
 just log     # stream the app's log lines from that iPhone; the capture path logs every stage with timings
 ```
 
-`just check` and `just lint` run locally before a PR. github.com/harivansh-afk/TouchedTips is the canonical repo and PRs merge there; git.harivan.sh keeps a read-only pull mirror. Builds ship through Xcode Cloud: every push to `main` archives and goes to TestFlight, with `ci_scripts/ci_post_clone.sh` generating the project on the runner and stamping the build number. The workflow itself is configured in App Store Connect, not here.
+`just check` and `just lint` run locally before a PR. github.com/harivansh-afk/TouchedTips is the canonical repo and PRs merge there; git.harivan.sh keeps a read-only pull mirror. Builds ship through Xcode Cloud: every push to `main` archives and goes to TestFlight, with `scripts/ci_post_clone.sh` generating the project on the runner and stamping the build number. The workflow itself is configured in App Store Connect, not here.
 
 Set `DEVELOPMENT_TEAM` in `configs/Local.xcconfig` (gitignored) before building on a device.
 
