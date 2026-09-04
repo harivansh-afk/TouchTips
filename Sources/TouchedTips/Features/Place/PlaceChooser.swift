@@ -27,11 +27,17 @@ struct PlaceChooser: View {
     @State private var searchTask: Task<Void, Never>?
     /// Places picked from search, so they stay on offer after "No place".
     @State private var picked: [PlaceChoice] = []
+
+    /// One chip per place. A pick that the caller later hands back as a candidate, once it is on
+    /// record, is the same place under another detail line; the pick's line wins.
+    private var chips: [PlaceChoice] {
+        picked + candidates.filter { candidate in !picked.contains { $0.key == candidate.key } }
+    }
     @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
     /// Bumped as the camera moves, so the dot is placed again from the map's current frame.
     @State private var cameraTick = 0
     @FocusState private var focused: Bool
-    @Namespace private var chips
+    @Namespace private var chipGlass
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
 
@@ -48,7 +54,7 @@ struct PlaceChooser: View {
         .animation(.appleMusic, value: trimmedQuery.isEmpty)
         .onChange(of: query) { _, _ in search() }
         .onChange(of: selection, initial: true) { _, chosen in
-            if let chosen, !candidates.contains(chosen), !picked.contains(chosen) {
+            if let chosen, !chips.contains(where: { $0.key == chosen.key }) {
                 picked.insert(chosen, at: 0)
             }
             aim(at: chosen?.coordinate ?? origin, animated: true)
@@ -87,9 +93,12 @@ struct PlaceChooser: View {
             .onMapCameraChange(frequency: .continuous) { _ in cameraTick += 1 }
             .overlay {
                 let _ = cameraTick
-                if let selection, let point = proxy.convert(selection.coordinate, to: .local) {
-                    PinDot(tint: styleChoice.placeTint).position(point)
+                ZStack {
+                    if let selection, let point = proxy.convert(selection.coordinate, to: .local) {
+                        PinDot(tint: styleChoice.placeTint).position(point)
+                    }
                 }
+                .ignoresSafeArea()
             }
         }
     }
@@ -146,8 +155,8 @@ struct PlaceChooser: View {
         default:
             GlassEffectContainer(spacing: 8) {
                 FlowLayout(spacing: 8) {
-                    ForEach(picked + candidates) { choice in
-                        chip(choice.name, selected: selection == choice, id: choice.key) {
+                    ForEach(chips) { choice in
+                        chip(choice.name, selected: selection?.key == choice.key, id: choice.key) {
                             selection = choice
                         }
                     }
@@ -178,7 +187,7 @@ struct PlaceChooser: View {
         }
         .buttonStyle(.plain)
         .glassEffect(selected ? .regular.tint(.white).interactive() : .clear.interactive(), in: .capsule)
-        .glassEffectID(id, in: chips)
+        .glassEffectID(id, in: chipGlass)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 

@@ -89,25 +89,29 @@ struct MapScreen: View {
     }
 
     /// The pins sit over the map, not in it, so Muted's filter greys the map and not the pins.
-    /// Reading the tick makes this body run again on every camera move.
+    /// Reading the tick makes this body run again on every camera move. The layer spans the
+    /// map's whole frame, safe areas included, since that is the space the proxy converts into.
     private func pins(in proxy: MapProxy) -> some View {
         let _ = cameraTick
-        return ForEach(places) { place in
-            if let point = proxy.convert(place.coordinate, to: .local) {
-                Button {
-                    open(place)
-                } label: {
-                    PlacePin(
-                        place: place,
-                        image: place.soleContactID.flatMap(app.photos.image(for:)),
-                        tint: styleChoice.placeTint,
-                        selected: selection == place.id
-                    )
+        return ZStack {
+            ForEach(places) { place in
+                if let point = proxy.convert(place.coordinate, to: .local) {
+                    Button {
+                        open(place)
+                    } label: {
+                        PlacePin(
+                            place: place,
+                            image: place.soleContactID.flatMap(app.photos.image(for:)),
+                            tint: styleChoice.placeTint,
+                            selected: selection == place.id
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .position(point)
                 }
-                .buttonStyle(.plain)
-                .position(point)
             }
         }
+        .ignoresSafeArea()
     }
 
     /// One person is the pin, so the tap goes straight to them; more open the sheet.
