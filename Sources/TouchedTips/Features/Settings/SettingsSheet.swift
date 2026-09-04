@@ -11,7 +11,7 @@ struct SettingsSheet: View {
     @AppStorage("onboardingDone") private var onboardingDone = false
     @AppStorage(PresencePolicy.key) private var presence = PresencePolicy.always
     @State private var stats: CaptureStats?
-    @State private var lastNotice: TimeInterval?
+    @State private var lastNotice: NoticeTiming?
     @State private var problem: String?
     @State private var confirmDelete = false
 
@@ -93,7 +93,7 @@ struct SettingsSheet: View {
                             }
                         }
                         if let lastNotice {
-                            LabeledContent("Last notice", value: "\(lastNotice.formatted(.number.precision(.fractionLength(1)))) s")
+                            LabeledContent("Last notice", value: CaptureCoordinator.describe(lastNotice))
                         }
                         Button("Replay onboarding") {
                             HapticManager.medium()
@@ -159,7 +159,7 @@ struct SettingsSheet: View {
             let (beats, latency) = try await app.database.reader.read { db in
                 (
                     try Heartbeat.since(now.addingTimeInterval(-CaptureStats.span)).fetchAll(db),
-                    try db.value(for: .lastNoticeLatency).flatMap { String(data: $0, encoding: .utf8) }.flatMap(TimeInterval.init)
+                    try db.value(for: .lastNotice).flatMap { try? NoticeTiming.decode($0) }
                 )
             }
             stats = CaptureStats.make(from: beats, now: now)

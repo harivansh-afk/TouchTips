@@ -14,6 +14,10 @@ open: gen
 build: gen
     xcodebuild -project TouchedTips.xcodeproj -scheme TouchedTips -destination 'generic/platform=iOS Simulator' -quiet build
 
+# Stream the app's own log lines from the plugged-in iPhone. No debugger, so background behaviour is real.
+log:
+    idevicesyslog -p TouchedTips | grep --line-buffered 'TouchedTips(TouchedTips'
+
 # Run the core package tests (no simulator needed)
 test:
     swift test --package-path Packages/TouchedTipsCore

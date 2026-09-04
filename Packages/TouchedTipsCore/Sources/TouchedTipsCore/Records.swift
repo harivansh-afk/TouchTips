@@ -166,8 +166,8 @@ public enum StoreKey: String, Sendable {
     case contactsHistoryToken
     /// When the last contacts diff ran. Adds seen next tick appeared after this.
     case lastTick
-    /// Seconds from hearing about the last add to posting its notification.
-    case lastNoticeLatency
+    /// `NoticeTiming` JSON for the last add that was notified: where the seconds went.
+    case lastNotice
 }
 
 /// What woke the app, or that it was still awake.

@@ -13,7 +13,8 @@ import UIKit
 @Observable
 final class CaptureCoordinator: NSObject {
     static let refreshTaskID = "sh.harivan.touchtips.refresh"
-    private static let fenceName = "sh.harivan.touchtips.fence"
+    /// CLMonitor rejects anything but letters and digits in the name; it becomes a file under Library.
+    private static let fenceName = "TouchedTipsFence"
     private static let fenceID = "breadcrumb"
     private static let fenceRadius: CLLocationDistance = 150
     private static let heartbeatInterval: TimeInterval = 5 * 60
@@ -35,6 +36,8 @@ final class CaptureCoordinator: NSObject {
     /// A wake that arrived mid-tick. Runs once the current one is done.
     private var queuedSource: WakeSource?
     private var lastLocation: CLLocation?
+    /// When the first contact-change notification of the current burst arrived. The clock for the latency stats.
+    private var pendingHeard: Date?
     /// Start of the current unbroken stretch of running. Moves forward whenever a gap shows the process was suspended.
     private var aliveSince = Date()
     private var lastHeartbeat = Date()
@@ -76,7 +79,14 @@ final class CaptureCoordinator: NSObject {
             forName: .CNContactStoreDidChange, object: nil, queue: .main
         ) { [weak self] _ in
             // One save posts several of these. A short coalesce turns them into one tick.
-            MainActor.assumeIsolated { self?.scheduleTick(.contacts, after: 0.3) }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if self.pendingHeard == nil {
+                    self.pendingHeard = Date()
+                    Log.capture.notice("contacts changed")
+                }
+                self.scheduleTick(.contacts, after: 0.3)
+            }
         }
         // Give a launch-time visit a moment to land so the add it explains gets a place on the first pass.
         scheduleTick(.launch, after: 2)
@@ -118,6 +128,9 @@ final class CaptureCoordinator: NSObject {
         }
 
         let now = Date()
+        let heard = pendingHeard ?? now
+        pendingHeard = nil
+        var fixedAt: Date?
         let continuous = now.timeIntervalSince(lastHeartbeat) <= Self.gapTolerance
         if !continuous { aliveSince = now }
         lastHeartbeat = now
@@ -133,6 +146,8 @@ final class CaptureCoordinator: NSObject {
                let location = await oneShot.fix(timeout: Self.fixTimeout)
             {
                 lastLocation = location
+                fixedAt = Date()
+                Log.capture.notice("fix ±\(Int(location.horizontalAccuracy), privacy: .public) m after \(Self.ms(since: now), privacy: .public)")
                 let fix = LiveFix(
                     latitude: location.coordinate.latitude, longitude: location.coordinate.longitude,
                     accuracyMeters: location.horizontalAccuracy, at: now
@@ -145,12 +160,15 @@ final class CaptureCoordinator: NSObject {
             let summary = try await Task.detached(priority: .utility) {
                 try Ingest.apply(changes, now: now, aliveSince: narrow, to: database)
             }.value
+            let resolvedAt = Date()
             lastTick = now
-            Log.capture.info(
-                "tick \(source.rawValue): \(summary.newPeople) new, \(summary.snapshotted) snapshotted, \(summary.updated) updated, \(summary.deleted) deleted"
+            Log.capture.notice(
+                "tick \(source.rawValue, privacy: .public): \(summary.newPeople, privacy: .public) new, \(summary.snapshotted, privacy: .public) snapshotted, \(summary.updated, privacy: .public) updated, \(summary.deleted, privacy: .public) deleted, \(Self.ms(since: now), privacy: .public)"
             )
             if summary != IngestSummary() { didIngest?() }
-            if !summary.added.isEmpty { await notify(summary.added, heard: now) }
+            if !summary.added.isEmpty {
+                await notify(summary.added, heard: heard, ticked: now, fixed: fixedAt, resolved: resolvedAt)
+            }
         } catch {
             Log.capture.error("tick failed: \(error.localizedDescription)")
         }
@@ -179,7 +197,7 @@ final class CaptureCoordinator: NSObject {
 
     // MARK: - Notify
 
-    private func notify(_ contactIDs: [String], heard: Date) async {
+    private func notify(_ contactIDs: [String], heard: Date, ticked: Date, fixed: Date?, resolved: Date) async {
         for contactID in contactIDs {
             guard let row = try? await database.reader.read({ db in try Person.row(contactID: contactID).fetchOne(db) }) else { continue }
             var placeName = row.place?.name
@@ -193,12 +211,26 @@ final class CaptureCoordinator: NSObject {
                     }
                 }
             }
+            let namedAt = Date()
             await notifier.postMeet(contactID: contactID, name: row.person.name, at: row.meet?.start, placeName: placeName)
-            let latency = Date().timeIntervalSince(heard)
+            let timing = NoticeTiming(
+                heard: heard, ticked: ticked, fixed: fixed, resolved: resolved, named: namedAt, posted: Date()
+            )
+            Log.capture.notice("notified \(row.person.name, privacy: .private): \(Self.describe(timing), privacy: .public)")
             try? await database.writer.write { db in
-                try db.setValue(Data(String(latency).utf8), for: .lastNoticeLatency)
+                try db.setValue(try timing.encoded(), for: .lastNotice)
             }
         }
+    }
+
+    private static func ms(since start: Date) -> String {
+        "\(Int(Date().timeIntervalSince(start) * 1000)) ms"
+    }
+
+    /// "3.2 s: coalesce 0.3, fix 1.9, resolve 0.1, name 0.8, post 0.0"
+    static func describe(_ timing: NoticeTiming) -> String {
+        let stages = timing.stages.map { "\($0.name) \($0.seconds.formatted(.number.precision(.fractionLength(1))))" }
+        return "\(timing.total.formatted(.number.precision(.fractionLength(1)))) s: \(stages.joined(separator: ", "))"
     }
 
     /// The business at the fix if there is one within a few doors, else the address.
@@ -241,7 +273,7 @@ final class CaptureCoordinator: NSObject {
             manager.stopUpdatingLocation()
             manager.allowsBackgroundLocationUpdates = false
         }
-        Log.capture.info("presence \(wanted ? "on" : "off")")
+        Log.capture.notice("presence \(wanted ? "on" : "off", privacy: .public)")
     }
 
     // MARK: - Heartbeat

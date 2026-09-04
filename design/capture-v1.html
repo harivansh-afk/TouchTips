@@ -187,7 +187,7 @@ tick(source):
     <li><b>Uptime fraction.</b> Share of five-minute slots in the last day with a heartbeat. This is how often Presence actually held. <span class="unm">Target unmeasured until the spike.</span></li>
     <li><b>Battery per day</b> with Presence on versus off, from battery level sampled at each heartbeat. Rough, on-device, and enough to choose between the always and duringVisits policies.</li>
     <li><b>Wakes by source</b> and the add window width at each meet. Shows whether the relaunch net is doing anything once Presence is on.</li>
-    <li><b>Add to notification latency</b>, from the fix timestamp to the notification post.</li>
+    <li><b>Add to notification latency</b>, from the first <code>CNContactStoreDidChange</code> of the burst to the notification post, split by stage: coalesce, fix, resolve, name, post. The save itself to the first change notification is not measurable from inside the app; it is milliseconds while Presence holds and the whole gap when it does not.</li>
   </ul>
   <p>The Dev section of Settings shows these numbers. They decide the policy default; the doc does not.</p>
 </section>

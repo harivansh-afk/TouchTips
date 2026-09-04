@@ -1,5 +1,5 @@
 {
-  description = "TouchedTips dev shell: xcodegen, just, swiftformat";
+  description = "TouchedTips dev shell: xcodegen, just, swiftformat, idevicesyslog";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
@@ -11,7 +11,7 @@
       devShells = forAll (pkgs: {
         default = pkgs.mkShellNoCC {
           packages = [ pkgs.just ]
-            ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ pkgs.xcodegen pkgs.swiftformat ];
+            ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ pkgs.xcodegen pkgs.swiftformat pkgs.libimobiledevice ];
         };
       });
     };

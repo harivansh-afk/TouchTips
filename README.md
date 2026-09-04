@@ -18,6 +18,7 @@ project.yml                  XcodeGen spec; TouchedTips.xcodeproj is generated, 
 Packages/TouchedTipsCore/      Records, schema (GRDB), resolver, ingest, queries, Timeline decoder. No UIKit.
 Sources/TouchedTips/           The app: capture (Contacts + CoreLocation), geocoder (MapKit), SwiftUI features
 design/TouchedTips-v0.html     The design doc: screens, API lock-down, data model
+design/capture-v1.html         The capture architecture: presence, relaunch net, the tick, notification, measurement
 ```
 
 ## Build
@@ -30,6 +31,8 @@ just open    # opens it in Xcode
 just test    # core package tests, no simulator needed
 just check   # the gate before a PR: core build and tests, then a device build where any warning fails
 just lint    # swiftformat in lint mode; `just fmt` fixes what it reports
+just device  # build for the plugged-in iPhone and install it, no debugger attached
+just log     # stream the app's log lines from that iPhone; the capture path logs every stage with timings
 ```
 
 `just check` and `just lint` run locally before a PR. github.com/harivansh-afk/TouchedTips is the canonical repo and PRs merge there; git.harivan.sh keeps a read-only pull mirror. Builds ship through Xcode Cloud: every push to `main` archives and goes to TestFlight, with `ci_scripts/ci_post_clone.sh` generating the project on the runner and stamping the build number. The workflow itself is configured in App Store Connect, not here.
