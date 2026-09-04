@@ -66,7 +66,8 @@ struct PlaceChooser: View {
                 RoundedRectangle(cornerRadius: 22).strokeBorder(Color.hairline)
             }
             .opacity(selection == nil ? 0.6 : 1)
-            .overlay(alignment: .bottomLeading) {
+            // Top left, clear of the map's own mark in the bottom corner.
+            .overlay(alignment: .topLeading) {
                 caption.padding(10)
             }
             .animation(.appleMusic, value: selection == nil)
@@ -77,14 +78,13 @@ struct PlaceChooser: View {
         return Map(position: $camera, interactionModes: modes) {
             if let selection {
                 Annotation(selection.name, coordinate: selection.coordinate, anchor: .center) {
-                    PinDot()
+                    PinDot(tint: styleChoice.placeTint)
                 }
                 .annotationTitles(.hidden)
             }
             UserAnnotation()
         }
         .mapStyle(styleChoice.style)
-        .grayscale(styleChoice == .muted ? 1 : 0)
         .mapControlVisibility(.hidden)
     }
 
@@ -255,11 +255,13 @@ struct PlaceChooser: View {
     }
 }
 
-/// The chosen spot: a green dot with a black rim, so it reads on any map style.
+/// The chosen spot: a dot in the map style's tint with a black rim, so it reads on any map.
 private struct PinDot: View {
+    let tint: Color
+
     var body: some View {
         Circle()
-            .fill(Color.placed)
+            .fill(tint)
             .overlay { Circle().strokeBorder(Color.ground, lineWidth: 3) }
             .frame(width: 18, height: 18)
             .shadow(color: .black.opacity(0.5), radius: 5, y: 2)

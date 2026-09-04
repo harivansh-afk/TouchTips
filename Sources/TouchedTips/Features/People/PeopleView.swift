@@ -37,6 +37,7 @@ struct PeopleView: View {
 
     private var content: some View {
         PeopleList(sections: people.sections, undocumented: people.undocumented)
+            .aboveTabBar()
             .hidesHeaderOnScroll($hideHeader)
             .overlay {
                 if people.rows.isEmpty {

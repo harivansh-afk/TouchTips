@@ -81,11 +81,6 @@ private struct LazyTab<Content: View>: View {
             }
         }
         .toolbarVisibility(.hidden, for: .tabBar)
-        // Inside the tab, not on the tab view: an inset on the container does not reach the
-        // screens a tab pushes, so the map's mark and a person's last button ended under the bar.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            Color.clear.frame(height: TabBar.contentInset)
-        }
         .onAppear {
             if router.selectedTab == tab {
                 hasBeenSelected = true

@@ -32,6 +32,7 @@ struct UndocumentedView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.ground)
+        .aboveTabBar()
         // No navigation bar, so a push from here animates nothing but the zoom. The title is
         // content, like the roots, and fades once the list scrolls under it.
         .toolbar(.hidden, for: .navigationBar)

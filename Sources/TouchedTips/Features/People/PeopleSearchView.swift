@@ -19,6 +19,7 @@ struct PeopleSearchView: View {
     var body: some View {
         NavigationStack(path: router.path(for: .search)) {
             PeopleList(sections: groups.sections, undocumented: groups.undocumented, expandUndocumented: true, query: query)
+                .aboveTabBar()
                 .toolbar(.hidden, for: .navigationBar)
                 .scrollDismissesKeyboard(.immediately)
                 .hidesHeaderOnScroll($hideHeader)

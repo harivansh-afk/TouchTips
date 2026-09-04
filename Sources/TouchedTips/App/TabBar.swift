@@ -8,7 +8,7 @@ struct TabBar: View {
     static let height: CGFloat = 58
     static let bottomPadding: CGFloat = 24
     /// How far above the bottom safe area content stops, so nothing ends under the capsule.
-    static let contentInset = height + bottomPadding + 8 - 34
+    fileprivate static let contentInset = height + bottomPadding + 8 - 34
 
     var body: some View {
         VStack(spacing: 0) {
@@ -95,6 +95,16 @@ struct TabBar: View {
             router.reselect()
         } else {
             router.selectedTab = tab
+        }
+    }
+}
+
+extension View {
+    /// Ends this screen's content above the bar. Every screen says it for itself: an inset on a
+    /// container is not seen by the screens a tab pushes, nor by MapKit's bottom-left mark.
+    func aboveTabBar() -> some View {
+        safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: TabBar.contentInset)
         }
     }
 }

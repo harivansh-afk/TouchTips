@@ -39,6 +39,7 @@ struct PersonView: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
+        .aboveTabBar()
         .background(Color.ground)
         // No bar at all: the push is the zoom and nothing else. Back is the tab bar's capsule, or the swipe.
         .toolbar(.hidden, for: .navigationBar)

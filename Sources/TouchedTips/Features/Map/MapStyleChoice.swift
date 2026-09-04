@@ -3,6 +3,8 @@ import SwiftUI
 
 /// The four ways to draw the map. Points of interest stay off in all of them: the app's own pins
 /// are the points of interest. Elevation stays flat: the map is a reference, not a flyover.
+/// Muted is MapKit's own muted dark, no filter over it: a filter would take the colour out of the
+/// pins too, and the pins are the one thing on that map allowed a colour.
 enum MapStyleChoice: String, CaseIterable, Identifiable {
     case muted, standard, satellite, hybrid
 
@@ -24,6 +26,11 @@ enum MapStyleChoice: String, CaseIterable, Identifiable {
         case .satellite: .imagery(elevation: .flat)
         case .hybrid: .hybrid(elevation: .flat, pointsOfInterest: .excludingAll, showsTraffic: false)
         }
+    }
+
+    /// What marks a place: a quiet green against the near-monotone map, white against colour.
+    var placeTint: Color {
+        self == .muted ? .placed : .white
     }
 
     /// The shipped picture of this style. Rendered once with MKMapSnapshotter on a Mac; the Muted

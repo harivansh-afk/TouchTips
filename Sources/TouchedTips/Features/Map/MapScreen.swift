@@ -37,6 +37,7 @@ struct MapScreen: View {
                     PlacePin(
                         place: place,
                         image: place.soleContactID.flatMap(app.photos.image(for:)),
+                        tint: styleChoice.placeTint,
                         selected: selection == place.id
                     )
                 }
@@ -49,14 +50,7 @@ struct MapScreen: View {
         .mapControls {
             MapCompass()
         }
-        // MapKit places its bottom-left mark from the safe area on the map view itself. The tab's
-        // inset reaches the screens the tab pushes but not this, so the map says it again here.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            Color.clear.frame(height: TabBar.contentInset)
-        }
-        // Muted is monotone by decision. The filter costs a re-render of the map layer per frame, so
-        // it applies to that one style only; the other three are MapKit's own colour.
-        .grayscale(styleChoice == .muted ? 1 : 0)
+        .aboveTabBar()
         .overlay(alignment: .topLeading) {
             Button {
                 HapticManager.light()
