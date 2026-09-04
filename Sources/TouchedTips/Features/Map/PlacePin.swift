@@ -32,10 +32,13 @@ struct PlacePin: View {
                     .glassEffect(.clear, in: .circle)
             }
         }
+        // The shadow hangs off the ring, not the pin: a shadow on the glass itself rasterises it,
+        // and the glass goes flat and frosted instead of showing the map through.
         .overlay {
-            Circle().strokeBorder(tint.opacity(place.witnessed ? 1 : 0.45), lineWidth: 2)
+            Circle()
+                .strokeBorder(tint.opacity(place.witnessed ? 1 : 0.45), lineWidth: 2)
+                .shadow(color: .black.opacity(0.5), radius: 6, y: 2)
         }
-        .shadow(color: .black.opacity(0.5), radius: 6, y: 2)
         .scaleEffect(selected ? 1.15 : 1)
         .animation(.appleInteractive, value: selected)
         .accessibilityLabel(place.soleName ?? "\(place.people) people")

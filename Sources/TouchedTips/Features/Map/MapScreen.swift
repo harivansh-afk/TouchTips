@@ -83,8 +83,6 @@ struct MapScreen: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-            // Frosted, not clear: the list has to read over whatever the map is showing.
-            .presentationBackground(.regularMaterial)
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .task { await observe() }
