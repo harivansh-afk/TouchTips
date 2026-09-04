@@ -3,6 +3,9 @@ import TouchedTipsCore
 
 struct PersonRowView: View {
     let row: PersonRow
+    /// Off when the place is the heading above: the second line is the date instead, and the
+    /// short date on the right goes with it.
+    var showsPlace = true
 
     /// Avatar width plus the gap to the text.
     nonisolated static let textLeading: CGFloat = 42 + 14
@@ -14,7 +17,7 @@ struct PersonRowView: View {
                 Text(row.person.name)
                     .font(.body.weight(.medium))
                     .lineLimit(1)
-                let subtitle = Format.rowSubtitle(row)
+                let subtitle = showsPlace ? Format.rowSubtitle(row) : row.meet.map(Format.dateLine) ?? ""
                 if !subtitle.isEmpty {
                     Text(subtitle)
                         .font(.subheadline)
@@ -24,7 +27,7 @@ struct PersonRowView: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 6) {
-                if let meet = row.meet {
+                if showsPlace, let meet = row.meet {
                     Text(Format.rowDate(meet))
                         .font(.footnote)
                         .monospacedDigit()
@@ -52,6 +55,7 @@ struct PersonRowView: View {
     )
     List {
         PersonRowView(row: PersonRow(person: Person(contactID: "dp", name: "Dev Patel", beforeInstall: false, createdAt: now), meet: meet, place: place))
+        PersonRowView(row: PersonRow(person: Person(contactID: "dp", name: "Dev Patel", beforeInstall: false, createdAt: now), meet: meet, place: place), showsPlace: false)
         PersonRowView(row: PersonRow(person: Person(contactID: "ln", name: "Lena Novak", beforeInstall: true, createdAt: now), meet: nil, place: nil))
     }
     .listStyle(.plain)
