@@ -49,11 +49,6 @@ struct MapScreen: View {
         .mapControls {
             MapCompass()
         }
-        // The map draws its own bottom-left mark against its safe area, and the bar's inset on the
-        // tab view does not reach it. Told here, it keeps the mark and the sheets above the bar.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            Color.clear.frame(height: TabBar.contentInset)
-        }
         // Muted is monotone by decision. The filter costs a re-render of the map layer per frame, so
         // it applies to that one style only; the other three are MapKit's own colour.
         .grayscale(styleChoice == .muted ? 1 : 0)
