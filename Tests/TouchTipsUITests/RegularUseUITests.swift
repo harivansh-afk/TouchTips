@@ -216,8 +216,7 @@ final class RegularUseUITests: XCTestCase {
         let app = launch()
         app.buttons["Settings"].tap()
         capture(app, "location-permission-recovery")
-        let row = app.cells.containing(.staticText, identifier: "Location").firstMatch
-        let recovery = row.buttons["Open Settings"]
+        let recovery = app.buttons["Location, Open Settings"]
         XCTAssertTrue(recovery.waitForExistence(timeout: 5))
         recovery.tap()
         XCTAssertTrue(XCUIApplication(bundleIdentifier: "com.apple.Preferences").wait(
