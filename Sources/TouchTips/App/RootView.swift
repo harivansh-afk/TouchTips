@@ -61,6 +61,8 @@ struct RootView: View {
             TabView(selection: $router.selectedTab) {
                 Tab(value: .people) {
                     PeopleView()
+                        // The root overlays our custom bar, so People must hide the system bar too.
+                        .toolbarVisibility(.hidden, for: .tabBar)
                 } label: {
                     Image(.users)
                 }
