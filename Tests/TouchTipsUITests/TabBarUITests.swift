@@ -70,7 +70,13 @@ final class TabBarUITests: XCTestCase {
             "The system tab bar must not render below the custom bar: \(screen)"
         )
         for name in ["People", "Map", "Search"] {
-            XCTAssertEqual(app.buttons.matching(identifier: name).count, 1, "Duplicate custom control: \(name)")
+            // The search keyboard also has a Search button; it is not a navigation control.
+            let keyboardButtons = app.keyboards.buttons.matching(identifier: name).count
+            XCTAssertEqual(
+                app.buttons.matching(identifier: name).count - keyboardButtons,
+                1,
+                "Duplicate custom control: \(name)"
+            )
         }
         XCTAssertEqual(app.buttons.matching(identifier: "Back").count, back ? 1 : 0)
     }
