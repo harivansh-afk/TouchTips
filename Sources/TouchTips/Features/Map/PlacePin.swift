@@ -30,9 +30,8 @@ struct PlaceGroup: Hashable, Identifiable {
     }
 }
 
-/// A pin on the map. One person is drawn as themselves, their photo or initials; more than one
-/// is a count. The ring takes the map style's tint, solid when someone was witnessed here and
-/// faint when only inferred.
+/// Opaque map markers keep photos, initials and counts legible over streets and imagery.
+/// The ring takes the map style's tint, solid when witnessed here and faint when inferred.
 struct PlacePin: View {
     let group: PlaceGroup
     /// The sole person's contact photo, when Contacts has one and it has loaded.
@@ -51,23 +50,22 @@ struct PlacePin: View {
                     .frame(width: size, height: size)
                     .clipShape(.circle)
             } else if let name = group.soleName {
-                InitialsAvatar(initials: Person.initials(for: name), size: size)
+                Text(Person.initials(for: name))
+                    .font(.system(size: size * 0.36, weight: .semibold))
             } else {
                 Text(group.people, format: .number)
                     .font(.system(size: 16, weight: .bold))
                     .monospacedDigit()
-                    .foregroundStyle(.white)
-                    .frame(width: size, height: size)
-                    .glassEffect(.clear, in: .circle)
             }
         }
-        // The shadow hangs off the ring, not the pin: a shadow on the glass itself rasterises it,
-        // and the glass goes flat and frosted instead of showing the map through.
+        .foregroundStyle(.primary)
+        .frame(width: size, height: size)
+        .background(Color(uiColor: .secondarySystemBackground), in: .circle)
         .overlay {
             Circle()
                 .strokeBorder(tint.opacity(group.witnessed ? 1 : 0.45), lineWidth: 2)
-                .shadow(color: .black.opacity(0.5), radius: 6, y: 2)
         }
+        .shadow(color: .black.opacity(0.25), radius: 3, y: 2)
         .scaleEffect(selected ? 1.15 : 1)
         .animation(.appleInteractive, value: selected)
         .accessibilityLabel(group.soleName ?? "\(group.people) people")
