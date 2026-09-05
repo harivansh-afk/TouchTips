@@ -10,6 +10,7 @@ struct PersonView: View {
     @State private var showCard = false
     @State private var loaded = false
     @State private var loadFailed = false
+    @State private var confirmationProblem: String?
 
     var body: some View {
         ScrollView {
@@ -22,8 +23,30 @@ struct PersonView: View {
                             .font(.display(36))
                             .multilineTextAlignment(.center)
                     }
-                    MeetCard(row: row)
-                        .smoothAppear()
+                    VStack(alignment: .leading, spacing: 12) {
+                        MeetCard(row: row)
+                            .smoothAppear()
+                        if row.meet?.isConfirmed == false {
+                            Button("Confirm meeting") {
+                                do {
+                                    try Ingest.confirmMeet(contactID: row.id, now: .now, to: app.database)
+                                    confirmationProblem = nil
+                                    HapticManager.selection()
+                                } catch {
+                                    confirmationProblem = error.localizedDescription
+                                    HapticManager.error()
+                                }
+                            }
+                            .buttonStyle(.glass)
+                            .accessibilityIdentifier("meeting.confirm")
+                        }
+                        if let confirmationProblem {
+                            Text(confirmationProblem)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     MeetEditor(row: row)
                     NoteField(row: row)
                     Button {
