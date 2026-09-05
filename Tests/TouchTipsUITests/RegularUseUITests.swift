@@ -33,6 +33,43 @@ final class RegularUseUITests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
     }
 
+    private func deleteConfirmation(in app: XCUIApplication) -> XCUIElement {
+        XCTAssertTrue(person("QA Alice", in: app).waitForExistence(timeout: 5))
+        app.buttons["Settings"].tap()
+        let delete = app.buttons["Delete all data"]
+        for _ in 0 ..< 6 where !delete.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(delete.isHittable)
+        delete.tap()
+        capture(app, "delete-data-confirmation")
+        let alert = app.alerts["Delete everything TouchTips knows?"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "Deletion should use a standard alert")
+        XCTAssertTrue(alert.buttons["Cancel"].isHittable)
+        XCTAssertTrue(alert.buttons["Delete all data"].isHittable)
+        XCTAssertTrue(alert.staticTexts["Contacts themselves are untouched. Meetings, visits and places are removed."]
+            .exists)
+        return alert
+    }
+
+    func testDeleteAlertCancelPreservesData() {
+        let app = launch()
+        let alert = deleteConfirmation(in: app)
+        alert.buttons["Cancel"].tap()
+        XCTAssertTrue(alert.waitForNonExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        XCTAssertTrue(person("QA Alice", in: app).waitForExistence(timeout: 5))
+    }
+
+    func testDeleteAlertConfirmationRemovesFixtureData() {
+        let app = launch()
+        let alert = deleteConfirmation(in: app)
+        alert.buttons["Delete all data"].tap()
+        XCTAssertTrue(alert.waitForNonExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        XCTAssertTrue(person("QA Alice", in: app).waitForNonExistence(timeout: 10))
+    }
+
     func testColdMapThenWarmMap() {
         let app = launch()
         capture(app, "cold-people")

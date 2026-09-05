@@ -141,11 +141,11 @@ struct SettingsSheet: View {
                     .accessibilityLabel("Done")
                 }
             }
-            .confirmationDialog(
+            .alert(
                 "Delete everything TouchTips knows?",
-                isPresented: $confirmDelete,
-                titleVisibility: .visible
+                isPresented: $confirmDelete
             ) {
+                Button("Cancel", role: .cancel) {}
                 Button("Delete all data", role: .destructive) {
                     HapticManager.warning()
                     Task { await deleteAll() }
