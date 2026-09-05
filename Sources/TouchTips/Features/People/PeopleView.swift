@@ -47,15 +47,31 @@ struct PeopleView: View {
     }
 
     private var content: some View {
-        list
-            .aboveTabBar()
-            .hidesHeaderOnScroll($hideHeader)
-            .minimizesTabBarOnScroll()
-            .overlay {
-                if people.rows.isEmpty {
-                    emptyState
+        ScrollViewReader { proxy in
+            list
+                .aboveTabBar()
+                .hidesHeaderOnScroll($hideHeader)
+                .minimizesTabBarOnScroll()
+                .overlay {
+                    if people.rows.isEmpty {
+                        emptyState
+                    }
                 }
-            }
+                .onChange(of: router.scrollToTop[.people, default: 0]) { _, _ in
+                    guard let topScrollID else { return }
+                    withAnimation(.appleMusic) {
+                        proxy.scrollTo(topScrollID, anchor: .top)
+                    }
+                }
+        }
+    }
+
+    private var topScrollID: String? {
+        switch layout {
+        case .byDate: people.sections.first?.id
+        case .timeline: people.timeline.first?.id
+        case .byPlace: people.placeSections.first?.id
+        }
     }
 
     /// The layout Settings chose. The change happens under the Settings sheet, so nothing animates.

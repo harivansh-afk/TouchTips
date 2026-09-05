@@ -33,6 +33,7 @@ struct PeopleList: View {
             } else {
                 ForEach(sections) { section in
                     heading(section.title, subtitle: section.subtitle, placeID: section.placeID)
+                        .id(section.id)
                     rows(section.rows)
                 }
                 if !undocumented.isEmpty {

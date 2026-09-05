@@ -31,7 +31,10 @@ final class PeopleScrollUITests: XCTestCase {
     private func scrollPastAlice(in app: XCUIApplication) {
         let firstRow = alice(in: app)
         app.swipeUp()
-        XCTAssertTrue(waitUntil { !firstRow.exists || !firstRow.isHittable }, "Alice should leave the viewport before reselecting People")
+        XCTAssertTrue(
+            waitUntil { !firstRow.exists || !firstRow.isHittable },
+            "Alice should leave the viewport before reselecting People"
+        )
         XCTAssertFalse(app.buttons["Settings"].isHittable, "Scrolling should hide the People header")
     }
 
