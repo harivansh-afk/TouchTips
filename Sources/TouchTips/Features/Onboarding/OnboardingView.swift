@@ -24,10 +24,10 @@ struct OnboardingView: View {
     }
 
     private var locationState: PermissionState {
-        switch app.capture.locationStatus {
-        case .authorizedAlways: .granted
-        case .denied, .restricted: .denied
-        default: .pending
+        switch app.capture.locationPermissionAction {
+        case .allowed: .granted
+        case .openSettings: .denied
+        case .request: .pending
         }
     }
 
@@ -110,7 +110,8 @@ struct OnboardingView: View {
 
             PermissionRow(
                 title: "Location, Always",
-                missing: "Venues can't be captured.",
+                missing: app.capture.locationStatus == .authorizedWhenInUse
+                    ? LocationPermissionAction.backgroundExplanation : "Venues can't be captured.",
                 state: locationState,
                 openSettings: openSettings
             ) {

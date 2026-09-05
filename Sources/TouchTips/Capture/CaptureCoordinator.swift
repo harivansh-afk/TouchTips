@@ -78,6 +78,10 @@ final class CaptureCoordinator: NSObject {
         locationStatus == .authorizedAlways
     }
 
+    var locationPermissionAction: LocationPermissionAction {
+        LocationPermissionAction(status: locationStatus)
+    }
+
     init(database: AppDatabase, notifier: Notifier, contacts: CaptureContacts = .system) {
         self.database = database
         self.notifier = notifier
@@ -127,11 +131,8 @@ final class CaptureCoordinator: NSObject {
     }
 
     func requestLocation() {
-        switch locationStatus {
-        case .notDetermined: manager.requestWhenInUseAuthorization()
-        case .authorizedWhenInUse: manager.requestAlwaysAuthorization()
-        default: break
-        }
+        guard locationPermissionAction == .request else { return }
+        manager.requestWhenInUseAuthorization()
     }
 
     func scheduleTick(_ source: WakeSource, after delay: TimeInterval = 0.3) {
@@ -483,9 +484,6 @@ extension CaptureCoordinator: CLLocationManagerDelegate {
         MainActor.assumeIsolated {
             locationStatus = status
             applyLocationServices()
-            if status == .authorizedWhenInUse {
-                self.manager.requestAlwaysAuthorization()
-            }
         }
     }
 
