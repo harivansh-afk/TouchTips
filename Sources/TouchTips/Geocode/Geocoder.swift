@@ -98,7 +98,7 @@ final class Geocoder {
                     return
                 }
                 continue
-            } catch is GeocodeError {
+            } catch let error as GeocodeError {
                 // A completed lookup with no result, or an invalid coordinate, is final.
                 Log.geocode.notice("no name for \(place.key): \(error.localizedDescription)")
             } catch let error as MKError where error.code == .placemarkNotFound {
