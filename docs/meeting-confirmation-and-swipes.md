@@ -23,11 +23,16 @@ from their retained discovery intervals.
 
 The implementation follows native `.swipeActions` in Mixbridge's `Components/TrackRow.swift`, with
 empty visible labels and explicit accessibility labels. Timeline rows now use a native List with
-the existing spine, month markers and spacing.
+the existing spine and month markers. People and timeline use Mixbridge's 44-point content height,
+12-point horizontal gap, and four points of vertical row spacing on each side. Removing the previous
+extra internal padding lets native swipe controls retain their oval proportions.
 
-- Right: a white note icon on charcoal (`#404040`), opening a focused note sheet. Dismissal flushes
-  pending edits.
-- Left: a white trash icon on muted red (RGB 0.65, 0.20, 0.20), asking to forget the meeting and note.
+The note sheet has no opaque content background and starts at a compact detent, leaving the system
+Liquid Glass presentation visible. See [Apple's sheet guidance](https://developer.apple.com/videos/play/wwdc2025/323/?time=392).
+
+- Right: a white note icon on system yellow, opening a compact, focused Liquid Glass sheet with
+  the app's check icon. Dismissal flushes pending edits.
+- Left: a white trash icon on system red, asking to forget the meeting and note.
   The phone contact stays. Forget is omitted when there is no TouchTips data to remove.
 - Full swipe opens the action; Forget still requires confirmation. Cancel changes nothing.
 
@@ -54,3 +59,8 @@ Verified locally on 2026-09-05:
 - `nix develop -c just check` passed, including the device build with warnings treated as failures.
 - All 24 edited Swift files passed lint; baseline main still fails the repository-wide formatter check.
 - Reviewed the native note and trash reveal screenshots under `build/review/`.
+
+Styling revision: the note round-trip, native swipe appearance, and repeated timeline scroll-to-top
+UI tests passed. Both simulator and device builds completed without warnings; all three edited
+Swift files passed lint. Reviewed the system-yellow/system-red oval actions and translucent note
+sheet with the check icon in the updated screenshots under `build/review/`.

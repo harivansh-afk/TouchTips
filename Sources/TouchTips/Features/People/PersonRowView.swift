@@ -8,11 +8,11 @@ struct PersonRowView: View {
     var showsPlace = true
 
     /// Avatar width plus the gap to the text.
-    nonisolated static let textLeading: CGFloat = 42 + 14
+    nonisolated static let textLeading: CGFloat = 44 + 12
 
     var body: some View {
-        HStack(spacing: 14) {
-            ContactAvatar(contactID: row.id, initials: row.person.initials)
+        HStack(spacing: 12) {
+            ContactAvatar(contactID: row.id, initials: row.person.initials, size: 44)
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.person.name)
                     .font(.body.weight(.medium))
@@ -36,7 +36,6 @@ struct PersonRowView: View {
                 ConfidenceDot(meet: row.meet)
             }
         }
-        .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(.rect)
         // The hairline starts where the text does, after the avatar, and ends at the row inset,

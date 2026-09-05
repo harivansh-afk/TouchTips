@@ -19,7 +19,7 @@ private struct PersonSwipeActions: ViewModifier {
                     Label("", systemImage: "note.text")
                 }
                 .accessibilityLabel("Note")
-                .tint(Color(white: 0.25))
+                .tint(.yellow)
                 .accessibilityIdentifier("person.swipe.note")
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -31,7 +31,7 @@ private struct PersonSwipeActions: ViewModifier {
                         Label("", systemImage: "trash")
                     }
                     .accessibilityLabel("Forget")
-                    .tint(Color(red: 0.65, green: 0.20, blue: 0.20))
+                    .tint(.red)
                     .accessibilityIdentifier("person.swipe.forget")
                 }
             }
@@ -41,16 +41,22 @@ private struct PersonSwipeActions: ViewModifier {
                         NoteField(row: row, autofocus: true)
                             .padding(16)
                     }
-                    .background(Color.ground)
                     .navigationTitle(row.person.name)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { showNote = false }
+                            Button {
+                                HapticManager.light()
+                                showNote = false
+                            } label: {
+                                Icon(.check)
+                            }
+                            .accessibilityLabel("Done")
+                            .accessibilityIdentifier("person.note.done")
                         }
                     }
                 }
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.height(220), .medium])
                 .presentationDragIndicator(.visible)
             }
             .alert("Forget \(row.person.name)?", isPresented: $showForget) {

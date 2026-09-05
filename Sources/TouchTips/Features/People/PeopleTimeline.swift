@@ -79,12 +79,12 @@ struct PeopleTimeline: View {
             HapticManager.selection()
             router.open(person: row.id)
         } label: {
-            HStack(spacing: 14) {
+            HStack(spacing: 12) {
                 ConfidenceDot(meet: row.meet)
                     // A ring of ground behind the dot, so the line stops at a hollow dot instead of running through it.
                     .background { Circle().fill(Color.ground).padding(-3) }
                     .frame(width: Self.gutter)
-                ContactAvatar(contactID: row.id, initials: row.person.initials)
+                ContactAvatar(contactID: row.id, initials: row.person.initials, size: 44)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(row.person.name)
                         .font(.body.weight(.medium))
@@ -105,7 +105,7 @@ struct PeopleTimeline: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(.rect)
         }
