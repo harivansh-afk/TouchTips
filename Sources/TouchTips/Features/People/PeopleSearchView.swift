@@ -49,6 +49,7 @@ struct PeopleSearchView: View {
             .onChange(of: router.searchRequests, initial: true) { _, count in
                 guard count > handledRequests else { return }
                 handledRequests = count
+                hideHeader = false
                 withAnimation(.appleMusic) { showField = true }
                 focusWhenReady()
             }

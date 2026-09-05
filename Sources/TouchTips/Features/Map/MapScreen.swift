@@ -35,7 +35,7 @@ struct MapScreen: View {
             selection = nil
         }
         .onChange(of: router.paths[.map]?.count ?? 0) { _, count in
-            guard count == 0, let group = lastGroup else { return }
+            guard count == 0, router.pendingPlace == nil, let group = lastGroup else { return }
             lastGroup = nil
             selection = group
         }
@@ -201,6 +201,9 @@ struct MapScreen: View {
     /// person is only centred, or the pin would push the screen that just sent us here.
     private func showPendingPlace() {
         guard let id = router.pendingPlace, let place = places.first(where: { $0.id == id }) else { return }
+        pendingPerson = nil
+        lastGroup = nil
+        selection = nil
         router.pendingPlace = nil
         withAnimation(.appleMusic) {
             camera = .region(MKCoordinateRegion(

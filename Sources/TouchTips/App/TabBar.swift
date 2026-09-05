@@ -24,8 +24,7 @@ struct TabBar: View {
                 capsule
                 sideButton(.magnifyingGlass, label: "Search", selected: router.selectedTab == .search) {
                     HapticManager.selection()
-                    router.selectedTab = .search
-                    router.searchRequests += 1
+                    router.search()
                 }
             }
             // Instagram's bar: scrolling down shrinks the three shapes together from their feet,
