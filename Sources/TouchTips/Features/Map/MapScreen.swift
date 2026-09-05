@@ -7,6 +7,7 @@ struct MapScreen: View {
     @Environment(Router.self) private var router
     @State private var places: [PlaceSummary] = []
     @State private var camera: MapCameraPosition = .automatic
+    @State private var initialFraming = InitialMapFraming()
     /// The pin whose sheet is open, or which is held while it opens.
     @State private var selection: PlaceGroup?
     /// Bumped as the camera moves, so the pins are placed again from the map's current frame.
@@ -52,6 +53,11 @@ struct MapScreen: View {
             }
             .grayscale(styleChoice.grayscale)
             .onMapCameraChange(frequency: .continuous) { _ in cameraTick += 1 }
+            .onChange(of: camera.positionedByUser) { _, positionedByUser in
+                if positionedByUser {
+                    initialFraming.cancel()
+                }
+            }
             .overlay { pins(in: proxy) }
         }
         .aboveTabBar()
@@ -63,6 +69,7 @@ struct MapScreen: View {
                 .contentShape(.circle)
                 .tapOverMap {
                     HapticManager.light()
+                    initialFraming.cancel()
                     withAnimation(.appleMusic) {
                         camera = .userLocation(fallback: .automatic)
                     }
@@ -194,6 +201,7 @@ struct MapScreen: View {
     /// person is only centred, or the pin would push the screen that just sent us here.
     private func showPendingPlace() {
         guard let id = router.pendingPlace, let place = places.first(where: { $0.id == id }) else { return }
+        initialFraming.cancel()
         router.pendingPlace = nil
         withAnimation(.appleMusic) {
             camera = .region(MKCoordinateRegion(
@@ -211,6 +219,13 @@ struct MapScreen: View {
         let observation = ValueObservation.tracking { db in try PlaceSummary.all().fetchAll(db) }
         do {
             for try await value in observation.values(in: app.database.reader) {
+                if let region = initialFraming.region(
+                    afterLoading: value.map(\.coordinate),
+                    hasPendingPlace: router.pendingPlace != nil,
+                    positionedByUser: camera.positionedByUser
+                ) {
+                    camera = .region(region)
+                }
                 if places != value {
                     places = value
                 }
