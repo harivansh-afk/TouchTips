@@ -35,7 +35,6 @@ struct TouchTipsApp: App {
                         Button("Try again") { delegate.session.retry() }
                             .accessibilityIdentifier("storage.retry")
                     }
-                    .accessibilityIdentifier("storage.unavailable")
                 }
 
                 splashView
