@@ -57,7 +57,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: sh.harivan.touchtips
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.1.1"
         CURRENT_PROJECT_VERSION: "1"
         PRODUCT_NAME: TouchTips
         TARGETED_DEVICE_FAMILY: "1"
