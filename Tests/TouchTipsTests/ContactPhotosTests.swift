@@ -55,7 +55,7 @@ final class ContactPhotosTests: XCTestCase {
             return data
         }
         let database = try AppDatabase.inMemory()
-        let place = try database.writer.write { db in
+        let place = try await database.writer.write { db in
             try Place.findOrCreate(db, key: "test-map-photo", latitude: 38, longitude: -78, name: "Cafe")
         }
         try Ingest.addExact(contactID: "a", name: "Alice", at: .now, placeID: place.id, to: database)
