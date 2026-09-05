@@ -56,6 +56,25 @@ struct OnboardingView: View {
     }
 
     var body: some View {
+        GeometryReader { proxy in
+            ScrollView {
+                content
+                    .padding(26)
+                    .frame(minHeight: proxy.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        }
+        // Edge to edge: this is an overlay on the finished app, nothing may show around it.
+        .background { Color.ground.ignoresSafeArea() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                app.contactsAccess.refresh()
+                Task { await app.notifier.refresh() }
+            }
+        }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
             Spacer()
             TypewriterText(
@@ -66,11 +85,13 @@ struct OnboardingView: View {
                 revealed = true
             }
             .lineSpacing(2)
+            .fixedSize(horizontal: false, vertical: true)
 
             Text(
                 "TouchTips lives on your iPhone and remembers new contacts and where you may have met. Background discovery can be delayed; opening the app checks for new people."
             )
             .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.bottom, 8)
             .staged(revealed, leaving: leaving, order: 0)
 
@@ -122,15 +143,6 @@ struct OnboardingView: View {
             .controlSize(.large)
             .staged(revealed, leaving: leaving, order: 4)
         }
-        .padding(26)
-        // Edge to edge: this is an overlay on the finished app, nothing may show around it.
-        .background { Color.ground.ignoresSafeArea() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                app.contactsAccess.refresh()
-                Task { await app.notifier.refresh() }
-            }
-        }
     }
 }
 
@@ -155,6 +167,8 @@ private enum PermissionState {
 }
 
 private struct PermissionRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let title: String
     /// What the app loses without it. Shown only once the answer was no.
     let missing: String
@@ -162,15 +176,24 @@ private struct PermissionRow: View {
     let openSettings: () -> Void
     let action: () -> Void
 
+    private var layout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 14))
+            : AnyLayout(HStackLayout(spacing: 14))
+    }
+
     var body: some View {
-        HStack(spacing: 14) {
+        layout {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
                 if state == .denied {
                     Text(missing).font(.footnote).foregroundStyle(.primary)
                 }
             }
-            Spacer(minLength: 8)
+            .fixedSize(horizontal: false, vertical: true)
+            if !dynamicTypeSize.isAccessibilitySize {
+                Spacer(minLength: 8)
+            }
             Button(verb) {
                 HapticManager.heavy()
                 if state == .denied {
@@ -180,8 +203,10 @@ private struct PermissionRow: View {
                 }
             }
             .buttonStyle(.glass)
+            .fixedSize(horizontal: false, vertical: true)
             .disabled(state == .granted)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .glassEffect(.clear, in: .rect(cornerRadius: 20))
     }
