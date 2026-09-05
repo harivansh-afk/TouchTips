@@ -79,14 +79,14 @@ final class RegularUseUITests: XCTestCase {
     func testPlaceLinkReturnsToMapFromMapPerson() {
         let app = launch()
         person("QA Alice", in: app).tap()
-        XCTAssertTrue(app.buttons["QA Coffee"].waitForExistence(timeout: 5))
-        app.buttons["QA Coffee"].tap()
+        XCTAssertTrue(app.buttons["QA Coffee"].firstMatch.waitForExistence(timeout: 5))
+        app.buttons["QA Coffee"].firstMatch.tap()
         XCTAssertTrue(app.maps.firstMatch.waitForExistence(timeout: 10))
         let pin = app.buttons["QA Alice"]
         XCTAssertTrue(pin.waitForExistence(timeout: 10), app.debugDescription)
         pin.tap()
         XCTAssertTrue(app.staticTexts["person-name"].waitForExistence(timeout: 5))
-        app.buttons["QA Coffee"].tap()
+        app.buttons["QA Coffee"].firstMatch.tap()
         capture(app, "place-link-from-map-person")
         XCTAssertTrue(app.staticTexts["person-name"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.maps.firstMatch.isHittable)
@@ -108,13 +108,15 @@ final class RegularUseUITests: XCTestCase {
         person("QA Alice", in: app).tap()
         XCTAssertTrue(app.staticTexts["person-name"].waitForExistence(timeout: 5))
         app.swipeUp()
-        XCTAssertTrue(note.waitForExistence(timeout: 5))
-        XCTAssertEqual(note.value as? String, "QA note persisted")
+        let saved = app.textFields.matching(NSPredicate(format: "value == %@", "QA note persisted")).firstMatch
+        XCTAssertTrue(saved.waitForExistence(timeout: 5))
     }
 
     func testOnboardingContentReachable() {
         let app = launch(data: "empty", onboarding: false)
         XCTAssertTrue(app.buttons["Start"].waitForExistence(timeout: 15))
+        // Permission rows are staged after the headline animation, but exist before they are visible.
+        Thread.sleep(forTimeInterval: 6)
         capture(app, "onboarding-current-text-size")
         for title in ["Contacts", "Location, Always", "Notifications"] {
             let label = app.staticTexts[title]
