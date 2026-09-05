@@ -88,7 +88,7 @@ struct OnboardingView: View {
             .fixedSize(horizontal: false, vertical: true)
 
             Text(
-                "TouchTips lives on your iPhone and remembers new contacts and where you may have met. Background discovery can be delayed; opening the app checks for new people."
+                "Remember when and where you met your contacts."
             )
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
@@ -97,7 +97,7 @@ struct OnboardingView: View {
 
             PermissionRow(
                 title: "Contacts",
-                missing: "New people won't be noticed.",
+                missing: "Allow access to find new contacts.",
                 state: contactsState,
                 openSettings: openSettings
             ) {
@@ -111,7 +111,7 @@ struct OnboardingView: View {
             PermissionRow(
                 title: "Location, Always",
                 missing: app.capture.locationStatus == .authorizedWhenInUse
-                    ? LocationPermissionAction.backgroundExplanation : "Venues can't be captured.",
+                    ? LocationPermissionAction.backgroundExplanation : "Allow location to suggest meeting places.",
                 state: locationState,
                 openSettings: openSettings
             ) {
@@ -121,7 +121,7 @@ struct OnboardingView: View {
 
             PermissionRow(
                 title: "Notifications",
-                missing: "You won't hear who you met.",
+                missing: "Get notified about new contacts.",
                 state: notificationsState,
                 openSettings: openSettings
             ) {

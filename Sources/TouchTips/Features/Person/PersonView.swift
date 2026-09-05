@@ -128,9 +128,6 @@ private struct MeetCard: View {
                 }
             } else {
                 Text("No meeting details").font(.display(32))
-                Text("Record when and where you met, if you remember.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

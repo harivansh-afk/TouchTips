@@ -95,7 +95,7 @@ struct PeopleView: View {
                 "Contacts is off",
                 systemImage: "person.crop.circle.badge.xmark",
                 description: Text(
-                    "Nothing can be noticed until TouchTips can read your contacts. Allow it in Settings."
+                    "Allow Contacts access in Settings."
                 )
             )
         case .reading:
@@ -105,14 +105,12 @@ struct PeopleView: View {
                 } icon: {
                     ProgressView()
                 }
-            } description: {
-                Text("The first read goes through everyone once.")
             }
         case .ready:
             ContentUnavailableView(
                 "No one yet",
                 systemImage: "person.2",
-                description: Text("New contacts show up here with when and where you met.")
+                description: Text("New contacts will appear here.")
             )
         }
     }

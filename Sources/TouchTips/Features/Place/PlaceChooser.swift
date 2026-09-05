@@ -105,10 +105,12 @@ struct PlaceChooser: View {
             Text(selection?.name ?? "No place")
                 .font(.subheadline.weight(.medium))
                 .lineLimit(1)
-            Text(selection?.detail ?? "Saved with the time only.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            if let detail = selection?.detail {
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
