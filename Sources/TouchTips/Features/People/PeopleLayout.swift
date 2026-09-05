@@ -26,8 +26,8 @@ enum PeopleLayout: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .byDate: "Newest first, grouped by month."
-        case .timeline: "One line through everyone, with the quiet stretches named."
-        case .byPlace: "Grouped by place, the latest place first."
+        case .timeline: "Meetings along a timeline."
+        case .byPlace: "Grouped by place, newest first."
         }
     }
 }

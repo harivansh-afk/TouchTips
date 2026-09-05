@@ -30,6 +30,7 @@ struct MeetEditor: View {
                         date = .now
                         save(dateChanged: true)
                     }
+                    .buttonStyle(.glass)
                     .accessibilityIdentifier("meeting.useToday")
                     .padding(.horizontal, 6)
                 }
@@ -58,23 +59,18 @@ struct MeetEditor: View {
                 }
             }
             if let meet = row.meet, !meet.isConfirmed {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(confirmationExplanation(meet))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    Button("Confirm meeting") {
-                        do {
-                            try Ingest.confirmMeet(contactID: row.id, now: .now, to: app.database)
-                            problem = nil
-                            HapticManager.selection()
-                        } catch {
-                            problem = error.localizedDescription
-                            HapticManager.error()
-                        }
+                Button("Confirm meeting") {
+                    do {
+                        try Ingest.confirmMeet(contactID: row.id, now: .now, to: app.database)
+                        problem = nil
+                        HapticManager.selection()
+                    } catch {
+                        problem = error.localizedDescription
+                        HapticManager.error()
                     }
-                    .buttonStyle(.glass)
-                    .accessibilityIdentifier("meeting.confirm")
                 }
+                .buttonStyle(.glass)
+                .accessibilityIdentifier("meeting.confirm")
                 .padding(.horizontal, 6)
             }
             if let problem {
@@ -124,8 +120,8 @@ struct MeetEditor: View {
     /// The picker is seeded with the first of the month or year when only that much was known.
     private var precisionHint: String? {
         switch row.meet?.precision {
-        case .month: "Only the month was known. Pick the day if you remember it."
-        case .year: "Only the year was known. Pick the day if you remember it."
+        case .month: "Exact day unknown."
+        case .year: "Exact month and day unknown."
         default: nil
         }
     }
@@ -164,20 +160,6 @@ struct MeetEditor: View {
         } catch {
             Log.ui.error("suggestions failed: \(error.localizedDescription)")
         }
-    }
-
-    private func confirmationExplanation(_ meet: Meet) -> String {
-        if meet.userSet {
-            return "Your edits are saved. Confirm the meeting to accept the remaining details, including any unknown place."
-        }
-        guard let start = meet.addSeenStart, let end = meet.addSeenEnd else {
-            return "This meeting is a suggestion. Review the date and place before confirming."
-        }
-        let window = "Contact first noticed \(Format.longDate(end)). It appeared between \(Format.longDate(start)) and \(Format.longDate(end))."
-        let evidence = meet.placeID == nil
-            ? " No place is known."
-            : " Location evidence near that window suggests this place; it does not establish when you met."
-        return window + evidence
     }
 
     // MARK: - Save
