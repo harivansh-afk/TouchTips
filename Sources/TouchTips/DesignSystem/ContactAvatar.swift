@@ -19,6 +19,6 @@ struct ContactAvatar: View {
                 InitialsAvatar(initials: initials, size: size)
             }
         }
-        .task(id: contactID) { app.photos.load(contactID) }
+        .task(id: app.photos.loadID(for: contactID)) { await app.photos.load(contactID) }
     }
 }
