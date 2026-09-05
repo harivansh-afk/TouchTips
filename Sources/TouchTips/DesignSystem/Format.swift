@@ -70,7 +70,7 @@ enum Format {
         if let name = placeName(row) {
             return name
         }
-        return row.meet == nil ? "No meeting details" : "Date only"
+        return row.meet == nil ? "" : "Date only"
     }
 
     /// Notification body: "Blue Bottle @ 2:14 pm", or whichever half is known.

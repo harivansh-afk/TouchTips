@@ -51,6 +51,28 @@ final class PersonSwipeUITests: XCTestCase {
         app.navigationBars.buttons["Done"].tap()
     }
 
+    func testUndocumentedRowsAndListReuse() {
+        let app = launch(search: true)
+        let row = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "QA Undocumented")).firstMatch
+        for _ in 0 ..< 12 where !row.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(row.isHittable)
+        XCTAssertTrue(row.label.contains("No meeting recorded"))
+        XCTAssertFalse(row.label.contains("No meeting details"))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Undocumented and reused list rows"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        row.swipeRight()
+        let note = app.buttons["person.swipe.note"]
+        if note.waitForExistence(timeout: 1) {
+            note.tap()
+        }
+        XCTAssertTrue(app.textFields["person.note"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons["Done"].tap()
+    }
+
     func testPeopleNotes() {
         notesRoundTrip()
     }

@@ -22,13 +22,13 @@ struct UndocumentedView: View {
                     PersonRowView(row: row)
                 }
                 .buttonStyle(.press)
-                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                .listRowSeparatorTint(.hairline)
-                .listRowSeparator(index == 0 ? .hidden : .visible, edges: .top)
-                .listRowSeparator(index == rows.count - 1 ? .hidden : .visible, edges: .bottom)
+                .personListRow(showSeparator: index < rows.count - 1)
+                .personSwipeActions(row: row)
                 .modifier(ZoomSource(id: row.id, namespace: zoom))
             }
         }
+        .environment(\.defaultMinListRowHeight, 0)
+        .listRowSpacing(0)
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.ground)

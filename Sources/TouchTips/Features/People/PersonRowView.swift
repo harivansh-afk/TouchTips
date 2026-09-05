@@ -38,10 +38,6 @@ struct PersonRowView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(.rect)
-        // The hairline starts where the text does, after the avatar, and ends at the row inset,
-        // which is what mixbridge's rows do. The button wrapper would otherwise start it under
-        // the avatar.
-        .alignmentGuide(.listRowSeparatorLeading) { _ in Self.textLeading }
     }
 }
 
@@ -82,4 +78,33 @@ struct PersonRowView: View {
     .scrollContentBackground(.hidden)
     .background(Color.ground)
     .preferredColorScheme(.dark)
+}
+
+/// A single separator per row, inset to the name. Used by every ordinary contact list.
+private struct PersonListRow: ViewModifier {
+    let showSeparator: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.vertical, 4)
+            .overlay(alignment: .bottom) {
+                if showSeparator {
+                    Rectangle()
+                        .fill(Color.hairline)
+                        .frame(height: 0.5)
+                        .padding(.leading, PersonRowView.textLeading)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
+}
+
+extension View {
+    func personListRow(showSeparator: Bool) -> some View {
+        modifier(PersonListRow(showSeparator: showSeparator))
+    }
 }

@@ -1,7 +1,7 @@
 # Meeting confirmation and person swipes
 
 A solid dot means the user confirmed the meeting; a hollow dot means details still need review.
-No meeting has no dot. The same state drives People, timeline, search and map emphasis.
+An undocumented contact has an empty dot and no placeholder subtitle. The same state drives People, timeline, search and map emphasis.
 Precision and completeness remain separate: a confirmed record may have an approximate date or no place.
 
 Date and place confirmation are stored separately. Changing a field accepts that field, while the
@@ -30,7 +30,7 @@ extra internal padding lets native swipe controls retain their oval proportions.
 The note sheet has no opaque content background and starts at a compact detent, leaving the system
 Liquid Glass presentation visible. See [Apple's sheet guidance](https://developer.apple.com/videos/play/wwdc2025/323/?time=392).
 
-- Right: a white note icon on system yellow, opening a compact, focused Liquid Glass sheet with
+- Right: a white note icon on Notes yellow (`#E3AF09`), opening a compact, focused Liquid Glass sheet with
   the app's check icon. Dismissal flushes pending edits.
 - Left: a white trash icon on system red, asking to forget the meeting and note.
   The phone contact stays. Forget is omitted when there is no TouchTips data to remove.
@@ -62,5 +62,27 @@ Verified locally on 2026-09-05:
 
 Styling revision: the note round-trip, native swipe appearance, and repeated timeline scroll-to-top
 UI tests passed. Both simulator and device builds completed without warnings; all three edited
-Swift files passed lint. Reviewed the system-yellow/system-red oval actions and translucent note
+Swift files passed lint. Reviewed the yellow/system-red oval actions and translucent note
 sheet with the check icon in the updated screenshots under `build/review/`.
+
+
+## Row layout repair
+
+Headings are ordinary rows rather than empty sections. Every contact row has the same four-point
+vertical padding and one separator drawn from the name inset to the trailing margin; native row
+separators are hidden, avoiding section-boundary lines. Undocumented contacts show their name,
+avatar and an empty dot, without repeating “No meeting details”.
+
+The timeline spine and dots live in the cell background inside the existing 16-point leading
+margin. They no longer add a gutter to the moving content, so both swipe directions have the same
+content inset. Native oval swipe controls, system red, and the clear compact note sheet remain.
+
+The Notes action uses sRGB `#E3AF09`, sampled from the flat yellow chevron in
+[Apple’s Notes App Store screenshot](https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/d6/66/47/d6664789-9276-5995-e635-1cbf606299c8/3_Notes_list_screen.PNG/1290x2796bb.png).
+This matches that published reference rather than assuming generic system yellow is Notes’ accent.
+
+The row repair passed five targeted UI checks: note persistence, undocumented presentation and note
+access after scrolling, swipe appearance, and repeated scroll-to-top in default and timeline layouts.
+The swipe check was repeated after correcting the marker background alignment. Both builds were
+warning-free, and all nine edited Swift files passed formatting checks. Installed and launched on
+the connected iPhone 17 Pro.

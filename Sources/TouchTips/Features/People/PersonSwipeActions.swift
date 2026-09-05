@@ -19,7 +19,8 @@ private struct PersonSwipeActions: ViewModifier {
                     Label("", systemImage: "note.text")
                 }
                 .accessibilityLabel("Note")
-                .tint(.yellow)
+                // Notes accent sampled from Apple's current Notes App Store screenshot.
+                .tint(Color(.sRGB, red: 227 / 255, green: 175 / 255, blue: 9 / 255, opacity: 1))
                 .accessibilityIdentifier("person.swipe.note")
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {

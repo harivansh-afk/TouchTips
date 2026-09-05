@@ -10,8 +10,8 @@ struct PeopleTimeline: View {
     @Environment(Router.self) private var router
     @Environment(\.zoomNamespace) private var zoom
 
-    /// The column the line runs through, before the avatar.
-    private static let gutter: CGFloat = 24
+    /// The spine uses the existing list margin without adding to the content inset.
+    private static let spineX: CGFloat = 8
 
     var body: some View {
         List {
@@ -23,18 +23,10 @@ struct PeopleTimeline: View {
                     case let .person(row): person(row)
                     }
                 }
-                .background(alignment: .leading) {
-                    Rectangle()
-                        .fill(Color.hairline)
-                        .frame(width: 1)
-                        .padding(.leading, Self.gutter / 2 - 0.5)
-                        .padding(.top, item.id == items.first?.id ? 22 : 0)
-                        .padding(.bottom, item.id == items.last?.id ? 22 : 0)
-                }
                 .id(item.id)
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+                .listRowBackground(marker(for: item))
             }
             if !undocumented.isEmpty {
                 undocumentedRow
@@ -44,34 +36,53 @@ struct PeopleTimeline: View {
             }
         }
         .environment(\.defaultMinListRowHeight, 0)
+        .listRowSpacing(0)
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.ground)
     }
 
-    /// A month: the line brightens for a moment, and the name sits where the rows start.
-    private func tick(_ title: String) -> some View {
-        HStack(spacing: 14) {
+    /// The marker uses the full cell width so its leading offset stays in the list margin.
+    private func marker(for item: TimelineItem) -> some View {
+        ZStack(alignment: .leading) {
             Rectangle()
-                .fill(.white)
-                .frame(width: 1, height: 14)
-                .frame(width: Self.gutter)
-            Text(title)
-                .font(.display(26))
+                .fill(Color.hairline)
+                .frame(width: 1)
+                .padding(.leading, Self.spineX - 0.5)
+                .padding(.top, item.id == items.first?.id ? 22 : 0)
+                .padding(.bottom, item.id == items.last?.id ? 22 : 0)
+            switch item {
+            case let .person(row):
+                ConfidenceDot(meet: row.meet)
+                    .background { Circle().fill(Color.ground).padding(-3) }
+                    .padding(.leading, Self.spineX - 4.5)
+            case .month:
+                Rectangle()
+                    .fill(.white)
+                    .frame(width: 1, height: 14)
+                    .padding(.leading, Self.spineX - 0.5)
+                    .offset(y: 8)
+            case .quiet:
+                EmptyView()
+            }
         }
-        .padding(.top, 22)
-        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
-    /// Nobody for a while. Said in the serif, quietly, so the space reads as time and not as a bug.
+    private func tick(_ title: String) -> some View {
+        Text(title)
+            .font(.display(26))
+            .padding(.top, 22)
+            .padding(.bottom, 6)
+    }
+
     private func quiet(_ days: Int) -> some View {
-        HStack(spacing: 14) {
-            Color.clear.frame(width: Self.gutter, height: 1)
-            Text(Format.quiet(days: days))
-                .font(.display(18))
-                .foregroundStyle(.tertiary)
-        }
-        .padding(.vertical, 8)
+        Text(Format.quiet(days: days))
+            .font(.display(18))
+            .foregroundStyle(.tertiary)
+            .padding(.vertical, 8)
     }
 
     private func person(_ row: PersonRow) -> some View {
@@ -80,10 +91,6 @@ struct PeopleTimeline: View {
             router.open(person: row.id)
         } label: {
             HStack(spacing: 12) {
-                ConfidenceDot(meet: row.meet)
-                    // A ring of ground behind the dot, so the line stops at a hollow dot instead of running through it.
-                    .background { Circle().fill(Color.ground).padding(-3) }
-                    .frame(width: Self.gutter)
                 ContactAvatar(contactID: row.id, initials: row.person.initials, size: 44)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(row.person.name)
