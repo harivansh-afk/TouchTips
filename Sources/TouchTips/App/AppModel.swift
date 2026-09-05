@@ -42,7 +42,9 @@ final class AppModel {
                 for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
             )
             #if DEBUG && targetEnvironment(simulator)
-                if let database = try QATestFixture.database(in: support) { return database }
+                if let database = try QATestFixture.database(in: support) {
+                    return database
+                }
                 if let session = NotificationTestFixture.session {
                     return try AppDatabase.onDisk(in: support.appendingPathComponent(
                         "NotificationTests/\(session)",
