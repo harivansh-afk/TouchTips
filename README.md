@@ -23,6 +23,9 @@ location and refresh are additional opportunities to scan; they cannot guarantee
 See [notification testing](docs/notification-testing.md) for automated checks, device release checks,
 and remaining platform limitations. The older `docs/design/capture-v1.html` describes the original design.
 
+See [regular-use simulator QA](docs/qa-2026-09-05.md) for isolated fixtures, regression coverage,
+before/after evidence, open review PRs, and checks still needed before release.
+
 Everything stays on the phone. `docs/design/capture-v1.html` has the reasoning, failure modes and build order.
 
 ## Layout
