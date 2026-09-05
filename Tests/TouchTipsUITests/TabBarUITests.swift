@@ -30,7 +30,8 @@ final class TabBarUITests: XCTestCase {
         app.buttons["Done"].tap()
         assertSingleBar(app, screen: "dismissed-settings")
 
-        let person = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Notification Test Person")).firstMatch
+        let person = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Notification Test Person"))
+            .firstMatch
         XCTAssertTrue(person.waitForExistence(timeout: 5))
         person.tap()
         XCTAssertTrue(app.staticTexts["person-name"].waitForExistence(timeout: 5))
@@ -64,7 +65,10 @@ final class TabBarUITests: XCTestCase {
         screenshot.name = "single-bar-\(screen)"
         screenshot.lifetime = .keepAlways
         add(screenshot)
-        XCTAssertFalse(app.tabBars.firstMatch.exists, "The system tab bar must not render below the custom bar: \(screen)")
+        XCTAssertFalse(
+            app.tabBars.firstMatch.exists,
+            "The system tab bar must not render below the custom bar: \(screen)"
+        )
         for name in ["People", "Map", "Search"] {
             XCTAssertEqual(app.buttons.matching(identifier: name).count, 1, "Duplicate custom control: \(name)")
         }
