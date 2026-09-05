@@ -14,8 +14,8 @@ final class AppModel {
     let contactsAccess = ContactsAccess()
 
     /// The app's own database in Application Support.
-    convenience init() {
-        self.init(database: AppModel.openDatabase())
+    convenience init() throws {
+        try self.init(database: AppModel.openDatabase())
     }
 
     /// Any database. Previews and tests hand in an in-memory one; nothing starts until `start()`.
@@ -37,24 +37,18 @@ final class AppModel {
         geocoder.kick()
     }
 
-    private static func openDatabase() -> AppDatabase {
-        do {
-            let support = try FileManager.default.url(
-                for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
-            )
-            #if DEBUG && targetEnvironment(simulator)
-                if let session = NotificationTestFixture.session {
-                    return try AppDatabase.onDisk(in: support.appendingPathComponent(
-                        "NotificationTests/\(session)",
-                        isDirectory: true
-                    ))
-                }
-            #endif
-            return try AppDatabase.onDisk(in: support.appendingPathComponent("Database", isDirectory: true))
-        } catch {
-            Log.database.fault("Could not open the database, running in memory: \(error.localizedDescription)")
-            // In-memory SQLite cannot fail short of the library being missing, which would be a broken OS.
-            return try! AppDatabase.inMemory()
-        }
+    static func openDatabase() throws -> AppDatabase {
+        let support = try FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+        )
+        #if DEBUG && targetEnvironment(simulator)
+            if let session = NotificationTestFixture.session {
+                return try AppDatabase.onDisk(in: support.appendingPathComponent(
+                    "NotificationTests/\(session)",
+                    isDirectory: true
+                ))
+            }
+        #endif
+        return try AppDatabase.onDisk(in: support.appendingPathComponent("Database", isDirectory: true))
     }
 }

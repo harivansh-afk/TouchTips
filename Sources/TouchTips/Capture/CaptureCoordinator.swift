@@ -92,14 +92,14 @@ final class CaptureCoordinator: NSObject {
     }
 
     /// Call once at launch, every launch, before `didFinishLaunching` returns. Setting the delegate again is
-    /// what lets CoreLocation deliver the event that relaunched a terminated app; registering the refresh
-    /// task any later is an error.
+    /// what lets CoreLocation deliver the event that relaunched a terminated app. AppDelegate registers
+    /// background refresh separately, so storage recovery can safely start capture later.
     func start() {
         manager.delegate = self
         applyLocationServices()
         startFence()
         startHeartbeat()
-        registerRefresh()
+        scheduleRefresh()
         startObservingContacts()
         scheduleTick(.launch, after: 2)
     }
@@ -425,14 +425,7 @@ final class CaptureCoordinator: NSObject {
 
     // MARK: - Refresh
 
-    private func registerRefresh() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.refreshTaskID, using: .main) { [weak self] task in
-            MainActor.assumeIsolated { self?.handleRefresh(task) }
-        }
-        scheduleRefresh()
-    }
-
-    private func handleRefresh(_ task: BGTask) {
+    func handleRefresh(_ task: BGTask) {
         scheduleRefresh()
         let work = Task { [weak self] in await self?.tick(.refresh) }
         task.expirationHandler = { work.cancel() }

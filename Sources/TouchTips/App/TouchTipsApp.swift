@@ -23,12 +23,23 @@ struct TouchTipsApp: App {
         WindowGroup {
             ZStack {
                 // Laid out under the splash from the start, so the fade reveals a finished screen.
-                RootView()
+                if let app = delegate.session.app {
+                    RootView()
+                        .environment(app)
+                } else {
+                    ContentUnavailableView {
+                        Label("Saved data unavailable", systemImage: "externaldrive.badge.exclamationmark")
+                    } description: {
+                        Text("Your meetings and notes couldn't be opened. Try again to continue.")
+                    } actions: {
+                        Button("Try again") { delegate.session.retry() }
+                            .accessibilityIdentifier("storage.retry")
+                    }
+                }
 
                 splashView
             }
             .preferredColorScheme(.dark)
-            .environment(delegate.app)
             .onAppear {
                 Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(400))
