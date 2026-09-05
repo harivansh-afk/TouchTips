@@ -245,6 +245,21 @@ public enum Ingest {
         }
     }
 
+    /// Correct the place without changing how precisely the meeting date is known.
+    /// A place alone cannot create a meeting: the user must supply a date first.
+    public static func setUserMeetPlace(
+        contactID: String, placeID: Int64?, now: Date, to database: AppDatabase
+    ) throws {
+        try database.writer.write { db in
+            guard var meet = try Meet.fetchOne(db, key: contactID), meet.placeID != placeID else { return }
+            meet.placeID = placeID
+            meet.userSet = true
+            meet.tier = .exact
+            meet.computedAt = now
+            try meet.update(db)
+        }
+    }
+
     /// The user agrees with the inferred answer. It becomes theirs, as it stands.
     public static func confirmMeet(contactID: String, now: Date, to database: AppDatabase) throws {
         try database.writer.write { db in
