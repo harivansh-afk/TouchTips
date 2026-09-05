@@ -120,10 +120,11 @@ final class RegularUseUITests: XCTestCase {
         capture(app, "onboarding-current-text-size")
         for title in ["Contacts", "Location, Always", "Notifications"] {
             let label = app.staticTexts[title]
-            if !label.isHittable {
+            for _ in 0..<8 where !label.isHittable {
                 app.swipeUp()
             }
             XCTAssertTrue(label.isHittable, "Unreachable onboarding permission: \(title)")
+            capture(app, "onboarding-\(title)")
         }
         if !app.buttons["Start"].isHittable {
             app.swipeUp()
@@ -165,5 +166,20 @@ final class RegularUseUITests: XCTestCase {
         field.typeText("QA Cancelled Contact")
         XCTAssertFalse(person("QA Cancelled Contact", in: app).exists)
         capture(app, "cancelled-contact-no-results")
+    }
+
+    func testUndocumentedPersonCanExplicitlyChooseToday() {
+        let app = launch()
+        app.buttons["Search"].tap()
+        let field = app.textFields["Name, place or note"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("QA Undocumented")
+        person("QA Undocumented", in: app).tap()
+        let today = app.buttons["meeting.useToday"]
+        XCTAssertTrue(today.waitForExistence(timeout: 5))
+        today.tap()
+        XCTAssertTrue(today.waitForNonExistence(timeout: 5))
+        capture(app, "explicit-today")
     }
 }
