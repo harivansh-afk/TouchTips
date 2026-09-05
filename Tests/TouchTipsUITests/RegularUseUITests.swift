@@ -120,7 +120,7 @@ final class RegularUseUITests: XCTestCase {
         capture(app, "onboarding-current-text-size")
         for title in ["Contacts", "Location, Always", "Notifications"] {
             let label = app.staticTexts[title]
-            for _ in 0..<8 where !label.isHittable {
+            for _ in 0 ..< 8 where !label.isHittable {
                 app.swipeUp()
             }
             XCTAssertTrue(label.isHittable, "Unreachable onboarding permission: \(title)")
@@ -147,7 +147,8 @@ final class RegularUseUITests: XCTestCase {
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "QA Person 0999".count))
         field.typeText("No such QA person")
         capture(app, "no-results")
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "No Results")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "No Results")).firstMatch
+            .waitForExistence(timeout: 5))
     }
 
     func testAddCancelDoesNotCreatePerson() {
@@ -197,7 +198,9 @@ final class RegularUseUITests: XCTestCase {
         for title in ["Standard", "Satellite", "Hybrid", "Muted"] {
             app.buttons["Settings"].tap()
             let option = app.buttons[title].firstMatch
-            for _ in 0..<5 where !option.isHittable { app.swipeUp() }
+            for _ in 0 ..< 5 where !option.isHittable {
+                app.swipeUp()
+            }
             XCTAssertTrue(option.isHittable)
             option.tap()
             app.buttons["Done"].tap()
@@ -217,7 +220,10 @@ final class RegularUseUITests: XCTestCase {
         let recovery = row.buttons["Open Settings"]
         XCTAssertTrue(recovery.waitForExistence(timeout: 5))
         recovery.tap()
-        XCTAssertTrue(XCUIApplication(bundleIdentifier: "com.apple.Preferences").wait(for: .runningForeground, timeout: 5))
+        XCTAssertTrue(XCUIApplication(bundleIdentifier: "com.apple.Preferences").wait(
+            for: .runningForeground,
+            timeout: 5
+        ))
         app.activate()
         XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
     }

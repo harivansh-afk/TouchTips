@@ -8,7 +8,9 @@
     enum NotificationTestFixture {
         static var session: String? {
             // A regular-use test must not inherit a previous notification test's startup state.
-            if ProcessInfo.processInfo.environment["TOUCHTIPS_QA_SESSION"] != nil { return nil }
+            if ProcessInfo.processInfo.environment["TOUCHTIPS_QA_SESSION"] != nil {
+                return nil
+            }
             if let session = ProcessInfo.processInfo.environment["TOUCHTIPS_UI_TEST_SESSION"] {
                 UserDefaults.standard.set(session, forKey: "notificationTestSession")
                 return session
