@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TouchedTips · capture v1</title>
+<title>TouchTips · capture v1</title>
 <style>
   :root{
     --page:#0a0a0a; --ink:#f2f2f2; --muted:#8a8a8a; --rule:#222; --code:#141414;
@@ -48,7 +48,7 @@
 <body>
 
 <header class="top"><div class="wrap">
-  <h1>TouchedTips <span>· capture v1</span></h1>
+  <h1>TouchTips <span>· capture v1</span></h1>
   <nav><a href="#idea">Idea</a><a href="#layers">Layers</a><a href="#tick">Tick</a><a href="#notif">Notification</a><a href="#setup">Setup</a><a href="#fail">Failure</a><a href="#measure">Measure</a><a href="#build">Build</a></nav>
 </div></header>
 
@@ -56,10 +56,10 @@
 
 <section id="idea">
   <h2>Stay awake, so the add is an event.</h2>
-  <p class="lede">iOS never wakes a suspended app for a contact change. The only way an add can be an event on this phone is for the process to already be running when it happens. So v1 keeps TouchedTips resident with a low-power location session, and treats every other wake source as the net that catches it when iOS kills the process. One idempotent tick sits under everything. Nothing leaves the phone. Setup is three permission prompts and nothing else.</p>
+  <p class="lede">iOS never wakes a suspended app for a contact change. The only way an add can be an event on this phone is for the process to already be running when it happens. So v1 keeps TouchTips resident with a low-power location session, and treats every other wake source as the net that catches it when iOS kills the process. One idempotent tick sits under everything. Nothing leaves the phone. Setup is three permission prompts and nothing else.</p>
 
   <pre>
-  phone unlocked · TouchedTips resident (Presence session) · you exchange contacts
+  phone unlocked · TouchTips resident (Presence session) · you exchange contacts
         │
         ▼
   CNContactStoreDidChange ──▶ tick()
@@ -111,7 +111,7 @@ BGAppRefreshTask</div>
     <div class="layer">
       <div class="n">5<b>Core</b></div>
       <div class="w"><b>Unchanged shape.</b> Person, Place, Visit, Meet, KV. Two additions: a <code>heartbeat</code> table (source, at, battery level) and a new <code>VisitSource.fix</code> for zero-length witness fixes, so the resolver sees a fix as a visit that contained the add.</div>
-      <div class="api">GRDB · TouchedTipsCore
+      <div class="api">GRDB · TouchTipsCore
 Resolver stays pure</div>
     </div>
   </div>
