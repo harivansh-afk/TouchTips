@@ -149,7 +149,7 @@ public enum Ingest {
         }
     }
 
-    /// Store or extend a visit, then re-resolve any inferred meeting it could improve.
+    /// Store or update a visit, then re-resolve any inferred meeting it could change.
     @discardableResult
     public static func recordLiveVisit(_ live: LiveVisit, now: Date, to database: AppDatabase) throws -> Visit {
         try database.writer.write { db in
@@ -161,12 +161,15 @@ public enum Ingest {
             // CoreLocation reports distantPast when the arrival predates monitoring. Use what we have.
             let start = live.arrival == .distantPast ? (live.departure ?? now) : live.arrival
             let end = live.departure ?? .distantFuture
+            var affectedEnd = end
 
             var visit: Visit
             if var existing = try Visit
                 .filter(Visit.Columns.placeID == placeID && Visit.Columns.start == start && Visit.Columns
                     .source == VisitSource.live)
                 .fetchOne(db) {
+                // A delayed departure can invalidate meetings anywhere in the previous interval.
+                affectedEnd = max(existing.end, end)
                 existing.end = end
                 existing.accuracyMeters = live.accuracyMeters
                 try existing.update(db)
@@ -182,7 +185,7 @@ public enum Ingest {
                 try visit.insert(db)
             }
 
-            try reresolve(around: start, end, in: db, now: now)
+            try reresolve(around: start, affectedEnd, in: db, now: now)
             return visit
         }
     }

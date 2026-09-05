@@ -129,6 +129,41 @@ import Testing
         #expect(second.end == t("2026-09-02T11:00"))
     }
 
+    @Test(arguments: [nil, t("2026-09-02T15:00")])
+    func shorteningAVisitRemovesStaleWitnessedMeetings(previousDeparture: Date?) throws {
+        let arrival = t("2026-09-02T10:00")
+        let addedAt = t("2026-09-02T15:00")
+        let receivedAt = t("2026-09-02T16:00")
+        try Ingest.apply(ContactChangeSet(token: Data([1])), now: t("2026-09-02T09:00"), to: db)
+        let visit = try Ingest.recordLiveVisit(
+            LiveVisit(
+                latitude: 1, longitude: 2, accuracyMeters: 10, arrival: arrival, departure: previousDeparture
+            ),
+            now: addedAt, to: db
+        )
+        try Ingest.apply(
+            ContactChangeSet(added: [snapshot("new")], token: Data([2])),
+            now: addedAt, aliveSince: addedAt, to: db
+        )
+        let before = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
+        #expect(before.tier == .witnessed)
+        #expect(before.placeID == visit.placeID)
+
+        try Ingest.recordLiveVisit(
+            LiveVisit(
+                latitude: 1, longitude: 2, accuracyMeters: 10, arrival: arrival,
+                departure: t("2026-09-02T11:00")
+            ),
+            now: receivedAt, to: db
+        )
+        let after = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
+        #expect(after.tier == .dateOnly)
+        #expect(after.placeID == nil)
+        #expect(after.start == addedAt)
+        #expect(after.end == addedAt)
+        #expect(after.computedAt == receivedAt)
+    }
+
     @Test func userAnswersAreNeverRecomputed() throws {
         try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:38"), to: db)
         try Ingest.apply(ContactChangeSet(added: [snapshot("new")], token: Data([2])), now: t("2026-09-02T11:41"), to: db)
