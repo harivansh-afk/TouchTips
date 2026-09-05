@@ -25,6 +25,7 @@ struct RootView: View {
             if phase == .active {
                 app.contactsAccess.refresh()
                 app.capture.scheduleTick(.foreground)
+                app.geocoder.kick()
                 openNotification()
             }
         }
