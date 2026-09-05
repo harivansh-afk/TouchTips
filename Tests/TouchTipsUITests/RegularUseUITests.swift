@@ -106,6 +106,7 @@ final class RegularUseUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
         person("QA Alice", in: app).tap()
+        XCTAssertTrue(app.staticTexts["person-name"].waitForExistence(timeout: 5))
         app.swipeUp()
         XCTAssertTrue(note.waitForExistence(timeout: 5))
         XCTAssertEqual(note.value as? String, "QA note persisted")
@@ -142,7 +143,8 @@ final class RegularUseUITests: XCTestCase {
         field.tap()
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "QA Person 0999".count))
         field.typeText("No such QA person")
-        XCTAssertTrue(app.staticTexts["No Results"].waitForExistence(timeout: 5))
+        capture(app, "no-results")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "No Results")).firstMatch.waitForExistence(timeout: 5))
     }
 
     func testAddCancelDoesNotCreatePerson() {
