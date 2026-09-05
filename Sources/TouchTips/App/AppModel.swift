@@ -10,7 +10,7 @@ final class AppModel {
     let capture: CaptureCoordinator
     let geocoder: Geocoder
     let notifier: Notifier
-    let photos = ContactPhotos()
+    let photos: ContactPhotos
     let contactsAccess = ContactsAccess()
 
     /// The app's own database in Application Support.
@@ -19,8 +19,9 @@ final class AppModel {
     }
 
     /// Any database. Previews and tests hand in an in-memory one; nothing starts until `start()`.
-    init(database: AppDatabase) {
+    init(database: AppDatabase, photos: ContactPhotos = ContactPhotos()) {
         self.database = database
+        self.photos = photos
         notifier = Notifier(database: database)
         capture = CaptureCoordinator(database: database, notifier: notifier)
         geocoder = Geocoder(database: database)
