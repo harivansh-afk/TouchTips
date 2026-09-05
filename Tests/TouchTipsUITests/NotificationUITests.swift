@@ -108,4 +108,26 @@ final class NotificationUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["person-name"].waitForExistence(timeout: 10))
         XCTAssertEqual(app.staticTexts["person-name"].label, name)
     }
+
+    func testInAppContactSaveAndNotificationTap() {
+        let app = launch()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Reading your contacts"].waitForNonExistence(timeout: 10))
+        app.buttons["Add"].tap()
+        let field = app.textFields["Name"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        let name = "InAppUITest \(UUID().uuidString.prefix(8))"
+        field.tap()
+        field.typeText(name)
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
+        openNotificationCenter(app)
+        let notice = notification(name: name)
+        XCTAssertTrue(notice.waitForExistence(timeout: 15), springboard.debugDescription)
+        tapNotification(notice, in: app)
+        XCTAssertTrue(app.staticTexts["person-name"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.staticTexts["person-name"].label, name)
+        app.buttons["Back"].tap()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 5))
+    }
 }

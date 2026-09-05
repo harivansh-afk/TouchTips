@@ -133,7 +133,8 @@ final class NotificationTests: XCTestCase {
         }
         // No manual tick here: this must arrive through CNContactStoreDidChange and the debounce.
         var found = false
-        for _ in 0 ..< 80 {
+        // A permitted location lookup can take eight seconds, after the observer debounce.
+        for _ in 0 ..< 150 {
             if try await db.reader.read({ try Person.fetchOne($0, key: contactID) }) != nil {
                 found = true
                 break

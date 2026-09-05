@@ -26,6 +26,7 @@ test:
 test-ios simulator: gen
     xcodebuild -project TouchTips.xcodeproj -scheme TouchTips -destination 'platform=iOS Simulator,id={{simulator}}' -derivedDataPath build/notification-tests -quiet build-for-testing CODE_SIGNING_ALLOWED=NO
     xcrun simctl privacy {{simulator}} grant contacts sh.harivan.touchtips
+    xcrun simctl privacy {{simulator}} grant location sh.harivan.touchtips
     xcodebuild -project TouchTips.xcodeproj -scheme TouchTips -destination 'platform=iOS Simulator,id={{simulator}}' -derivedDataPath build/notification-tests -parallel-testing-enabled NO -quiet test-without-building CODE_SIGNING_ALLOWED=NO
 
 fmt:
