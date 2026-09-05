@@ -76,7 +76,15 @@ final class Router {
     /// Jump to the map with this place selected.
     func showPlace(_ placeID: Int64) {
         pendingPlace = placeID
+        setPath([], for: .map)
         selectedTab = .map
+    }
+
+    /// An explicit search action starts at the search field, not a retained person detail.
+    func search() {
+        setPath([], for: .search)
+        selectedTab = .search
+        searchRequests += 1
     }
 
     func path(for tab: AppTab) -> Binding<[Destination]> {
