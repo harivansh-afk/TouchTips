@@ -1,6 +1,6 @@
 # Meeting confirmation and person swipes
 
-A solid dot means the user confirmed the meeting; a hollow dot means details still need review.
+A bright filled dot means the user confirmed the meeting; a dim filled dot means suggested details.
 An undocumented contact has an empty dot and no placeholder subtitle. The same state drives People, timeline, search and map emphasis.
 Precision and completeness remain separate: a confirmed record may have an approximate date or no place.
 
@@ -73,9 +73,9 @@ vertical padding and one separator drawn from the name inset to the trailing mar
 separators are hidden, avoiding section-boundary lines. Undocumented contacts show their name,
 avatar and an empty dot, without repeating “No meeting details”.
 
-The timeline spine and dots live in the cell background inside the existing 16-point leading
-margin. They no longer add a gutter to the moving content, so both swipe directions have the same
-content inset. Native oval swipe controls, system red, and the clear compact note sheet remain.
+The timeline retains its original 24-point marker column within the 16-point list margin, with a
+12-point gap before the avatar. The spine is 28 points from the screen edge and the avatar starts
+at 52 points. Native oval swipe controls, system red, and the clear compact note sheet remain.
 
 The Notes action uses sRGB `#E3AF09`, sampled from the flat yellow chevron in
 [Apple’s Notes App Store screenshot](https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/d6/66/47/d6664789-9276-5995-e635-1cbf606299c8/3_Notes_list_screen.PNG/1290x2796bb.png).
@@ -86,3 +86,8 @@ access after scrolling, swipe appearance, and repeated scroll-to-top in default 
 The swipe check was repeated after correcting the marker background alignment. Both builds were
 warning-free, and all nine edited Swift files passed formatting checks. Installed and launched on
 the connected iPhone 17 Pro.
+
+Device-only follow-up: restored the original timeline gutter after the compact margin proved too
+tight on the phone. Suggested details now use a dim filled dot, leaving the empty ring exclusively
+for undocumented contacts. This follow-up is built and installed directly on iPhone; no simulator
+was used for validation.
