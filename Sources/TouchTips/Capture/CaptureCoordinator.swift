@@ -5,6 +5,20 @@ import Observation
 import TouchTipsCore
 import UIKit
 
+@MainActor
+struct CaptureContacts {
+    var authorized: () -> Bool
+    var changes: (Data?) async throws -> ContactChangeSet
+
+    static var system: Self {
+        let diff = ContactsDiff()
+        return Self(
+            authorized: { CNContactStore.authorizationStatus(for: .contacts) == .authorized },
+            changes: { try await diff.changes(since: $0) }
+        )
+    }
+}
+
 /// Every way the app wakes lands here, runs one tick, and posts one notification per new person.
 ///
 /// Contacts changes are observed while running. Location events and background refresh offer additional
@@ -27,7 +41,7 @@ final class CaptureCoordinator: NSObject {
     private let notifier: Notifier
     private let manager = CLLocationManager()
     private let oneShot = OneShotLocation()
-    private let contacts = ContactsDiff()
+    private let contacts: CaptureContacts
     private var tickTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
     private var fenceTask: Task<Void, Never>?
@@ -48,6 +62,8 @@ final class CaptureCoordinator: NSObject {
     private(set) var lastTick: Date?
     /// The visit we are in right now, if CoreLocation has told us about it.
     private(set) var currentVisit: Visit?
+    private(set) var isResetting = false
+    private var resetGeneration = 0
     /// Fires after anything landed in the database.
     var didIngest: (() -> Void)?
 
@@ -62,9 +78,10 @@ final class CaptureCoordinator: NSObject {
         locationStatus == .authorizedAlways
     }
 
-    init(database: AppDatabase, notifier: Notifier) {
+    init(database: AppDatabase, notifier: Notifier, contacts: CaptureContacts = .system) {
         self.database = database
         self.notifier = notifier
+        self.contacts = contacts
         locationStatus = manager.authorizationStatus
         presencePolicy = PresencePolicy.stored
         super.init()
@@ -118,6 +135,7 @@ final class CaptureCoordinator: NSObject {
     }
 
     func scheduleTick(_ source: WakeSource, after delay: TimeInterval = 0.3) {
+        guard !isResetting else { return }
         if activeTick != nil {
             queuedSource = source
             return
@@ -133,6 +151,7 @@ final class CaptureCoordinator: NSObject {
 
     /// Diff the contact store, witness any add with a fix, resolve, notify. Safe to call repeatedly.
     func tick(_ source: WakeSource) async {
+        guard !isResetting else { return }
         if let activeTick {
             queuedSource = source
             await activeTick.value
@@ -156,6 +175,39 @@ final class CaptureCoordinator: NSObject {
         }
     }
 
+    /// Finish any old-token work before erasing its cursor, then read a fresh Contacts baseline.
+    func reset() async throws {
+        guard !isResetting else { return }
+        isResetting = true
+        resetGeneration += 1
+        tickTask?.cancel()
+        tickTask = nil
+        queuedSource = nil
+        if let activeTick {
+            activeTick.cancel()
+            await activeTick.value
+        }
+        if let monitor {
+            await monitor.remove(Self.fenceID)
+        }
+        do {
+            try Ingest.deleteAll(database)
+        } catch {
+            isResetting = false
+            throw error
+        }
+        currentVisit = nil
+        lastLocation = nil
+        lastTick = nil
+        pendingHeard = nil
+        aliveSince = Date()
+        lastHeartbeat = aliveSince
+        applyPresence()
+        didIngest?()
+        isResetting = false
+        await tick(.user)
+    }
+
     private func performTick(_ source: WakeSource) async {
         let background = UIApplication.shared.beginBackgroundTask(withName: "Capture contacts") { [weak self] in
             Task { @MainActor in self?.activeTick?.cancel() }
@@ -167,7 +219,7 @@ final class CaptureCoordinator: NSObject {
         }
 
         await notifier.deliverPending()
-        guard CNContactStore.authorizationStatus(for: .contacts) == .authorized else { return }
+        guard contacts.authorized() else { return }
 
         let now = Date()
         let heard = pendingHeard ?? now
@@ -183,7 +235,7 @@ final class CaptureCoordinator: NSObject {
         let database = database
         do {
             let token = try await database.reader.read { db in try db.value(for: .contactsHistoryToken) }
-            let changes = try await contacts.changes(since: token)
+            let changes = try await contacts.changes(token)
             try Task.checkCancellation()
 
             // Only a real add is worth a precise fix. The first run is a snapshot, not a meeting.
@@ -230,7 +282,9 @@ final class CaptureCoordinator: NSObject {
 
     /// Mark where the phone is right now. The next add inside the window is witnessed by it.
     func witness() async -> Bool {
-        guard let location = await oneShot.fix(timeout: Self.fixTimeout) else { return false }
+        let generation = resetGeneration
+        guard !isResetting, let location = await oneShot.fix(timeout: Self.fixTimeout),
+              !isResetting, generation == resetGeneration else { return false }
         lastLocation = location
         let now = Date()
         let fix = LiveFix(
@@ -358,10 +412,12 @@ final class CaptureCoordinator: NSObject {
     }
 
     private func rearmFence(at location: CLLocation?) {
-        guard let location, let monitor, locationStatus == .authorizedAlways else { return }
+        guard !isResetting, let location, let monitor, locationStatus == .authorizedAlways else { return }
+        let generation = resetGeneration
         Task {
             let condition = CLMonitor.CircularGeographicCondition(center: location.coordinate, radius: Self.fenceRadius)
             await monitor.remove(Self.fenceID)
+            guard !isResetting, generation == resetGeneration else { return }
             await monitor.add(condition, identifier: Self.fenceID, assuming: .satisfied)
         }
     }
@@ -397,7 +453,8 @@ final class CaptureCoordinator: NSObject {
 
     // MARK: - Location events
 
-    private func record(_ live: LiveVisit) {
+    func record(_ live: LiveVisit) {
+        guard !isResetting else { return }
         do {
             let visit = try Ingest.recordLiveVisit(live, now: .now, to: database)
             currentVisit = visit.isOngoing ? visit : nil

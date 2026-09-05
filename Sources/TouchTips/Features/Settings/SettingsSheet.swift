@@ -77,6 +77,7 @@ struct SettingsSheet: View {
 
                 Section {
                     Button("Delete all data", role: .destructive) { confirmDelete = true }
+                        .disabled(app.capture.isResetting)
                     if let problem {
                         Text(problem).foregroundStyle(.secondary)
                     }
@@ -141,7 +142,7 @@ struct SettingsSheet: View {
             ) {
                 Button("Delete all data", role: .destructive) {
                     HapticManager.warning()
-                    deleteAll()
+                    Task { await deleteAll() }
                 }
             } message: {
                 Text("Contacts themselves are untouched. Meetings, visits and places are removed.")
@@ -182,10 +183,9 @@ struct SettingsSheet: View {
         }
     }
 
-    private func deleteAll() {
+    private func deleteAll() async {
         do {
-            try Ingest.deleteAll(app.database)
-            app.capture.scheduleTick(.user)
+            try await app.capture.reset()
         } catch {
             HapticManager.error()
             problem = error.localizedDescription
