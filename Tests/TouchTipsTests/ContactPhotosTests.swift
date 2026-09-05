@@ -40,6 +40,42 @@ final class ContactPhotosTests: XCTestCase {
         XCTAssertEqual(photos.image(for: "a")?.pngData(), UIImage(data: second)?.pngData())
     }
 
+    func testMapReloadsPhotosWithoutAPlaceChange() async throws {
+        let firstLoaded = expectation(description: "Initial map photo")
+        let reloaded = expectation(description: "Map photo reloaded")
+        let data = try thumbnail(.blue)
+        var requests = 0
+        let photos = ContactPhotos { _ in
+            requests += 1
+            if requests == 1 {
+                firstLoaded.fulfill()
+            } else {
+                reloaded.fulfill()
+            }
+            return data
+        }
+        let database = try AppDatabase.inMemory()
+        let place = try database.writer.write { db in
+            try Place.findOrCreate(db, key: "test-map-photo", latitude: 38, longitude: -78, name: "Cafe")
+        }
+        try Ingest.addExact(contactID: "a", name: "Alice", at: .now, placeID: place.id, to: database)
+        let app = AppModel(database: database, photos: photos)
+        let host = UIHostingController(rootView: MapScreen().environment(app).environment(Router()))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 200, height: 400)
+        window.rootViewController = host
+        window.isHidden = false
+        defer { window.isHidden = true }
+        host.view.layoutIfNeeded()
+
+        await fulfillment(of: [firstLoaded], timeout: 2)
+        photos.reset()
+        await fulfillment(of: [reloaded], timeout: 2)
+        XCTAssertEqual(requests, 2)
+        XCTAssertNotNil(photos.image(for: "a"))
+    }
+
     func testOldFetchCannotOverwriteNewPhotoAfterReset() async throws {
         let fetches = PendingThumbnails()
         let photos = ContactPhotos(fetch: fetches.fetch)

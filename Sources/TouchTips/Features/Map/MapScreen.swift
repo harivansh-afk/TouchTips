@@ -79,10 +79,7 @@ struct MapScreen: View {
         }
         .animation(.appleMusic, value: places.isEmpty)
         .onChange(of: router.pendingPlace, initial: true) { _, _ in showPendingPlace() }
-        .onChange(of: places, initial: true) { _, places in
-            for id in places.compactMap(\.soleContactID) {
-                app.photos.load(id)
-            }
+        .onChange(of: places, initial: true) { _, _ in
             showPendingPlace()
         }
         .sheet(item: $selection, onDismiss: pushPendingPerson) { group in
@@ -96,6 +93,16 @@ struct MapScreen: View {
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .task { await observe() }
+        .task(id: photoLoads) {
+            for request in photoLoads {
+                guard !Task.isCancelled else { return }
+                await app.photos.load(request.contactID)
+            }
+        }
+    }
+
+    private var photoLoads: [ContactPhotos.LoadID] {
+        places.compactMap(\.soleContactID).map { app.photos.loadID(for: $0) }
     }
 
     /// The pins sit over the map, not in it, so Muted's filter greys the map and not the pins.
