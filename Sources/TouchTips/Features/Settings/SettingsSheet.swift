@@ -36,13 +36,19 @@ struct SettingsSheet: View {
                         }
                     }
                     LabeledContent("Location") {
-                        if app.capture.locationGranted {
+                        switch app.capture.locationPermissionAction {
+                        case .allowed:
                             Text("Always")
-                        } else if app.capture.locationStatus == .denied || app.capture.locationStatus == .restricted {
+                        case .openSettings:
                             Button("Open Settings", action: openSettings)
-                        } else {
+                        case .request:
                             Button("Allow") { app.capture.requestLocation() }
                         }
+                    }
+                    if app.capture.locationStatus == .authorizedWhenInUse {
+                        Text(LocationPermissionAction.backgroundExplanation)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                     LabeledContent("Notifications") {
                         if app.notifier.granted {
