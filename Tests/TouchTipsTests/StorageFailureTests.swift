@@ -24,12 +24,11 @@ final class StorageFailureTests: XCTestCase {
         let db = try AppDatabase.inMemory()
         try Ingest.addExact(contactID: "saved", name: "Saved contact", at: .now, placeID: nil, to: db)
         try Ingest.setNote(contactID: "saved", note: "Existing note", to: db)
-        var unavailable = true
         var attempts = 0
         var starts = 0
         let session = AppSession(open: {
             attempts += 1
-            if unavailable {
+            if attempts == 1 {
                 throw CocoaError(.fileReadUnknown)
             }
             return db
@@ -38,7 +37,6 @@ final class StorageFailureTests: XCTestCase {
         session.retry()
         XCTAssertNil(session.app)
         XCTAssertEqual(starts, 0)
-        unavailable = false
         session.retry()
         session.retry()
 
