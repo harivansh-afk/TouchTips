@@ -182,4 +182,43 @@ final class RegularUseUITests: XCTestCase {
         XCTAssertTrue(today.waitForNonExistence(timeout: 5))
         capture(app, "explicit-today")
     }
+
+    func testSettingsLayoutsAndMapStyles() {
+        let app = launch()
+        for title in ["Timeline", "Location", "Default"] {
+            app.buttons["Settings"].tap()
+            let option = app.buttons[title].firstMatch
+            XCTAssertTrue(option.waitForExistence(timeout: 5))
+            option.tap()
+            app.buttons["Done"].tap()
+            XCTAssertTrue(person("QA Alice", in: app).waitForExistence(timeout: 5))
+            capture(app, "people-layout-\(title)")
+        }
+        for title in ["Standard", "Satellite", "Hybrid", "Muted"] {
+            app.buttons["Settings"].tap()
+            let option = app.buttons[title].firstMatch
+            for _ in 0..<5 where !option.isHittable { app.swipeUp() }
+            XCTAssertTrue(option.isHittable)
+            option.tap()
+            app.buttons["Done"].tap()
+            app.buttons["Map"].tap()
+            XCTAssertTrue(app.maps.firstMatch.waitForExistence(timeout: 5))
+            capture(app, "map-style-\(title)")
+            app.buttons["People"].tap()
+        }
+    }
+
+    func testWhileUsingLocationOffersSettingsRecovery() {
+        // The test runner grants When In Use through simctl before this test.
+        let app = launch()
+        app.buttons["Settings"].tap()
+        capture(app, "location-permission-recovery")
+        let row = app.cells.containing(.staticText, identifier: "Location").firstMatch
+        let recovery = row.buttons["Open Settings"]
+        XCTAssertTrue(recovery.waitForExistence(timeout: 5))
+        recovery.tap()
+        XCTAssertTrue(XCUIApplication(bundleIdentifier: "com.apple.Preferences").wait(for: .runningForeground, timeout: 5))
+        app.activate()
+        XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
+    }
 }
