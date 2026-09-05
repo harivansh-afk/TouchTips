@@ -1,0 +1,165 @@
+import XCTest
+
+@MainActor
+final class RegularUseUITests: XCTestCase {
+    override func setUp() {
+        continueAfterFailure = false
+    }
+
+    private func launch(data: String = "standard", onboarding: Bool = true) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["-onboardingDone", onboarding ? "YES" : "NO", "-peopleLayout", "default"]
+        app.launchEnvironment["TOUCHTIPS_QA_SESSION"] = UUID().uuidString
+        app.launchEnvironment["TOUCHTIPS_QA_DATA"] = data
+        app.launch()
+        if onboarding {
+            XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 15))
+        }
+        return app
+    }
+
+    private func capture(_ app: XCUIApplication, _ name: String) {
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = name
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        let tree = XCTAttachment(string: app.debugDescription)
+        tree.name = "\(name)-accessibility"
+        tree.lifetime = .keepAlways
+        add(tree)
+    }
+
+    private func person(_ name: String, in app: XCUIApplication) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
+    }
+
+    func testColdMapThenWarmMap() {
+        let app = launch()
+        capture(app, "cold-people")
+        let coldStart = Date.now
+        app.buttons["Map"].tap()
+        XCTAssertTrue(app.maps.firstMatch.waitForExistence(timeout: 15))
+        let cold = Date.now.timeIntervalSince(coldStart)
+        capture(app, "cold-map-first-accessible-frame")
+        // Rendered tiles need visual inspection; an accessible Map alone is not tile readiness.
+        Thread.sleep(forTimeInterval: 3)
+        capture(app, "cold-map-after-three-seconds")
+        app.buttons["People"].tap()
+        let warmStart = Date.now
+        app.buttons["Map"].tap()
+        XCTAssertTrue(app.maps.firstMatch.waitForExistence(timeout: 5))
+        let warm = Date.now.timeIntervalSince(warmStart)
+        let timings =
+            XCTAttachment(
+                string: "Map tap to accessible map (includes XCTest interaction): cold=\(cold)s warm=\(warm)s. Not a tile-render metric."
+            )
+        timings.name = "map-interaction-timing"
+        timings.lifetime = .keepAlways
+        add(timings)
+        capture(app, "warm-map")
+    }
+
+    func testSearchFromPersonReturnsToSearch() {
+        let app = launch()
+        app.buttons["Search"].tap()
+        let field = app.textFields["Name, place or note"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("QA Alice")
+        let alice = person("QA Alice", in: app)
+        XCTAssertTrue(alice.waitForExistence(timeout: 5))
+        alice.tap()
+        XCTAssertTrue(app.staticTexts["person-name"].waitForExistence(timeout: 5))
+        app.buttons["Search"].tap()
+        capture(app, "search-reselected-from-person")
+        XCTAssertTrue(app.staticTexts["person-name"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(field.isHittable)
+    }
+
+    func testPlaceLinkReturnsToMapFromMapPerson() {
+        let app = launch()
+        person("QA Alice", in: app).tap()
+        XCTAssertTrue(app.buttons["QA Coffee"].waitForExistence(timeout: 5))
+        app.buttons["QA Coffee"].tap()
+        XCTAssertTrue(app.maps.firstMatch.waitForExistence(timeout: 10))
+        let pin = app.buttons["QA Alice"]
+        XCTAssertTrue(pin.waitForExistence(timeout: 10), app.debugDescription)
+        pin.tap()
+        XCTAssertTrue(app.staticTexts["person-name"].waitForExistence(timeout: 5))
+        app.buttons["QA Coffee"].tap()
+        capture(app, "place-link-from-map-person")
+        XCTAssertTrue(app.staticTexts["person-name"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.maps.firstMatch.isHittable)
+    }
+
+    func testNotePersistsAfterNavigationAndRelaunch() {
+        let app = launch()
+        person("QA Alice", in: app).tap()
+        XCTAssertTrue(app.staticTexts["person-name"].waitForExistence(timeout: 5))
+        app.swipeUp()
+        let note = app.textFields["Anything worth remembering"]
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        note.tap()
+        note.typeText("QA note persisted")
+        app.buttons["Back"].tap()
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
+        person("QA Alice", in: app).tap()
+        app.swipeUp()
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        XCTAssertEqual(note.value as? String, "QA note persisted")
+    }
+
+    func testOnboardingContentReachable() {
+        let app = launch(data: "empty", onboarding: false)
+        XCTAssertTrue(app.buttons["Start"].waitForExistence(timeout: 15))
+        capture(app, "onboarding-current-text-size")
+        for title in ["Contacts", "Location, Always", "Notifications"] {
+            let label = app.staticTexts[title]
+            if !label.isHittable {
+                app.swipeUp()
+            }
+            XCTAssertTrue(label.isHittable, "Unreachable onboarding permission: \(title)")
+        }
+        if !app.buttons["Start"].isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(app.buttons["Start"].isHittable)
+        app.buttons["Start"].tap()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 5))
+    }
+
+    func testLargeLibrarySearchAndNoResults() {
+        let app = launch(data: "large")
+        app.buttons["Search"].tap()
+        let field = app.textFields["Name, place or note"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("QA Person 0999")
+        XCTAssertTrue(person("QA Person 0999", in: app).waitForExistence(timeout: 5))
+        capture(app, "thousand-contact-search")
+        field.tap()
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "QA Person 0999".count))
+        field.typeText("No such QA person")
+        XCTAssertTrue(app.staticTexts["No Results"].waitForExistence(timeout: 5))
+    }
+
+    func testAddCancelDoesNotCreatePerson() {
+        let app = launch()
+        app.buttons["Add"].tap()
+        let name = app.textFields["Name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Save"].isEnabled)
+        name.typeText("QA Cancelled Contact")
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 5))
+        app.buttons["Search"].tap()
+        let field = app.textFields["Name, place or note"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("QA Cancelled Contact")
+        XCTAssertFalse(person("QA Cancelled Contact", in: app).exists)
+        capture(app, "cancelled-contact-no-results")
+    }
+}
