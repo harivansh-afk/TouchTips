@@ -58,21 +58,6 @@ struct MeetEditor: View {
                         .padding(.horizontal, 6)
                 }
             }
-            if let meet = row.meet, !meet.isConfirmed {
-                Button("Confirm meeting") {
-                    do {
-                        try Ingest.confirmMeet(contactID: row.id, now: .now, to: app.database)
-                        problem = nil
-                        HapticManager.selection()
-                    } catch {
-                        problem = error.localizedDescription
-                        HapticManager.error()
-                    }
-                }
-                .buttonStyle(.glass)
-                .accessibilityIdentifier("meeting.confirm")
-                .padding(.horizontal, 6)
-            }
             if let problem {
                 Text(problem)
                     .font(.footnote)
