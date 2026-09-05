@@ -147,6 +147,68 @@ import Testing
         #expect(meet.addSeenStart == t("2026-09-02T09:38"))
     }
 
+    @Test(arguments: [Precision.exact, .day, .month, .year])
+    func changingOnlyPlacePreservesMeetingTimeAndPrecision(precision: Precision) throws {
+        let start = t("2025-03-01T09:38")
+        let end = precision == .exact ? start : t("2025-03-31T23:59")
+        try Ingest.addExact(contactID: "a", name: "Alice", at: start, placeID: nil, to: db)
+        try db.writer.write { db in
+            var meet = try #require(try Meet.fetchOne(db, key: "a"))
+            meet.end = end
+            meet.precision = precision
+            meet.userSet = false
+            try meet.update(db)
+        }
+        let before = try #require(try db.reader.read { try Meet.fetchOne($0, key: "a") })
+        let place = try db.writer.write { db in
+            try Place.findOrCreate(db, key: "test-place", latitude: 1, longitude: 2, name: "Cafe")
+        }
+        try Ingest.setUserMeetPlace(contactID: "a", placeID: place.id, now: t("2026-09-02T12:00"), to: db)
+        let after = try #require(try db.reader.read { try Meet.fetchOne($0, key: "a") })
+        #expect(after.placeID == place.id)
+        #expect(after.start == before.start)
+        #expect(after.end == before.end)
+        #expect(after.precision == before.precision)
+        #expect(after.addSeenStart == before.addSeenStart)
+        #expect(after.addSeenEnd == before.addSeenEnd)
+        #expect(after.userSet)
+
+        try Ingest.setUserMeetPlace(contactID: "a", placeID: nil, now: t("2026-09-02T12:01"), to: db)
+        let cleared = try #require(try db.reader.read { try Meet.fetchOne($0, key: "a") })
+        #expect(cleared.placeID == nil)
+        #expect(cleared.start == before.start)
+        #expect(cleared.end == before.end)
+        #expect(cleared.precision == before.precision)
+    }
+
+    @Test(arguments: [false, true])
+    func reselectingTheCurrentPlaceDoesNotConfirmAnInferredMeeting(hasPlace: Bool) throws {
+        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:00"), to: db)
+        try Ingest.apply(ContactChangeSet(added: [snapshot("a")], token: Data([2])), now: t("2026-09-02T12:00"), to: db)
+        if hasPlace {
+            try db.writer.write { db in
+                let place = try Place.findOrCreate(db, key: "test-place", latitude: 1, longitude: 2, name: "Cafe")
+                var meet = try #require(try Meet.fetchOne(db, key: "a"))
+                meet.placeID = place.id
+                try meet.update(db)
+            }
+        }
+        let before = try #require(try db.reader.read { try Meet.fetchOne($0, key: "a") })
+        #expect(!before.userSet)
+        try Ingest.setUserMeetPlace(contactID: "a", placeID: before.placeID, now: t("2026-09-02T13:00"), to: db)
+        let after = try #require(try db.reader.read { try Meet.fetchOne($0, key: "a") })
+        #expect(after == before)
+    }
+
+    @Test func aPlaceAloneDoesNotInventAMeetingDate() throws {
+        try Ingest.apply(ContactChangeSet(added: [snapshot("a")], token: Data([1])), now: t("2026-09-02T09:00"), to: db)
+        let place = try db.writer.write { db in
+            try Place.findOrCreate(db, key: "test-place", latitude: 1, longitude: 2, name: "Cafe")
+        }
+        try Ingest.setUserMeetPlace(contactID: "a", placeID: place.id, now: t("2026-09-02T12:00"), to: db)
+        #expect(try db.reader.read { try Meet.fetchOne($0, key: "a") } == nil)
+    }
+
     @Test func deletingAContactRemovesItsMeet() throws {
         try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:38"), to: db)
         try Ingest.apply(ContactChangeSet(added: [snapshot("new")], token: Data([2])), now: t("2026-09-02T11:41"), to: db)

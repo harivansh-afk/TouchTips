@@ -25,6 +25,14 @@ struct MeetEditor: View {
             VStack(alignment: .leading, spacing: 12) {
                 SectionLabel(text: "When").padding(.leading, 6)
                 dateRow
+                if row.meet == nil {
+                    Button("Use today") {
+                        date = .now
+                        save(dateChanged: true)
+                    }
+                    .accessibilityIdentifier("meeting.useToday")
+                    .padding(.horizontal, 6)
+                }
                 if let hint = precisionHint {
                     Text(hint)
                         .font(.footnote)
@@ -34,7 +42,20 @@ struct MeetEditor: View {
             }
             VStack(alignment: .leading, spacing: 12) {
                 SectionLabel(text: "Where").padding(.leading, 6)
-                PlaceChooser(candidates: candidates, selection: $place, origin: origin)
+                PlaceChooser(candidates: candidates, selection: Binding(
+                    get: { place },
+                    set: {
+                        guard $0?.key != place?.key else { return }
+                        place = $0
+                        save(dateChanged: false)
+                    }
+                ), origin: origin)
+                if row.meet == nil, place != nil {
+                    Text("Choose a date to save this place.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                }
             }
             if let problem {
                 Text(problem)
@@ -43,8 +64,14 @@ struct MeetEditor: View {
                     .padding(.horizontal, 6)
             }
         }
-        .onChange(of: date) { _, _ in Task { await save() } }
-        .onChange(of: place) { _, _ in Task { await save() } }
+        .onChange(of: row.meet?.start) { _, start in
+            if let start {
+                date = start
+            }
+        }
+        .onChange(of: row.place) { _, updated in
+            place = updated.map { PlaceChoice(place: $0, detail: "Current") }
+        }
         .task(id: window) { await loadSuggestions() }
     }
 
@@ -58,9 +85,16 @@ struct MeetEditor: View {
                 .font(.display(22))
                 .foregroundStyle(row.meet == nil ? .secondary : .primary)
             Spacer()
-            DatePicker("Date", selection: $date, in: ...Date.now, displayedComponents: .date)
+            DatePicker("Date", selection: Binding(
+                get: { date },
+                set: {
+                    date = $0
+                    save(dateChanged: true)
+                }
+            ), in: ...Date.now, displayedComponents: .date)
                 .labelsHidden()
                 .tint(.white)
+                .accessibilityIdentifier("meeting.date")
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
@@ -114,21 +148,26 @@ struct MeetEditor: View {
 
     // MARK: - Save
 
-    private func save() async {
+    private func save(dateChanged: Bool) {
+        guard dateChanged || row.meet != nil else { return }
         let database = app.database
         do {
             var placeID: Int64?
             if let place {
-                placeID = try await database.writer.write { db in
+                placeID = try database.writer.write { db in
                     try Place.findOrCreate(
                         db, key: place.key, latitude: place.latitude, longitude: place.longitude, name: place.name
                     ).id
                 }
             }
-            try Ingest.setUserMeet(
-                contactID: row.id, start: window.start, end: window.end.addingTimeInterval(-1),
-                precision: .day, placeID: placeID, now: .now, to: database
-            )
+            if dateChanged {
+                try Ingest.setUserMeet(
+                    contactID: row.id, start: window.start, end: window.end.addingTimeInterval(-1),
+                    precision: .day, placeID: placeID, now: .now, to: database
+                )
+            } else {
+                try Ingest.setUserMeetPlace(contactID: row.id, placeID: placeID, now: .now, to: database)
+            }
             problem = nil
         } catch {
             HapticManager.error()
