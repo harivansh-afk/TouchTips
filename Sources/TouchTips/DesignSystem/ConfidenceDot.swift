@@ -1,40 +1,17 @@
 import SwiftUI
 import TouchTipsCore
 
-/// Fill encodes the tier. A dashed ring means we have no date at all.
+/// A meeting is either confirmed by the user or still a suggestion. No meeting, no dot.
 struct ConfidenceDot: View {
-    let tier: Tier?
+    let meet: Meet?
 
     var body: some View {
-        Circle()
-            .fill(.white.opacity(fill))
-            .overlay {
-                Circle().strokeBorder(.white, style: StrokeStyle(lineWidth: 1.5, dash: tier == nil ? [2, 2] : []))
-            }
-            .frame(width: 9, height: 9)
-            .opacity(tier == nil ? 0.55 : 1)
-            .accessibilityLabel(Format.tierName(tier))
-    }
-
-    private var fill: Double {
-        switch tier {
-        case .exact: 1
-        case .witnessed: 0.72
-        case .inferred: 0.4
-        case .dateOnly, nil: 0
+        if let meet {
+            Circle()
+                .fill(.white.opacity(meet.isConfirmed ? 1 : 0))
+                .overlay { Circle().strokeBorder(.white, lineWidth: 1.5) }
+                .frame(width: 9, height: 9)
+                .accessibilityLabel(meet.isConfirmed ? "Confirmed meeting" : "Suggested meeting")
         }
     }
-}
-
-#Preview {
-    HStack(spacing: 16) {
-        ConfidenceDot(tier: .exact)
-        ConfidenceDot(tier: .witnessed)
-        ConfidenceDot(tier: .inferred)
-        ConfidenceDot(tier: .dateOnly)
-        ConfidenceDot(tier: nil)
-    }
-    .padding()
-    .background(Color.ground)
-    .preferredColorScheme(.dark)
 }

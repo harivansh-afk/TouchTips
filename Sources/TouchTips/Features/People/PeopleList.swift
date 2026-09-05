@@ -104,6 +104,7 @@ struct PeopleList: View {
             .listRowSeparator(index == 0 ? .hidden : .visible, edges: .top)
             .listRowSeparator(index == rows.count - 1 ? .hidden : .visible, edges: .bottom)
             .personTransitionSource(id: row.id, in: zoom)
+            .personSwipeActions(row: row)
         }
     }
 
@@ -129,12 +130,11 @@ struct UndocumentedRowLabel: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(count) undocumented")
                     .font(.body.weight(.medium))
-                Text("Saved before TouchTips, no date yet")
+                Text("No meeting details")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            ConfidenceDot(tier: nil)
         }
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)

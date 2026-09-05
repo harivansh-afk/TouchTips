@@ -103,8 +103,14 @@ private struct MeetCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            SectionLabel(text: "First met")
+            SectionLabel(text: row.meet?.isConfirmed == false ? "Suggested meeting" : "First met")
             if let meet = row.meet {
+                HStack(spacing: 8) {
+                    ConfidenceDot(meet: meet)
+                    Text(meet.isConfirmed ? "Confirmed" : "Not yet confirmed")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 let headline = Format.headline(for: meet)
                 Text(headline.lead).font(.display(32))
                 Text(headline.body).font(.system(size: 30, weight: .bold)).kerning(-0.9)
@@ -121,8 +127,8 @@ private struct MeetCard: View {
                     .accessibilityHint("Shows this place on the map")
                 }
             } else {
-                Text("Undocumented").font(.display(32))
-                Text("Saved before the app was installed. Nothing to go on yet.")
+                Text("No meeting details").font(.display(32))
+                Text("Record when and where you met, if you remember.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

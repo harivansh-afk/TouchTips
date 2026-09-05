@@ -23,7 +23,7 @@ final class NotificationUITests: XCTestCase {
     private func notification(name: String = "Notification Test Person") -> XCUIElement {
         springboard.buttons.matching(NSPredicate(
             format: "identifier == 'ListCell' AND label CONTAINS %@",
-            "You just met \(name)"
+            name
         )).firstMatch
     }
 

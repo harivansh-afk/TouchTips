@@ -11,14 +11,34 @@ struct PlaceGroup: Hashable, Identifiable {
         self.places = places.sorted { $0.id < $1.id }
     }
 
-    var id: String { places.map { String($0.id) }.joined(separator: "-") }
-    var people: Int { places.reduce(0) { $0 + $1.people } }
-    var witnessed: Bool { places.contains(where: \.witnessed) }
-    var first: Date { places.map(\.first).min() ?? .distantPast }
-    var last: Date { places.map(\.last).max() ?? .distantPast }
+    var id: String {
+        places.map { String($0.id) }.joined(separator: "-")
+    }
+
+    var people: Int {
+        places.reduce(0) { $0 + $1.people }
+    }
+
+    var witnessed: Bool {
+        places.contains(where: \.witnessed)
+    }
+
+    var first: Date {
+        places.map(\.first).min() ?? .distantPast
+    }
+
+    var last: Date {
+        places.map(\.last).max() ?? .distantPast
+    }
+
     /// The one person met here, when the group is one place with one person.
-    var soleContactID: String? { places.count == 1 ? places[0].soleContactID : nil }
-    var soleName: String? { places.count == 1 ? places[0].soleName : nil }
+    var soleContactID: String? {
+        places.count == 1 ? places[0].soleContactID : nil
+    }
+
+    var soleName: String? {
+        places.count == 1 ? places[0].soleName : nil
+    }
 
     /// One place is its name; more are counted.
     var title: String {
@@ -31,7 +51,7 @@ struct PlaceGroup: Hashable, Identifiable {
 }
 
 /// Opaque map markers keep photos, initials and counts legible over streets and imagery.
-/// The ring takes the map style's tint, solid when witnessed here and faint when inferred.
+/// The ring takes the map style's tint, solid for a confirmed meeting and faint for suggestions.
 struct PlacePin: View {
     let group: PlaceGroup
     /// The sole person's contact photo, when Contacts has one and it has loaded.
@@ -39,7 +59,9 @@ struct PlacePin: View {
     var tint: Color
     var selected = false
 
-    private var size: CGFloat { group.soleContactID == nil ? 44 : 40 }
+    private var size: CGFloat {
+        group.soleContactID == nil ? 44 : 40
+    }
 
     var body: some View {
         Group {

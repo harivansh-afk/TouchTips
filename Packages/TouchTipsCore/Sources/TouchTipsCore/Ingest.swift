@@ -248,6 +248,31 @@ public enum Ingest {
         }
     }
 
+    /// Editing a date does not accept the suggested place. A new date-only record has no
+    /// outstanding place suggestion; the user can still explicitly record a place later.
+    public static func setUserMeetDate(
+        contactID: String, start: Date, end: Date, precision: Precision, now: Date,
+        to database: AppDatabase
+    ) throws {
+        try database.writer.write { db in
+            if var meet = try Meet.fetchOne(db, key: contactID) {
+                meet.start = start
+                meet.end = end
+                meet.precision = precision
+                meet.dateConfirmed = true
+                meet.userSet = true
+                meet.computedAt = now
+                try meet.update(db)
+            } else {
+                try Meet(
+                    contactID: contactID, start: start, end: end, precision: precision,
+                    placeID: nil, tier: .exact, userSet: true,
+                    addSeenStart: nil, addSeenEnd: nil, computedAt: now
+                ).insert(db)
+            }
+        }
+    }
+
     /// Correct the place without changing how precisely the meeting date is known.
     /// A place alone cannot create a meeting: the user must supply a date first.
     public static func setUserMeetPlace(
@@ -257,7 +282,7 @@ public enum Ingest {
             guard var meet = try Meet.fetchOne(db, key: contactID), meet.placeID != placeID else { return }
             meet.placeID = placeID
             meet.userSet = true
-            meet.tier = .exact
+            meet.placeConfirmed = true
             meet.computedAt = now
             try meet.update(db)
         }
@@ -269,6 +294,8 @@ public enum Ingest {
             guard var meet = try Meet.fetchOne(db, key: contactID) else { return }
             meet.userSet = true
             meet.tier = .exact
+            meet.dateConfirmed = true
+            meet.placeConfirmed = true
             meet.computedAt = now
             try meet.update(db)
         }
@@ -279,6 +306,16 @@ public enum Ingest {
         try database.writer.write { db in
             _ = try Meet.deleteOne(db, key: contactID)
             _ = try PendingNotice.deleteOne(db, key: contactID)
+        }
+    }
+
+    /// Forget our meeting and note while retaining the contact identity. Keeping the person means
+    /// later Contacts additions/history resets cannot silently recreate the forgotten meeting.
+    public static func forgetPerson(contactID: String, to database: AppDatabase) throws {
+        try database.writer.write { db in
+            _ = try Meet.deleteOne(db, key: contactID)
+            _ = try PendingNotice.deleteOne(db, key: contactID)
+            _ = try Person.filter(key: contactID).updateAll(db, Person.Columns.note.set(to: nil))
         }
     }
 

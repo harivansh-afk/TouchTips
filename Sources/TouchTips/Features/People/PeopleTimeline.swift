@@ -14,34 +14,39 @@ struct PeopleTimeline: View {
     private static let gutter: CGFloat = 24
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(items) { item in
-                        switch item {
-                        case let .month(_, title): tick(title)
-                        case let .quiet(_, days): quiet(days)
-                        case let .person(row): person(row)
-                        }
+        List {
+            ForEach(items) { item in
+                Group {
+                    switch item {
+                    case let .month(_, title): tick(title)
+                    case let .quiet(_, days): quiet(days)
+                    case let .person(row): person(row)
                     }
                 }
-                .background(alignment: .leading) { spine }
-                .padding(.horizontal, 16)
-                if !undocumented.isEmpty {
-                    undocumentedRow
+                .background(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color.hairline)
+                        .frame(width: 1)
+                        .padding(.leading, Self.gutter / 2 - 0.5)
+                        .padding(.top, item.id == items.first?.id ? 22 : 0)
+                        .padding(.bottom, item.id == items.last?.id ? 22 : 0)
                 }
+                .id(item.id)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+            if !undocumented.isEmpty {
+                undocumentedRow
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             }
         }
+        .environment(\.defaultMinListRowHeight, 0)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .background(Color.ground)
-    }
-
-    /// The hairline itself, through the middle of the gutter, from the first tick to the last person.
-    private var spine: some View {
-        Rectangle()
-            .fill(Color.hairline)
-            .frame(width: 1)
-            .padding(.leading, Self.gutter / 2 - 0.5)
-            .padding(.vertical, 22)
     }
 
     /// A month: the line brightens for a moment, and the name sits where the rows start.
@@ -75,7 +80,7 @@ struct PeopleTimeline: View {
             router.open(person: row.id)
         } label: {
             HStack(spacing: 14) {
-                ConfidenceDot(tier: row.meet?.tier)
+                ConfidenceDot(meet: row.meet)
                     // A ring of ground behind the dot, so the line stops at a hollow dot instead of running through it.
                     .background { Circle().fill(Color.ground).padding(-3) }
                     .frame(width: Self.gutter)
@@ -106,6 +111,7 @@ struct PeopleTimeline: View {
         }
         .buttonStyle(.press)
         .personTransitionSource(id: row.id, in: zoom)
+        .personSwipeActions(row: row)
     }
 
     /// After the line ends: the same one row the list shows for everyone without a date.

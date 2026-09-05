@@ -45,7 +45,13 @@ extension Place: FetchableRecord, MutablePersistableRecord {
             }
             return existing
         }
-        var place = Place(key: key, latitude: latitude, longitude: longitude, name: name, namedAt: name == nil ? nil : Date())
+        var place = Place(
+            key: key,
+            latitude: latitude,
+            longitude: longitude,
+            name: name,
+            namedAt: name == nil ? nil : Date()
+        )
         try place.insert(db)
         return place
     }
@@ -70,6 +76,7 @@ extension Meet: FetchableRecord, PersistableRecord {
 
     public enum Columns: String, ColumnExpression {
         case contactID, start, end, precision, placeID, tier, userSet, addSeenStart, addSeenEnd, computedAt
+        case dateConfirmed, placeConfirmed
     }
 
     public static let person = belongsTo(Person.self)

@@ -57,6 +57,26 @@ struct MeetEditor: View {
                         .padding(.horizontal, 6)
                 }
             }
+            if let meet = row.meet, !meet.isConfirmed {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(confirmationExplanation(meet))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Button("Confirm meeting") {
+                        do {
+                            try Ingest.confirmMeet(contactID: row.id, now: .now, to: app.database)
+                            problem = nil
+                            HapticManager.selection()
+                        } catch {
+                            problem = error.localizedDescription
+                            HapticManager.error()
+                        }
+                    }
+                    .buttonStyle(.glass)
+                    .accessibilityIdentifier("meeting.confirm")
+                }
+                .padding(.horizontal, 6)
+            }
             if let problem {
                 Text(problem)
                     .font(.footnote)
@@ -146,6 +166,20 @@ struct MeetEditor: View {
         }
     }
 
+    private func confirmationExplanation(_ meet: Meet) -> String {
+        if meet.userSet {
+            return "Your edits are saved. Confirm the meeting to accept the remaining details, including any unknown place."
+        }
+        guard let start = meet.addSeenStart, let end = meet.addSeenEnd else {
+            return "This meeting is a suggestion. Review the date and place before confirming."
+        }
+        let window = "Contact first noticed \(Format.longDate(end)). It appeared between \(Format.longDate(start)) and \(Format.longDate(end))."
+        let evidence = meet.placeID == nil
+            ? " No place is known."
+            : " Location evidence near that window suggests this place; it does not establish when you met."
+        return window + evidence
+    }
+
     // MARK: - Save
 
     private func save(dateChanged: Bool) {
@@ -161,10 +195,17 @@ struct MeetEditor: View {
                 }
             }
             if dateChanged {
-                try Ingest.setUserMeet(
-                    contactID: row.id, start: window.start, end: window.end.addingTimeInterval(-1),
-                    precision: .day, placeID: placeID, now: .now, to: database
-                )
+                if row.meet == nil {
+                    try Ingest.setUserMeet(
+                        contactID: row.id, start: window.start, end: window.end.addingTimeInterval(-1),
+                        precision: .day, placeID: placeID, now: .now, to: database
+                    )
+                } else {
+                    try Ingest.setUserMeetDate(
+                        contactID: row.id, start: window.start, end: window.end.addingTimeInterval(-1),
+                        precision: .day, now: .now, to: database
+                    )
+                }
             } else {
                 try Ingest.setUserMeetPlace(contactID: row.id, placeID: placeID, now: .now, to: database)
             }

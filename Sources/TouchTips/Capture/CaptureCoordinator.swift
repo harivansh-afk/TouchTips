@@ -239,10 +239,12 @@ final class CaptureCoordinator: NSObject {
             let changes = try await contacts.changes(token)
             try Task.checkCancellation()
 
-            // Only a real add is worth a precise fix. The first run is a snapshot, not a meeting.
-            if token != nil, !changes.isSnapshot, !changes.added.isEmpty,
+            // A current fix is useful only for a live contact change, never a delayed discovery on wake.
+            if source == .contacts, continuous, token != nil, !changes.isSnapshot, !changes.added.isEmpty,
                locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse,
-               let location = await oneShot.fix(timeout: Self.fixTimeout) {
+               let location = await oneShot.fix(timeout: Self.fixTimeout),
+               location.horizontalAccuracy >= 0,
+               abs(location.timestamp.timeIntervalSince(now)) <= Resolver.fixWindow {
                 lastLocation = location
                 fixedAt = Date()
                 Log.capture

@@ -38,7 +38,10 @@ enum Format {
 
     /// The trailing text on a people row. Empty for month precision because the section header already says it.
     static func rowDate(_ meet: Meet) -> String {
-        switch meet.precision {
+        if !Calendar.current.isDate(meet.start, inSameDayAs: meet.end) {
+            return "\(meet.start.formatted(.dateTime.month(.abbreviated).day()))–\(meet.end.formatted(.dateTime.month(.abbreviated).day()))"
+        }
+        return switch meet.precision {
         case .exact, .day: dayInMonth(meet.start)
         case .month: ""
         case .year: meet.start.formatted(.dateTime.year())
@@ -47,7 +50,10 @@ enum Format {
 
     /// Serif lead line and bold body line for the hero card.
     static func headline(for meet: Meet) -> (lead: String, body: String) {
-        switch meet.precision {
+        if !Calendar.current.isDate(meet.start, inSameDayAs: meet.end) {
+            return ("Sometime between", "\(longDate(meet.start)) – \(longDate(meet.end))")
+        }
+        return switch meet.precision {
         case .exact, .day: (weekday(meet.start), longDate(meet.start))
         case .month: ("Sometime in", month(meet.start))
         case .year: ("Sometime in", meet.start.formatted(.dateTime.year()))
@@ -59,30 +65,22 @@ enum Format {
         return place.name ?? coordinates(place.latitude, place.longitude)
     }
 
-    /// Second line of a people row. Empty for someone with no date, since their list already says so.
+    /// Second line of a people row: place, date only, or no meeting details.
     static func rowSubtitle(_ row: PersonRow) -> String {
-        if let name = placeName(row) { return name }
-        return row.meet == nil ? "" : "Date only"
+        if let name = placeName(row) {
+            return name
+        }
+        return row.meet == nil ? "No meeting details" : "Date only"
     }
 
     /// Notification body: "Blue Bottle @ 2:14 pm", or whichever half is known.
     static func notice(placeName: String?, at date: Date?) -> String {
-        [placeName, date.map(time)].compactMap { $0 }.joined(separator: " @ ")
+        [placeName, date.map(time)].compactMap(\.self).joined(separator: " @ ")
     }
 
     /// "92%"
     static func percent(_ fraction: Double) -> String {
         fraction.formatted(.percent.precision(.fractionLength(0)))
-    }
-
-    static func tierName(_ tier: Tier?) -> String {
-        switch tier {
-        case .exact: "exact"
-        case .witnessed: "witnessed"
-        case .inferred: "inferred"
-        case .dateOnly: "date only"
-        case nil: "no date"
-        }
     }
 
     /// "2024 to 2026" or "2026"
@@ -94,7 +92,10 @@ enum Format {
 
     /// "Sat 8 Aug 2026", or as much of it as was known. The second line of a row whose place is the heading.
     static func dateLine(_ meet: Meet) -> String {
-        switch meet.precision {
+        if !Calendar.current.isDate(meet.start, inSameDayAs: meet.end) {
+            return "\(longDate(meet.start)) – \(longDate(meet.end))"
+        }
+        return switch meet.precision {
         case .exact, .day: meet.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).year())
         case .month: month(meet.start)
         case .year: meet.start.formatted(.dateTime.year())
