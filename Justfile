@@ -22,12 +22,18 @@ log:
 test:
     swift test --package-path Packages/TouchTipsCore
 
+# Use a dedicated, booted simulator: this suite creates test contacts and changes app permissions.
+test-ios simulator: gen
+    xcodebuild -project TouchTips.xcodeproj -scheme TouchTips -destination 'platform=iOS Simulator,id={{simulator}}' -derivedDataPath build/notification-tests -quiet build-for-testing CODE_SIGNING_ALLOWED=NO
+    xcrun simctl privacy {{simulator}} grant contacts sh.harivan.touchtips
+    xcodebuild -project TouchTips.xcodeproj -scheme TouchTips -destination 'platform=iOS Simulator,id={{simulator}}' -derivedDataPath build/notification-tests -parallel-testing-enabled NO -quiet test-without-building CODE_SIGNING_ALLOWED=NO
+
 fmt:
-    swiftformat Sources Packages/TouchTipsCore/Sources Packages/TouchTipsCore/Tests
+    swiftformat Sources Packages/TouchTipsCore/Sources Packages/TouchTipsCore/Tests Tests
 
 # Formatting check only. Feel/ is excluded in .swiftformat: those files are mixbridge's, byte for byte.
 lint:
-    swiftformat Sources Packages/TouchTipsCore/Sources Packages/TouchTipsCore/Tests --lint
+    swiftformat Sources Packages/TouchTipsCore/Sources Packages/TouchTipsCore/Tests Tests --lint
 
 # The gate before a PR: core build and tests, then a device build with any warning counted as a failure.
 check: gen

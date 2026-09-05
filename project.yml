@@ -53,7 +53,7 @@ targets:
         UIApplicationSupportsIndirectInputEvents: true
         NSContactsUsageDescription: Notices new contacts. Limited access cannot see changes.
         NSLocationWhenInUseUsageDescription: Remembers where you met people.
-        NSLocationAlwaysAndWhenInUseUsageDescription: Stays awake, so a new contact gets the place you were at.
+        NSLocationAlwaysAndWhenInUseUsageDescription: Uses background location to help discover new contacts and remember where you may have met.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: sh.harivan.touchtips
@@ -65,3 +65,34 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
         SWIFT_OBJC_BRIDGING_HEADER: Sources/TouchTips/TouchTips-Bridging-Header.h
+
+  TouchTipsTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests/TouchTipsTests]
+    dependencies:
+      - target: TouchTips
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+
+  TouchTipsUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [Tests/TouchTipsUITests]
+    dependencies:
+      - target: TouchTips
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  TouchTips:
+    build:
+      targets:
+        TouchTips: all
+    test:
+      targets:
+        - TouchTipsTests
+        - TouchTipsUITests
+      gatherCoverageData: true

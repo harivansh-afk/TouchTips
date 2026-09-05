@@ -16,9 +16,11 @@ struct AddSheet: View {
     /// The region's own example number, written the way it will be formatted: "(201) 555-0123".
     private static let phonePrompt: String = {
         let utility = PhoneNumberUtility()
-        guard let example = utility.getExampleNumber(forCountry: PhoneNumberUtility.defaultRegionCode()) else { return "Phone" }
+        guard let example = utility.getExampleNumber(forCountry: PhoneNumberUtility.defaultRegionCode())
+        else { return "Phone" }
         return utility.format(example, toType: .national)
     }()
+
     @State private var choices: [PlaceChoice] = []
     @State private var chosen: PlaceChoice?
     @State private var origin: CLLocationCoordinate2D?
@@ -28,7 +30,9 @@ struct AddSheet: View {
 
     private enum Field { case name, phone }
 
-    private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespaces)
+    }
 
     var body: some View {
         NavigationStack {
@@ -106,7 +110,9 @@ struct AddSheet: View {
                 .focused($focus, equals: .phone)
                 .onChange(of: phone) { _, typed in
                     let formatted = phoneFormatter.formatPartial(typed)
-                    if formatted != typed { phone = formatted }
+                    if formatted != typed {
+                        phone = formatted
+                    }
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 15)
@@ -117,16 +123,20 @@ struct AddSheet: View {
     // MARK: - Location
 
     private func locate() async {
-        defer { if note == .locating { note = nil } }
+        defer {
+            if note == .locating {
+                note = nil
+            }
+        }
 
         var list: [PlaceChoice] = []
         if let visit = app.capture.currentVisit,
-           let place = try? await app.database.reader.read({ db in try Place.fetchOne(db, key: visit.placeID) })
-        {
+           let place = try? await app.database.reader.read({ db in try Place.fetchOne(db, key: visit.placeID) }) {
             origin = CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude)
             var title = place.name
             if title == nil {
-                title = (try? await Geocoder.reverseGeocode(latitude: place.latitude, longitude: place.longitude))?.title
+                title = await (try? Geocoder.reverseGeocode(latitude: place.latitude, longitude: place.longitude))?
+                    .title
             }
             list.append(PlaceChoice(
                 place: place,
@@ -139,7 +149,7 @@ struct AddSheet: View {
         }
         guard let origin else { return }
 
-        let nearby = (try? await NearbyPlaces.around(origin)) ?? []
+        let nearby = await (try? NearbyPlaces.around(origin)) ?? []
         for choice in nearby where !list.contains(where: { $0.key == choice.key }) && list.count < 5 {
             list.append(choice)
         }
@@ -164,12 +174,16 @@ struct AddSheet: View {
         }
         do {
             for try await update in CLLocationUpdate.liveUpdates() {
-                if let location = update.location { return location.coordinate }
+                if let location = update.location {
+                    return location.coordinate
+                }
                 if update.authorizationDenied {
                     note = .locationOff
                     return nil
                 }
-                if update.locationUnavailable { return nil }
+                if update.locationUnavailable {
+                    return nil
+                }
             }
         } catch {
             Log.ui.notice("location for add failed: \(error.localizedDescription)")
@@ -189,7 +203,10 @@ struct AddSheet: View {
             // Stored as +14345551234 when it parses, so Contacts and Phone treat it as a real number.
             let utility = PhoneNumberUtility()
             let stored = (try? utility.parse(typed)).map { utility.format($0, toType: .e164) } ?? typed
-            contact.phoneNumbers = [CNLabeledValue(label: CNLabelPhoneNumberMobile, value: CNPhoneNumber(stringValue: stored))]
+            contact.phoneNumbers = [CNLabeledValue(
+                label: CNLabelPhoneNumberMobile,
+                value: CNPhoneNumber(stringValue: stored)
+            )]
         }
 
         let request = CNSaveRequest()
@@ -204,7 +221,14 @@ struct AddSheet: View {
                     ).id
                 }
             }
-            try Ingest.addExact(contactID: contact.identifier, name: trimmedName, at: .now, placeID: placeID, to: app.database)
+            try Ingest.addExact(
+                contactID: contact.identifier,
+                name: trimmedName,
+                at: .now,
+                placeID: placeID,
+                to: app.database
+            )
+            app.capture.scheduleTick(.user, after: 0)
             HapticManager.success()
             dismiss()
         } catch {

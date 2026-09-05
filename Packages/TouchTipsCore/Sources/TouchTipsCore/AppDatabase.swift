@@ -5,7 +5,9 @@ import Foundation
 
 public final class AppDatabase: Sendable {
     public let writer: any DatabaseWriter
-    public var reader: any DatabaseReader { writer }
+    public var reader: any DatabaseReader {
+        writer
+    }
 
     public init(_ writer: any DatabaseWriter) throws {
         self.writer = writer
@@ -26,7 +28,7 @@ public final class AppDatabase: Sendable {
     private static var configuration: Configuration {
         var config = Configuration()
         #if DEBUG
-        config.publicStatementArguments = true
+            config.publicStatementArguments = true
         #endif
         return config
     }
@@ -99,6 +101,13 @@ public final class AppDatabase: Sendable {
         migrator.registerMigration("v3") { db in
             try db.alter(table: "person") { t in
                 t.add(column: "note", .text)
+            }
+        }
+
+        migrator.registerMigration("v4-notification-outbox") { db in
+            try db.create(table: "pendingNotice") { t in
+                t.primaryKey("contactID", .text).references("person", onDelete: .cascade)
+                t.column("createdAt", .datetime).notNull()
             }
         }
 

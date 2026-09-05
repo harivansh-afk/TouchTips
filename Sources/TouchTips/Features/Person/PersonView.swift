@@ -8,6 +8,8 @@ struct PersonView: View {
     @State private var allowDismissalGesture: AllowedNavigationDismissalGestures = .none
     @State private var row: PersonRow?
     @State private var showCard = false
+    @State private var loaded = false
+    @State private var loadFailed = false
 
     var body: some View {
         ScrollView {
@@ -16,6 +18,7 @@ struct PersonView: View {
                     VStack(spacing: 12) {
                         ContactAvatar(contactID: row.id, initials: row.person.initials, size: 96)
                         Text(row.person.name)
+                            .accessibilityIdentifier("person-name")
                             .font(.display(36))
                             .multilineTextAlignment(.center)
                     }
@@ -35,6 +38,21 @@ struct PersonView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
+            } else if loadFailed {
+                ContentUnavailableView(
+                    "Couldn't load this contact",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text("Go back and try opening the contact again.")
+                )
+            } else if loaded {
+                ContentUnavailableView(
+                    "Contact unavailable",
+                    systemImage: "person.crop.circle.badge.xmark",
+                    description: Text("This contact was removed or is no longer available to TouchTips.")
+                )
+            } else {
+                ProgressView("Loading contact")
+                    .padding(.top, 40)
             }
         }
         .scrollDismissesKeyboard(.interactively)
@@ -52,21 +70,28 @@ struct PersonView: View {
         .sheet(isPresented: $showCard) {
             ContactCard(contactID: contactID).ignoresSafeArea()
         }
-        .task { await observe() }
+        .task(id: contactID) { await observe() }
     }
 
     private func observe() async {
+        row = nil
+        loaded = false
+        loadFailed = false
         let contactID = contactID
         let observation = ValueObservation.tracking { db in
             try Person.row(contactID: contactID).fetchOne(db)
         }
         do {
             for try await row in observation.values(in: app.database.reader) {
-                if self.row != row { self.row = row }
+                if self.row != row {
+                    self.row = row
+                }
+                loaded = true
             }
         } catch is CancellationError {
             // The view went away. Not an error.
         } catch {
+            loadFailed = true
             Log.ui.error("person observation ended: \(error.localizedDescription)")
         }
     }

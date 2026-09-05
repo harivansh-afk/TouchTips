@@ -13,23 +13,29 @@ final class OneShotLocation: NSObject {
     }
 
     func fix(timeout: Duration) async -> CLLocation? {
-        guard continuation == nil else { return nil }
+        guard continuation == nil, !Task.isCancelled else { return nil }
         let timer = Task { [weak self] in
             try? await Task.sleep(for: timeout)
             guard !Task.isCancelled else { return }
             self?.finish(nil)
         }
         defer { timer.cancel() }
-        return await withCheckedContinuation { continuation in
-            self.continuation = continuation
-            manager.requestLocation()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+                manager.requestLocation()
+            }
+        } onCancel: {
+            Task { @MainActor in self.finish(nil) }
         }
     }
 
     private func finish(_ location: CLLocation?) {
         guard let continuation else { return }
         self.continuation = nil
-        if location == nil { manager.stopUpdatingLocation() }
+        if location == nil {
+            manager.stopUpdatingLocation()
+        }
         continuation.resume(returning: location)
     }
 }

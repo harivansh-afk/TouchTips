@@ -10,6 +10,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        #if DEBUG && targetEnvironment(simulator)
+            if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+                return true
+            }
+            NotificationTestFixture.prepare(app)
+        #endif
         app.start()
         return true
     }

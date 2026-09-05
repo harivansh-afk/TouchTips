@@ -8,7 +8,7 @@ struct PeopleTimeline: View {
     var undocumented: [PersonRow] = []
 
     @Environment(Router.self) private var router
-    @Namespace private var zoom
+    @Environment(\.zoomNamespace) private var zoom
 
     /// The column the line runs through, before the avatar.
     private static let gutter: CGFloat = 24
@@ -33,10 +33,6 @@ struct PeopleTimeline: View {
             }
         }
         .background(Color.ground)
-        .environment(\.zoomNamespace, zoom)
-        .navigationDestination(for: Destination.self) { destination in
-            DestinationView(destination: destination, zoom: zoom)
-        }
     }
 
     /// The hairline itself, through the middle of the gutter, from the first tick to the last person.
@@ -109,7 +105,7 @@ struct PeopleTimeline: View {
             .contentShape(.rect)
         }
         .buttonStyle(.press)
-        .matchedTransitionSource(id: row.id, in: zoom)
+        .personTransitionSource(id: row.id, in: zoom)
     }
 
     /// After the line ends: the same one row the list shows for everyone without a date.

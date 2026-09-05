@@ -4,7 +4,9 @@ import SwiftUI
 enum AppTab: Int, CaseIterable, Identifiable, Hashable {
     case people, map, search
 
-    var id: Int { rawValue }
+    var id: Int {
+        rawValue
+    }
 }
 
 /// Every screen that can be pushed. The view for each lives in `Destination+View.swift`.
@@ -19,6 +21,15 @@ enum Destination: Hashable {
 @MainActor
 @Observable
 final class Router {
+    var peopleReady = false
+    var notificationRequest = 0
+
+    func openNotification(_ contactID: String) {
+        notificationRequest += 1
+        selectedTab = .people
+        paths[.people] = [.person(contactID, zoom: false)]
+    }
+
     var selectedTab: AppTab = .people {
         didSet { restoreBar() }
     }
@@ -34,7 +45,9 @@ final class Router {
     /// Bumped every time the search button is tapped. The search tab shows its field and the keyboard on it.
     var searchRequests = 0
 
-    var isOnRoot: Bool { paths[selectedTab, default: []].isEmpty }
+    var isOnRoot: Bool {
+        paths[selectedTab, default: []].isEmpty
+    }
 
     func navigate(to destination: Destination) {
         paths[selectedTab, default: []].append(destination)

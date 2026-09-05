@@ -23,6 +23,9 @@ struct SettingsSheet: View {
                     LabeledContent("Contacts") {
                         if app.contactsAccess.granted {
                             Text("Full")
+                        } else if app.contactsAccess.status == .denied || app.contactsAccess.status == .limited || app
+                            .contactsAccess.status == .restricted {
+                            Button("Open Settings", action: openSettings)
                         } else {
                             Button("Allow") {
                                 Task {
@@ -81,7 +84,8 @@ struct SettingsSheet: View {
 
                 if BuildEnvironment.isDev {
                     Section {
-                        // Stays here until a week of numbers picks the default. Awake, an add is heard the moment it is saved.
+                        // Stays here until a week of numbers picks the default. Awake, an add is heard the moment it is
+                        // saved.
                         Picker("Stay awake", selection: $presence) {
                             ForEach(PresencePolicy.allCases) { policy in
                                 Text(policy.title).tag(policy)
@@ -92,7 +96,10 @@ struct SettingsSheet: View {
                             LabeledContent("Awake", value: Format.percent(stats.uptime))
                             LabeledContent("Wakes", value: wakesText(stats))
                             if let drain = stats.batteryPerHour {
-                                LabeledContent("Battery", value: "\(drain.formatted(.number.precision(.fractionLength(1))))% per hour")
+                                LabeledContent(
+                                    "Battery",
+                                    value: "\(drain.formatted(.number.precision(.fractionLength(1))))% per hour"
+                                )
                             }
                         }
                         if let lastNotice {
@@ -106,7 +113,9 @@ struct SettingsSheet: View {
                     } header: {
                         Text("Dev")
                     } footer: {
-                        Text("Last 24 hours. Debug and TestFlight builds only.")
+                        Text(
+                            "Last 24 hours. Background scans depend on iOS and may be delayed. Debug and TestFlight builds only."
+                        )
                     }
                 }
             }
@@ -161,9 +170,9 @@ struct SettingsSheet: View {
         let now = Date()
         do {
             let (beats, latency) = try await app.database.reader.read { db in
-                (
-                    try Heartbeat.since(now.addingTimeInterval(-CaptureStats.span)).fetchAll(db),
-                    try db.value(for: .lastNotice).flatMap { try? NoticeTiming.decode($0) }
+                try (
+                    Heartbeat.since(now.addingTimeInterval(-CaptureStats.span)).fetchAll(db),
+                    db.value(for: .lastNotice).flatMap { try? NoticeTiming.decode($0) }
                 )
             }
             stats = CaptureStats.make(from: beats, now: now)

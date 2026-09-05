@@ -21,16 +21,24 @@ struct RootView: View {
                     .transition(.opacity)
             }
         }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { app.capture.scheduleTick(.foreground) }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            if phase == .active {
+                app.contactsAccess.refresh()
+                app.capture.scheduleTick(.foreground)
+                openNotification()
+            }
         }
-        .onChange(of: app.notifier.pendingPerson, initial: true) { _, contactID in
-            guard let contactID, onboardingDone else { return }
-            Log.ui.notice("opening a person from a notification")
-            router.selectedTab = .people
-            router.paths[.people] = [.person(contactID, zoom: false)]
-            app.notifier.pendingPerson = nil
-        }
+        .onChange(of: app.notifier.pendingPerson, initial: true) { _, _ in openNotification() }
+        .onChange(of: onboardingDone) { _, _ in openNotification() }
+        .onChange(of: router.peopleReady) { _, _ in openNotification() }
+    }
+
+    private func openNotification() {
+        guard scenePhase == .active, onboardingDone, router.peopleReady,
+              let contactID = app.notifier.pendingPerson else { return }
+        Log.ui.notice("opening notification destination")
+        router.openNotification(contactID)
+        app.notifier.pendingPerson = nil
     }
 
     /// The overlay fades to reveal the finished app; the bar follows from below, with a tick.
@@ -51,7 +59,7 @@ struct RootView: View {
         return ZStack(alignment: .bottom) {
             TabView(selection: $router.selectedTab) {
                 Tab(value: .people) {
-                    LazyTab(tab: .people) { PeopleView() }
+                    PeopleView()
                 } label: {
                     Image(.users)
                 }

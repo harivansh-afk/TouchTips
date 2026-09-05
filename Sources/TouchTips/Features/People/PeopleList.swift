@@ -1,16 +1,8 @@
 import SwiftUI
 import TouchTipsCore
 
-/// The namespace rows register their zoom source in, so a list pushed from this one can zoom too.
-private struct ZoomNamespaceKey: EnvironmentKey {
-    static let defaultValue: Namespace.ID? = nil
-}
-
 extension EnvironmentValues {
-    var zoomNamespace: Namespace.ID? {
-        get { self[ZoomNamespaceKey.self] }
-        set { self[ZoomNamespaceKey.self] = newValue }
-    }
+    @Entry var zoomNamespace: Namespace.ID?
 }
 
 /// The bare list of people in sections. Shared by the People tab, in both of its grouped layouts,
@@ -26,13 +18,15 @@ struct PeopleList: View {
     var query = ""
 
     @Environment(Router.self) private var router
-    @Namespace private var zoom
+    @Environment(\.zoomNamespace) private var zoom
 
-    private var isEmpty: Bool { sections.isEmpty && undocumented.isEmpty }
+    private var isEmpty: Bool {
+        sections.isEmpty && undocumented.isEmpty
+    }
 
     var body: some View {
         List {
-            if isEmpty && !query.isEmpty {
+            if isEmpty, !query.isEmpty {
                 ContentUnavailableView.search(text: query)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())
@@ -54,10 +48,6 @@ struct PeopleList: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.ground)
-        .environment(\.zoomNamespace, zoom)
-        .navigationDestination(for: Destination.self) { destination in
-            DestinationView(destination: destination, zoom: zoom)
-        }
     }
 
     /// The heading is a row, not a section header, so it scrolls with the list instead of pinning.
@@ -112,7 +102,7 @@ struct PeopleList: View {
             .listRowSeparatorTint(.hairline)
             .listRowSeparator(index == 0 ? .hidden : .visible, edges: .top)
             .listRowSeparator(index == rows.count - 1 ? .hidden : .visible, edges: .bottom)
-            .matchedTransitionSource(id: row.id, in: zoom)
+            .personTransitionSource(id: row.id, in: zoom)
         }
     }
 

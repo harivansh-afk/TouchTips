@@ -68,7 +68,7 @@ struct OnboardingView: View {
             .lineSpacing(2)
 
             Text(
-                "TouchTips lives on your iPhone and logs each new contact as it is created, so you never forget someone again."
+                "TouchTips lives on your iPhone and remembers new contacts and where you may have met. Background discovery can be delayed; opening the app checks for new people."
             )
             .foregroundStyle(.secondary)
             .padding(.bottom, 8)

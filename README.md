@@ -5,22 +5,23 @@ This is a question i often ask myself since i meet so many people on a daily bas
 I tried sending selfies to the people i find interesting, but this doesnt scale
 I can name 5 times off the top of my head when i needed something from a person i met at some point of time but could not find their name on my phone.
 
-Contacts stay the source of truth for *who*. TouchTips owns *when* and *where*: it stays resident on a
-low-power location session so a new contact is heard the moment it is saved, takes one precise fix, and
-tells you who you just met and where. Visits, a breadcrumb fence and significant-change monitoring bring it
-back when iOS kills it. A Google Timeline export puts older contacts on the map. Confidence is carried on
-every answer and shown as a dot. `docs/design/capture-v1.html` is the capture architecture.
+Contacts stay the source of truth for *who*. TouchTips records *when* and *where* a new contact was
+discovered. It checks on launch, foreground activation, contact changes while running, and available
+background wakes. Confidence is carried on every answer and shown as a dot.
 
 ## How it works
 
-iOS never wakes a suspended app for a contact change, so the app stays awake instead. Everything else follows from that.
+iOS does not provide a contact-save wake mechanism for a suspended or terminated app. Background
+location and refresh are additional opportunities to scan; they cannot guarantee continuous execution.
 
-1. **Presence.** Once Location is Always, a low-power location session (3 km accuracy, no GPS, pausing off) keeps the process resident. It is the only reason the add is an event rather than something found later.
-2. **Event.** The resident process receives `CNContactStoreDidChange` the moment a contact is saved. One save fires several; a 300 ms coalesce turns them into one tick.
-3. **Tick.** One function for every wake source: diff the contact store since the last change-history token, take one precise one-shot fix if there is an add, resolve the add against visits (a fix is a zero-length visit and outranks any stay), name the place (nearby business, else street), post the notification, save the token, re-drop the fence. Idempotent, so any path can run it any number of times.
-4. **Notification.** Local, one per new person: "You just met Alice Chen" over "Blue Bottle @ 2:14 pm", with That's right, Fix, and Not a meeting. Tapping opens the person.
-5. **Relaunch net.** When iOS kills the process, visits, significant-change monitoring, a 150 m breadcrumb geofence around the last fix, and a background refresh floor bring it back. The add is caught then, with the place you were inside as an inferred answer.
-6. **Measure.** Every wake and a five-minute pulse write a heartbeat row. Dev in Settings turns it into uptime, wakes by source, battery per hour, and the last add-to-notification time by stage. Measured on an iPhone 17 Pro with Presence holding: 1.3 s from hearing the change to the banner, 0.8 s of it naming the place.
+1. A retained Contacts store reads change history. A 300 ms debounce coalesces notifications while running. Concurrent wakes share one scan task, with a follow-up scan for changes received during it.
+2. First access silently snapshots existing contacts. Later additions are resolved against available visits and an optional location fix, bounded to eight seconds. History resets reconcile names and deletions while retaining notes and meetings for surviving IDs.
+3. The contact, meeting, history token, and pending notification commit in one SQLite transaction. An in-app Add queues through the same table. A failed transaction advances none of them.
+4. Notification delivery retries queued records on wakes and after authorization. Place naming runs independently and cannot block submission. A stable request ID reconciles notifications already pending or delivered after a process interruption. SQLite acknowledges successful submission, not proof that iOS displayed a banner.
+5. Taps wait for the active scene, onboarding, and the People navigation stack. They replace the People path without a zoom transition. Missing or unreadable contacts have visible fallback screens and a Back action.
+
+See [notification testing](docs/notification-testing.md) for automated checks, device release checks,
+and remaining platform limitations. The older `docs/design/capture-v1.html` describes the original design.
 
 Everything stays on the phone. `docs/design/capture-v1.html` has the reasoning, failure modes and build order.
 
@@ -55,7 +56,7 @@ Set `DEVELOPMENT_TEAM` in `configs/Local.xcconfig` (gitignored) before building 
 ## Permissions
 
 Contacts, full access. Limited access cannot read change history.
-Location, Always. Keeps the process resident, and location events are the only thing that relaunches it when it is not.
+Location, Always. Allows background location events that offer additional chances to discover contacts.
 Notifications. Optional; everything still records without them.
 
 ## Not in v0

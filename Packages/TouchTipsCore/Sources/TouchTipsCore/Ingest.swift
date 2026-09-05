@@ -19,12 +19,20 @@ public struct ContactChangeSet: Sendable {
     public var updated: [ContactSnapshot]
     public var deletedIDs: [String]
     public var token: Data
+    public var isSnapshot: Bool
 
-    public init(added: [ContactSnapshot] = [], updated: [ContactSnapshot] = [], deletedIDs: [String] = [], token: Data) {
+    public init(
+        added: [ContactSnapshot] = [],
+        updated: [ContactSnapshot] = [],
+        deletedIDs: [String] = [],
+        token: Data,
+        isSnapshot: Bool = false
+    ) {
         self.added = added
         self.updated = updated
         self.deletedIDs = deletedIDs
         self.token = token
+        self.isSnapshot = isSnapshot
     }
 }
 
@@ -86,17 +94,39 @@ public enum Ingest {
         try database.writer.write { db in
             let firstRun = try db.value(for: .contactsHistoryToken) == nil
             var seenStart = try db.date(for: .lastTick) ?? now
-            if let aliveSince { seenStart = min(max(seenStart, aliveSince), now) }
+            if let aliveSince {
+                seenStart = min(max(seenStart, aliveSince), now)
+            }
             var summary = IngestSummary()
 
+            if change.isSnapshot {
+                let currentIDs = Set(change.added.map(\.contactID))
+                // An in-app Add can commit while the Contacts snapshot is being read.
+                for person in try Person.fetchAll(db)
+                    where person.createdAt <= now && !currentIDs.contains(person.contactID) {
+                    if try person.delete(db) {
+                        summary.deleted += 1
+                    }
+                }
+            }
+
             for snapshot in change.added {
-                guard try Person.filter(key: snapshot.contactID).isEmpty(db) else { continue }
-                try Person(contactID: snapshot.contactID, name: snapshot.name, beforeInstall: firstRun, createdAt: now).insert(db)
+                if var existing = try Person.fetchOne(db, key: snapshot.contactID) {
+                    if existing.name != snapshot.name {
+                        existing.name = snapshot.name
+                        try existing.update(db)
+                        summary.updated += 1
+                    }
+                    continue
+                }
+                try Person(contactID: snapshot.contactID, name: snapshot.name, beforeInstall: firstRun, createdAt: now)
+                    .insert(db)
                 if firstRun {
                     summary.snapshotted += 1
                 } else {
                     let add = ContactAdd(contactID: snapshot.contactID, seenStart: seenStart, seenEnd: now)
                     try resolve(add, in: db, now: now).insert(db)
+                    try PendingNotice(contactID: snapshot.contactID, createdAt: now).insert(db)
                     summary.newPeople += 1
                     summary.added.append(snapshot.contactID)
                 }
@@ -108,7 +138,9 @@ public enum Ingest {
             }
 
             for contactID in change.deletedIDs {
-                if try Person.deleteOne(db, key: contactID) { summary.deleted += 1 }
+                if try Person.deleteOne(db, key: contactID) {
+                    summary.deleted += 1
+                }
             }
 
             try db.setValue(change.token, for: .contactsHistoryToken)
@@ -132,15 +164,21 @@ public enum Ingest {
 
             var visit: Visit
             if var existing = try Visit
-                .filter(Visit.Columns.placeID == placeID && Visit.Columns.start == start && Visit.Columns.source == VisitSource.live)
-                .fetchOne(db)
-            {
+                .filter(Visit.Columns.placeID == placeID && Visit.Columns.start == start && Visit.Columns
+                    .source == VisitSource.live)
+                .fetchOne(db) {
                 existing.end = end
                 existing.accuracyMeters = live.accuracyMeters
                 try existing.update(db)
                 visit = existing
             } else {
-                visit = Visit(placeID: placeID, start: start, end: end, source: .live, accuracyMeters: live.accuracyMeters)
+                visit = Visit(
+                    placeID: placeID,
+                    start: start,
+                    end: end,
+                    source: .live,
+                    accuracyMeters: live.accuracyMeters
+                )
                 try visit.insert(db)
             }
 
@@ -157,7 +195,13 @@ public enum Ingest {
                 db, key: PlaceKey.cell(latitude: fix.latitude, longitude: fix.longitude),
                 latitude: fix.latitude, longitude: fix.longitude
             )
-            var visit = Visit(placeID: place.id!, start: fix.at, end: fix.at, source: .fix, accuracyMeters: fix.accuracyMeters)
+            var visit = Visit(
+                placeID: place.id!,
+                start: fix.at,
+                end: fix.at,
+                source: .fix,
+                accuracyMeters: fix.accuracyMeters
+            )
             try visit.save(db)
             try reresolve(around: fix.at, fix.at, in: db, now: now)
             return visit
@@ -166,7 +210,12 @@ public enum Ingest {
 
     /// One proof of life. Cheap; the app writes one on every wake and every few minutes while resident.
     @discardableResult
-    public static func recordHeartbeat(_ source: WakeSource, at: Date, batteryLevel: Double?, to database: AppDatabase) throws -> Heartbeat {
+    public static func recordHeartbeat(
+        _ source: WakeSource,
+        at: Date,
+        batteryLevel: Double?,
+        to database: AppDatabase
+    ) throws -> Heartbeat {
         try database.writer.write { db in
             var beat = Heartbeat(source: source, at: at, batteryLevel: batteryLevel)
             try beat.insert(db)
@@ -184,7 +233,8 @@ public enum Ingest {
 
     /// The user's answer. Outranks everything and is never recomputed.
     public static func setUserMeet(
-        contactID: String, start: Date, end: Date, precision: Precision, placeID: Int64?, now: Date, to database: AppDatabase
+        contactID: String, start: Date, end: Date, precision: Precision, placeID: Int64?, now: Date,
+        to database: AppDatabase
     ) throws {
         try database.writer.write { db in
             let existing = try Meet.fetchOne(db, key: contactID)
@@ -208,25 +258,41 @@ public enum Ingest {
 
     /// The user says they do not know. Removes the answer; a later tick will not recreate it.
     public static func clearMeet(contactID: String, to database: AppDatabase) throws {
-        _ = try database.writer.write { db in try Meet.deleteOne(db, key: contactID) }
+        try database.writer.write { db in
+            _ = try Meet.deleteOne(db, key: contactID)
+            _ = try PendingNotice.deleteOne(db, key: contactID)
+        }
     }
 
     /// The user's note about a person. Whitespace-only clears it.
     public static func setNote(contactID: String, note: String, to database: AppDatabase) throws {
         let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
         try database.writer.write { db in
-            _ = try Person.filter(key: contactID).updateAll(db, Person.Columns.note.set(to: trimmed.isEmpty ? nil : trimmed))
+            _ = try Person.filter(key: contactID).updateAll(
+                db,
+                Person.Columns.note.set(to: trimmed.isEmpty ? nil : trimmed)
+            )
         }
     }
 
     /// A contact created from inside the app: exact time, chosen place.
-    public static func addExact(contactID: String, name: String, at now: Date, placeID: Int64?, to database: AppDatabase) throws {
+    public static func addExact(
+        contactID: String,
+        name: String,
+        at now: Date,
+        placeID: Int64?,
+        to database: AppDatabase
+    ) throws {
         try database.writer.write { db in
+            let isNew = try Person.fetchOne(db, key: contactID) == nil
             try Person(contactID: contactID, name: name, beforeInstall: false, createdAt: now).save(db)
             try Meet(
                 contactID: contactID, start: now, end: now, precision: .exact, placeID: placeID, tier: .exact,
                 userSet: true, addSeenStart: now, addSeenEnd: now, computedAt: now
             ).save(db)
+            if isNew {
+                try PendingNotice(contactID: contactID, createdAt: now).insert(db)
+            }
         }
     }
 
@@ -265,7 +331,8 @@ public enum Ingest {
             guard let seenStart = meet.addSeenStart, let seenEnd = meet.addSeenEnd else { continue }
             let add = ContactAdd(contactID: meet.contactID, seenStart: seenStart, seenEnd: seenEnd)
             let fresh = try resolve(add, in: db, now: now)
-            if fresh.tier != meet.tier || fresh.placeID != meet.placeID || fresh.start != meet.start || fresh.end != meet.end {
+            if fresh.tier != meet.tier || fresh.placeID != meet.placeID || fresh.start != meet.start || fresh
+                .end != meet.end {
                 try fresh.update(db)
             }
         }

@@ -1,5 +1,16 @@
 import SwiftUI
 
+extension View {
+    @ViewBuilder
+    func personTransitionSource(id: String, in namespace: Namespace.ID?) -> some View {
+        if let namespace {
+            matchedTransitionSource(id: id, in: namespace)
+        } else {
+            self
+        }
+    }
+}
+
 /// The one place a destination becomes a screen.
 struct DestinationView: View {
     let destination: Destination

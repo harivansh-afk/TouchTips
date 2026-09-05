@@ -2,29 +2,44 @@ import Contacts
 import TouchTipsCore
 
 /// Reads the contact store's change history since a token and flattens it for `Ingest`.
-struct ContactsDiff: Sendable {
+actor ContactsDiff {
+    private let store = CNContactStore()
+
     func changes(since token: Data?) throws -> ContactChangeSet {
-        let store = CNContactStore()
         let request = CNChangeHistoryFetchRequest()
         request.startingToken = token
         request.shouldUnifyResults = true
-        request.additionalContactKeyDescriptors = [CNContactFormatter.descriptorForRequiredKeys(for: .fullName)]
+        request.additionalContactKeyDescriptors = [
+            CNContactFormatter.descriptorForRequiredKeys(for: .fullName),
+            CNContactOrganizationNameKey as CNKeyDescriptor,
+        ]
 
         var error: NSError?
-        guard let result = TTChangeHistoryEnumerator(store, request, &error) else { throw error ?? CNError(.communicationError) }
+        guard let result = TTChangeHistoryEnumerator(store, request, &error)
+        else { throw error ?? CNError(.communicationError) }
 
         var changes = ContactChangeSet(token: result.currentHistoryToken)
         for case let event as CNChangeHistoryEvent in result.value {
             switch event {
+            case is CNChangeHistoryDropEverythingEvent:
+                changes = ContactChangeSet(token: result.currentHistoryToken, isSnapshot: true)
             case let add as CNChangeHistoryAddContactEvent:
+                changes.deletedIDs.removeAll { $0 == add.contact.identifier }
+                changes.added.removeAll { $0.contactID == add.contact.identifier }
+                changes.updated.removeAll { $0.contactID == add.contact.identifier }
                 changes.added.append(snapshot(add.contact))
             case let update as CNChangeHistoryUpdateContactEvent:
-                changes.updated.append(snapshot(update.contact))
+                if let index = changes.added.firstIndex(where: { $0.contactID == update.contact.identifier }) {
+                    changes.added[index] = snapshot(update.contact)
+                } else {
+                    changes.updated.removeAll { $0.contactID == update.contact.identifier }
+                    changes.updated.append(snapshot(update.contact))
+                }
             case let delete as CNChangeHistoryDeleteContactEvent:
+                changes.added.removeAll { $0.contactID == delete.contactIdentifier }
+                changes.updated.removeAll { $0.contactID == delete.contactIdentifier }
                 changes.deletedIDs.append(delete.contactIdentifier)
             default:
-                // Drop-everything arrives on the first fetch and after a history reset.
-                // Ingest handles both by only inserting people it has not seen.
                 break
             }
         }

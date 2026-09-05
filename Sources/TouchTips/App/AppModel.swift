@@ -41,6 +41,14 @@ final class AppModel {
             let support = try FileManager.default.url(
                 for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
             )
+            #if DEBUG && targetEnvironment(simulator)
+                if let session = NotificationTestFixture.session {
+                    return try AppDatabase.onDisk(in: support.appendingPathComponent(
+                        "NotificationTests/\(session)",
+                        isDirectory: true
+                    ))
+                }
+            #endif
             return try AppDatabase.onDisk(in: support.appendingPathComponent("Database", isDirectory: true))
         } catch {
             Log.database.fault("Could not open the database, running in memory: \(error.localizedDescription)")

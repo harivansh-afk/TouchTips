@@ -29,6 +29,11 @@ struct MapScreen: View {
                 }
         }
         // Back from a person lands here with the same place sheet open again.
+        .onChange(of: router.notificationRequest) { _, _ in
+            pendingPerson = nil
+            lastGroup = nil
+            selection = nil
+        }
         .onChange(of: router.paths[.map]?.count ?? 0) { _, count in
             guard count == 0, let group = lastGroup else { return }
             lastGroup = nil
@@ -75,7 +80,9 @@ struct MapScreen: View {
         .animation(.appleMusic, value: places.isEmpty)
         .onChange(of: router.pendingPlace, initial: true) { _, _ in showPendingPlace() }
         .onChange(of: places, initial: true) { _, places in
-            for id in places.compactMap(\.soleContactID) { app.photos.load(id) }
+            for id in places.compactMap(\.soleContactID) {
+                app.photos.load(id)
+            }
             showPendingPlace()
         }
         .sheet(item: $selection, onDismiss: pushPendingPerson) { group in
@@ -144,7 +151,10 @@ struct MapScreen: View {
         }
         return groups.map { group in
             let count = CGFloat(group.places.count)
-            return Pin(group: PlaceGroup(places: group.places), point: CGPoint(x: group.sum.x / count, y: group.sum.y / count))
+            return Pin(
+                group: PlaceGroup(places: group.places),
+                point: CGPoint(x: group.sum.x / count, y: group.sum.y / count)
+            )
         }
     }
 
@@ -186,16 +196,24 @@ struct MapScreen: View {
         guard let id = router.pendingPlace, let place = places.first(where: { $0.id == id }) else { return }
         router.pendingPlace = nil
         withAnimation(.appleMusic) {
-            camera = .region(MKCoordinateRegion(center: place.coordinate, latitudinalMeters: 600, longitudinalMeters: 600))
+            camera = .region(MKCoordinateRegion(
+                center: place.coordinate,
+                latitudinalMeters: 600,
+                longitudinalMeters: 600
+            ))
         }
-        if place.soleContactID == nil { selection = PlaceGroup(places: [place]) }
+        if place.soleContactID == nil {
+            selection = PlaceGroup(places: [place])
+        }
     }
 
     private func observe() async {
         let observation = ValueObservation.tracking { db in try PlaceSummary.all().fetchAll(db) }
         do {
             for try await value in observation.values(in: app.database.reader) {
-                if places != value { places = value }
+                if places != value {
+                    places = value
+                }
             }
         } catch is CancellationError {
             // The view went away. Not an error.

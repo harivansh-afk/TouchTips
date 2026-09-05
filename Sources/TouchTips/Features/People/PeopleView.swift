@@ -9,10 +9,15 @@ struct PeopleView: View {
     @State private var showAdd = false
     @State private var showSettings = false
     @State private var hideHeader = false
+    @Namespace private var zoom
 
     var body: some View {
         NavigationStack(path: router.path(for: .people)) {
             content
+                .environment(\.zoomNamespace, zoom)
+                .navigationDestination(for: Destination.self) { destination in
+                    DestinationView(destination: destination, zoom: zoom)
+                }
                 // No navigation bar on a root: a push then animates nothing but the zoom.
                 .toolbar(.hidden, for: .navigationBar)
                 .safeAreaInset(edge: .top, spacing: 0) {
@@ -33,6 +38,11 @@ struct PeopleView: View {
                     HapticManager.selection()
                 }
                 .task { await people.run(in: app.database) }
+                .onAppear { router.peopleReady = true }
+                .onChange(of: router.notificationRequest) { _, _ in
+                    showAdd = false
+                    showSettings = false
+                }
         }
     }
 
@@ -68,7 +78,9 @@ struct PeopleView: View {
             ContentUnavailableView(
                 "Contacts is off",
                 systemImage: "person.crop.circle.badge.xmark",
-                description: Text("Nothing can be noticed until TouchTips can read your contacts. Allow it in Settings.")
+                description: Text(
+                    "Nothing can be noticed until TouchTips can read your contacts. Allow it in Settings."
+                )
             )
         case .reading:
             ContentUnavailableView {
