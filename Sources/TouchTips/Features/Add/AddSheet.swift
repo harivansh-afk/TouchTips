@@ -22,7 +22,7 @@ struct AddSheet: View {
     }()
 
     @State private var choices: [PlaceChoice] = []
-    @State private var chosen: PlaceChoice?
+    @State private var placeSelection = AddPlaceSelection()
     @State private var origin: CLLocationCoordinate2D?
     @State private var note: PlaceChooser.Note? = .locating
     @State private var problem: String?
@@ -41,7 +41,14 @@ struct AddSheet: View {
                     fields
                     VStack(alignment: .leading, spacing: 12) {
                         SectionLabel(text: "Where").padding(.leading, 6)
-                        PlaceChooser(candidates: choices, selection: $chosen, origin: origin, note: note)
+                        PlaceChooser(
+                            candidates: choices,
+                            selection: Binding(
+                                get: { placeSelection.chosen },
+                                set: { placeSelection.choose($0) }
+                            ),
+                            origin: origin, note: note
+                        )
                     }
                     if let problem {
                         Text(problem)
@@ -163,7 +170,7 @@ struct AddSheet: View {
             ))
         }
         choices = list
-        chosen = list.first
+        placeSelection.suggest(list.first)
     }
 
     private func liveLocation() async -> CLLocationCoordinate2D? {
@@ -214,7 +221,7 @@ struct AddSheet: View {
         do {
             try CNContactStore().execute(request)
             var placeID: Int64?
-            if let chosen {
+            if let chosen = placeSelection.chosen {
                 placeID = try app.database.writer.write { db in
                     try Place.findOrCreate(
                         db, key: chosen.key, latitude: chosen.latitude, longitude: chosen.longitude, name: chosen.name
