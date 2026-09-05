@@ -227,4 +227,19 @@ final class RegularUseUITests: XCTestCase {
         app.activate()
         XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
     }
+
+    func testStorageFailureBlocksEditingAndRetryRecovers() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-onboardingDone", "YES"]
+        app.launchEnvironment["TOUCHTIPS_QA_SESSION"] = UUID().uuidString
+        app.launchEnvironment["TOUCHTIPS_QA_STORAGE_FAILURE"] = "once"
+        app.launch()
+        XCTAssertTrue(app.buttons["storage.retry"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["Add"].exists)
+        capture(app, "storage-unavailable")
+        app.buttons["storage.retry"].tap()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
+        XCTAssertTrue(person("QA Alice", in: app).waitForExistence(timeout: 5))
+        capture(app, "storage-recovered")
+    }
 }

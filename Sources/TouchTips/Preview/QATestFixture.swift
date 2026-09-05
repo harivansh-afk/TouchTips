@@ -4,11 +4,17 @@
     import TouchTipsCore
 
     /// Explicit simulator-only data sets. Real screens and persistence still run unchanged.
+    @MainActor
     enum QATestFixture {
+        private static var failedSessions: Set<String> = []
+
         static func database(in support: URL) throws -> AppDatabase? {
             let environment = ProcessInfo.processInfo.environment
             guard let session = environment["TOUCHTIPS_QA_SESSION"],
                   UUID(uuidString: session) != nil else { return nil }
+            if environment["TOUCHTIPS_QA_STORAGE_FAILURE"] == "once", failedSessions.insert(session).inserted {
+                throw CocoaError(.fileReadNoPermission)
+            }
             let database = try AppDatabase.onDisk(in: support.appendingPathComponent("QATests/\(session)"))
             if let token = CNContactStore().currentHistoryToken {
                 try Ingest.apply(ContactChangeSet(token: token), now: .now, to: database)
