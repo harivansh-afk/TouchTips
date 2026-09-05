@@ -9,7 +9,9 @@ public struct PersonRow: Decodable, FetchableRecord, Hashable, Identifiable, Sen
     public var meet: Meet?
     public var place: Place?
 
-    public var id: String { person.contactID }
+    public var id: String {
+        person.contactID
+    }
 
     public init(person: Person, meet: Meet?, place: Place?) {
         self.person = person
@@ -51,7 +53,7 @@ public struct PlaceSummary: Decodable, FetchableRecord, Hashable, Identifiable, 
     public var longitude: Double
     public var name: String?
     public var people: Int
-    /// At least one meeting here is tier 0 or 1.
+    /// At least one meeting here has been confirmed by the user.
     public var witnessed: Bool
     public var first: Date
     public var last: Date
@@ -63,7 +65,7 @@ public struct PlaceSummary: Decodable, FetchableRecord, Hashable, Identifiable, 
         """
         SELECT place.id, place.key, place.latitude, place.longitude, place.name,
                COUNT(meet.contactID) AS people,
-               MAX(meet.tier <= 1) AS witnessed,
+               MAX(meet.dateConfirmed AND meet.placeConfirmed) AS witnessed,
                MIN(meet.start) AS first,
                MAX(meet.start) AS last,
                CASE WHEN COUNT(meet.contactID) = 1 THEN MIN(meet.contactID) END AS soleContactID,
@@ -84,7 +86,8 @@ public extension Visit {
 
     /// The visit that produced a witnessed or inferred meeting, for the evidence list.
     static func evidence(for meet: Meet) -> QueryInterfaceRequest<Visit>? {
-        guard let placeID = meet.placeID, let seenStart = meet.addSeenStart, let seenEnd = meet.addSeenEnd else { return nil }
+        guard let placeID = meet.placeID, let seenStart = meet.addSeenStart,
+              let seenEnd = meet.addSeenEnd else { return nil }
         let start = seenStart.addingTimeInterval(-Resolver.window)
         let end = seenEnd.addingTimeInterval(Resolver.window)
         return Visit

@@ -33,7 +33,7 @@ public final class AppDatabase: Sendable {
         return config
     }
 
-    private static var migrator: DatabaseMigrator {
+    static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
 
         migrator.registerMigration("v1") { db in
@@ -108,6 +108,32 @@ public final class AppDatabase: Sendable {
             try db.create(table: "pendingNotice") { t in
                 t.primaryKey("contactID", .text).references("person", onDelete: .cascade)
                 t.column("createdAt", .datetime).notNull()
+            }
+        }
+
+        migrator.registerMigration("v5-meeting-confirmation") { db in
+            try db.alter(table: "meet") { t in
+                t.add(column: "dateConfirmed", .boolean).notNull().defaults(to: false)
+                t.add(column: "placeConfirmed", .boolean).notNull().defaults(to: false)
+            }
+            // Legacy edits did not record which fields were confirmed. Preserve their values and
+            // edit protection, but only recognize the unambiguous in-app Add signature as confirmed.
+            try db.execute(sql: """
+            UPDATE meet SET dateConfirmed = 1, placeConfirmed = 1
+            WHERE userSet = 1 AND precision = 'exact'
+              AND start = end AND start = addSeenStart AND end = addSeenEnd
+            """)
+            // Repair automatic answers whose interval was previously narrowed to a visit or fix.
+            for meet in try Meet.filter(Meet.Columns.userSet == false).fetchAll(db) {
+                guard let start = meet.addSeenStart, let end = meet.addSeenEnd else { continue }
+                let visits = try Visit.overlapping(
+                    start.addingTimeInterval(-Resolver.window), end.addingTimeInterval(Resolver.window)
+                ).fetchAll(db)
+                let answer = Resolver.meet(
+                    for: ContactAdd(contactID: meet.contactID, seenStart: start, seenEnd: end),
+                    visits: visits, now: meet.computedAt
+                )
+                try answer.update(db)
             }
         }
 

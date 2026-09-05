@@ -7,7 +7,18 @@ I can name 5 times off the top of my head when i needed something from a person 
 
 Contacts stay the source of truth for *who*. TouchTips records *when* and *where* a new contact was
 discovered. It checks on launch, foreground activation, contact changes while running, and available
-background wakes. Confidence is carried on every answer and shown as a dot.
+background wakes. A solid dot means a user-confirmed meeting; a hollow dot means a suggestion.
+Contacts without meeting details have no dot. Date precision and missing places are shown separately.
+
+Swipe right on a person to open their note, ready to type. Swipe left to forget their TouchTips
+meeting details and note, with confirmation; the phone contact is retained. These native, icon-only
+swipes follow Mixbridge's TrackRow pattern and work in the People list, timeline, and search.
+
+Changing one field confirms only that field. "Confirm meeting" accepts the entire record, including
+any unknown place. Existing edits are preserved on upgrade; older records whose confirmation cannot
+be established remain suggestions until reviewed. Automatic location matches retain the discovery
+interval. Point locations are considered only for intervals of at most 60 seconds, and current fixes
+are requested only for contact changes heard while the app is continuously running.
 
 ## How it works
 

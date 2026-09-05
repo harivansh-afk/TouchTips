@@ -3,7 +3,7 @@
 
 import Foundation
 
-/// How sure we are about a meeting. Lower is better.
+/// Automatic evidence provenance and legacy storage values. User confirmation is stored separately.
 public enum Tier: Int, Codable, Hashable, Sendable, Comparable {
     /// Added from the app, or set by the user.
     case exact = 0
@@ -14,7 +14,9 @@ public enum Tier: Int, Codable, Hashable, Sendable, Comparable {
     /// We know roughly when, not where.
     case dateOnly = 3
 
-    public static func < (lhs: Tier, rhs: Tier) -> Bool { lhs.rawValue < rhs.rawValue }
+    public static func < (lhs: Tier, rhs: Tier) -> Bool {
+        lhs.rawValue < rhs.rawValue
+    }
 }
 
 /// How finely `Meet.start` should be read.
@@ -24,8 +26,12 @@ public enum Precision: String, Codable, Hashable, Sendable {
     /// The coarsest unit that still describes an interval honestly.
     public static func spanning(_ start: Date, _ end: Date) -> Precision {
         let span = end.timeIntervalSince(start)
-        if span <= 36 * 3600 { return .day }
-        if span <= 45 * 86400 { return .month }
+        if span <= 36 * 3600 {
+            return .day
+        }
+        if span <= 45 * 86400 {
+            return .month
+        }
         return .year
     }
 }
@@ -47,7 +53,9 @@ public struct Person: Codable, Hashable, Identifiable, Sendable {
     /// A line or two the user wrote about them. Ours, never Contacts'. nil rather than empty.
     public var note: String?
 
-    public var id: String { contactID }
+    public var id: String {
+        contactID
+    }
 
     public init(contactID: String, name: String, beforeInstall: Bool, createdAt: Date, note: String? = nil) {
         self.contactID = contactID
@@ -57,7 +65,9 @@ public struct Person: Codable, Hashable, Identifiable, Sendable {
         self.note = note
     }
 
-    public var initials: String { Person.initials(for: name) }
+    public var initials: String {
+        Person.initials(for: name)
+    }
 
     public static func initials(for name: String) -> String {
         let words = name.split(whereSeparator: \.isWhitespace)
@@ -77,7 +87,14 @@ public struct Place: Codable, Hashable, Identifiable, Sendable {
     /// Set when geocoding was attempted, whether or not it produced a name.
     public var namedAt: Date?
 
-    public init(id: Int64? = nil, key: String, latitude: Double, longitude: Double, name: String? = nil, namedAt: Date? = nil) {
+    public init(
+        id: Int64? = nil,
+        key: String,
+        latitude: Double,
+        longitude: Double,
+        name: String? = nil,
+        namedAt: Date? = nil
+    ) {
         self.id = id
         self.key = key
         self.latitude = latitude
@@ -88,10 +105,14 @@ public struct Place: Codable, Hashable, Identifiable, Sendable {
 }
 
 public enum PlaceKey {
-    public static func google(_ placeID: String) -> String { "g:" + placeID }
+    public static func google(_ placeID: String) -> String {
+        "g:" + placeID
+    }
 
     /// An Apple Maps place, from `MKMapItem.identifier`. Picked by hand in the Add sheet.
-    public static func apple(_ identifier: String) -> String { "a:" + identifier }
+    public static func apple(_ identifier: String) -> String {
+        "a:" + identifier
+    }
 
     /// Three decimals is about 110 m. Two visits to one café share a cell; two cafés a block apart usually do not.
     public static func cell(latitude: Double, longitude: Double) -> String {
@@ -108,7 +129,14 @@ public struct Visit: Codable, Hashable, Identifiable, Sendable {
     public var source: VisitSource
     public var accuracyMeters: Double?
 
-    public init(id: Int64? = nil, placeID: Int64, start: Date, end: Date, source: VisitSource, accuracyMeters: Double? = nil) {
+    public init(
+        id: Int64? = nil,
+        placeID: Int64,
+        start: Date,
+        end: Date,
+        source: VisitSource,
+        accuracyMeters: Double? = nil
+    ) {
         self.id = id
         self.placeID = placeID
         self.start = start
@@ -117,7 +145,9 @@ public struct Visit: Codable, Hashable, Identifiable, Sendable {
         self.accuracyMeters = accuracyMeters
     }
 
-    public var isOngoing: Bool { end == .distantFuture }
+    public var isOngoing: Bool {
+        end == .distantFuture
+    }
 }
 
 /// Our best answer for one person. Recomputed unless `userSet`.
@@ -128,17 +158,28 @@ public struct Meet: Codable, Hashable, Identifiable, Sendable {
     public var precision: Precision
     public var placeID: Int64?
     public var tier: Tier
+    /// Protects manually edited records from automatic replacement.
     public var userSet: Bool
+    public var dateConfirmed: Bool
+    public var placeConfirmed: Bool
+
+    public var isConfirmed: Bool {
+        dateConfirmed && placeConfirmed
+    }
+
     /// The window in which the contact appeared, kept so a later visit can upgrade the answer.
     public var addSeenStart: Date?
     public var addSeenEnd: Date?
     public var computedAt: Date
 
-    public var id: String { contactID }
+    public var id: String {
+        contactID
+    }
 
     public init(
         contactID: String, start: Date, end: Date, precision: Precision, placeID: Int64?, tier: Tier,
-        userSet: Bool, addSeenStart: Date?, addSeenEnd: Date?, computedAt: Date
+        userSet: Bool, addSeenStart: Date?, addSeenEnd: Date?, computedAt: Date,
+        dateConfirmed: Bool? = nil, placeConfirmed: Bool? = nil
     ) {
         self.contactID = contactID
         self.start = start
@@ -147,6 +188,8 @@ public struct Meet: Codable, Hashable, Identifiable, Sendable {
         self.placeID = placeID
         self.tier = tier
         self.userSet = userSet
+        self.dateConfirmed = dateConfirmed ?? userSet
+        self.placeConfirmed = placeConfirmed ?? userSet
         self.addSeenStart = addSeenStart
         self.addSeenEnd = addSeenEnd
         self.computedAt = computedAt

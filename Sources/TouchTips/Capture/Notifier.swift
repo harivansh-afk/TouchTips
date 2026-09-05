@@ -108,7 +108,7 @@ final class Notifier: NSObject {
                         try await postMeet(
                             contactID: notice.contactID,
                             name: row.person.name,
-                            at: row.meet?.start,
+                            meet: row.meet,
                             placeName: row.place?.name
                         )
                     }
@@ -136,11 +136,13 @@ final class Notifier: NSObject {
         "\(category)-\(contactID)"
     }
 
-    /// "You just met Alice Chen" over "Blue Bottle @ 2:14 pm".
-    private func postMeet(contactID: String, name: String, at date: Date?, placeName: String?) async throws {
+    /// Discovery is reported as a new contact; only user-confirmed records claim a meeting.
+    private func postMeet(contactID: String, name: String, meet: Meet?, placeName: String?) async throws {
         let content = UNMutableNotificationContent()
-        content.title = "You just met \(name)"
-        content.body = Format.notice(placeName: placeName, at: date)
+        content.title = meet?.isConfirmed == true ? "Meeting recorded: \(name)" : "New contact: \(name)"
+        content.body = meet?.isConfirmed == true
+            ? [placeName, meet.map(Format.dateLine)].compactMap(\.self).joined(separator: " · ")
+            : "Review the suggested meeting details in TouchTips."
         content.sound = .default
         content.categoryIdentifier = Self.category
         content.threadIdentifier = Self.category

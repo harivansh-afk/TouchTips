@@ -67,10 +67,7 @@ struct PlaceSheet: View {
                 PersonRowView(row: row, showsPlace: false)
             }
             .buttonStyle(.press)
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-            .listRowSeparatorTint(.hairline)
-            .listRowSeparator(entry.index == 0 ? .hidden : .visible, edges: .top)
-            .listRowSeparator(entry.index == indexed.count - 1 ? .hidden : .visible, edges: .bottom)
+            .personListRow(showSeparator: entry.index < indexed.count - 1)
         }
     }
 

@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import TouchTipsCore
 
-@Suite struct ResolverTests {
+struct ResolverTests {
     let now = t("2026-09-02T12:00")
 
     @Test func witnessedWhenAVisitContainsTheAdd() {
@@ -15,11 +15,11 @@ import Testing
         #expect(meet.precision == .day)
     }
 
-    @Test func witnessedIntervalIsClippedToTheVisit() {
+    @Test func suggestedVisitDoesNotNarrowTheDiscoveryInterval() {
         let visits = [visit(7, "2026-09-02T10:50", "2026-09-02T11:40")]
         let meet = Resolver.meet(for: add("2026-09-02T09:00", "2026-09-02T11:00"), visits: visits, now: now)
         #expect(meet.tier == .witnessed)
-        #expect(meet.start == t("2026-09-02T10:50"))
+        #expect(meet.start == t("2026-09-02T09:00"))
         #expect(meet.end == t("2026-09-02T11:00"))
     }
 
@@ -51,16 +51,17 @@ import Testing
         #expect(meet.addSeenStart == t("2026-09-02T10:00"))
     }
 
-    @Test func aFixInsideTheIntervalOutranksALongerStay() {
+    @Test func aRecentFixCanSuggestAPlaceWithoutClaimingAnExactMeeting() {
         let visits = [
             visit(2, "2026-09-02T08:00", "2026-09-02T18:00"),
             visit(9, "2026-09-02T10:41", "2026-09-02T10:41", source: .fix),
         ]
-        let meet = Resolver.meet(for: add("2026-09-02T09:30", "2026-09-02T10:41"), visits: visits, now: now)
+        let meet = Resolver.meet(for: add("2026-09-02T10:40", "2026-09-02T10:41"), visits: visits, now: now)
         #expect(meet.tier == .witnessed)
         #expect(meet.placeID == 9)
-        #expect(meet.precision == .exact)
-        #expect(meet.start == t("2026-09-02T10:41"))
+        #expect(meet.precision == .day)
+        #expect(!meet.isConfirmed)
+        #expect(meet.start == t("2026-09-02T10:40"))
         #expect(meet.end == t("2026-09-02T10:41"))
     }
 
