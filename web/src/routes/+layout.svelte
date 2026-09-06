@@ -17,6 +17,6 @@
   </header>
   <main>
     {@render children()}
-    <footer>Harivansh Rathi · TouchTips</footer>
+    <footer>© {new Date().getFullYear()} TouchTips</footer>
   </main>
 </div>

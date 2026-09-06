@@ -17,6 +17,5 @@
 <h2>Control and deletion</h2>
 <p>Change permissions in iPhone Settings. You can edit or remove individual records in TouchTips, or choose “Delete all data” to clear them. This does not delete your iPhone contacts.</p>
 
-<h2>Website and email</h2>
-<p><a href="https://vercel.com/legal/privacy-policy">Vercel</a> hosts this website and processes requests to serve its pages. The site uses no cookies or analytics scripts.</p>
-<p><a href="https://www.cloudflare.com/privacypolicy/">Cloudflare</a> forwards support emails to the developer’s inbox. Your email address and message are used to answer your request. For help or privacy questions, email <a href="mailto:hari@touchtips.app">hari@touchtips.app</a>.</p>
+<h2>Contact</h2>
+<p>For privacy questions, email <a href="mailto:hari@touchtips.app">hari@touchtips.app</a>. Your email address and message are used to respond.</p>
