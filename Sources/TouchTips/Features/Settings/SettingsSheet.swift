@@ -81,6 +81,11 @@ struct SettingsSheet: View {
                         .listRowBackground(Color.clear)
                 }
 
+                Section("About") {
+                    Link("Support", destination: URL(string: "https://harivan.sh/touchtips/")!)
+                    Link("Privacy", destination: URL(string: "https://harivan.sh/touchtips/privacy/")!)
+                }
+
                 Section {
                     Button("Delete all data", role: .destructive) { confirmDelete = true }
                         .disabled(app.capture.isResetting)
