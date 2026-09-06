@@ -8,6 +8,11 @@
       "source": "/",
       "destination": "/support",
       "permanent": false
+    },
+    {
+      "source": "/ios",
+      "destination": "https://testflight.apple.com/join/mQzyngr5",
+      "permanent": false
     }
   ],
   "buildCommand": "bun run build",
