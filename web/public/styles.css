@@ -1,0 +1,33 @@
+@font-face {
+  font-family: "Berkeley Mono";
+  src: url("/fonts/BerkeleyMono-Regular.otf") format("opentype");
+  font-display: swap;
+}
+:root { --bg: #0d0d0b; --fg: #f3f3ee; --muted: hsl(45 5% 65%); color-scheme: dark; }
+@media (prefers-color-scheme: light) {
+  :root { --bg: #fdfdfc; --fg: #1a1a1a; --muted: #6b6b66; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--muted); font: 16px/1.7 "Berkeley Mono", ui-monospace, monospace; }
+.page { max-width: 920px; margin: 0 auto; padding: 80px 28px; display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 64px; }
+header { align-self: start; position: sticky; top: 80px; }
+.brand { margin: 0 0 28px; color: var(--fg); }
+nav { display: grid; gap: 10px; font-size: 14px; }
+a { color: var(--fg); text-underline-offset: 4px; }
+nav a { color: var(--muted); text-decoration: none; }
+nav a[aria-current="page"], nav a:hover { color: var(--fg); }
+a:focus-visible { outline: 1px solid var(--fg); outline-offset: 5px; }
+h1, h2 { color: var(--fg); font-weight: 400; line-height: 1.4; }
+h1 { margin: 0 0 28px; font-size: 28px; }
+h2 { margin: 36px 0 12px; font-size: 18px; }
+p { margin: 0 0 18px; }
+.date { margin: -14px 0 30px; font-size: 12px; }
+footer { margin-top: 48px; font-size: 12px; }
+@media (max-width: 680px) {
+  .page { display: block; padding: 32px 24px 48px; }
+  header { position: static; margin-bottom: 44px; }
+  .brand { margin-bottom: 14px; }
+  nav { display: flex; gap: 24px; }
+  body { font-size: 14px; }
+  h1 { font-size: 26px; }
+}
