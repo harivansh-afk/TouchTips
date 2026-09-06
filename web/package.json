@@ -1,0 +1,17 @@
+{
+  "name": "touchtips-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.46.5",
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "svelte": "^5.45.13",
+    "vite": "^8.0.0"
+  }
+}

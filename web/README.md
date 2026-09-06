@@ -1,13 +1,17 @@
 # TouchTips web
 
-Support and privacy pages for touchtips.app. Static HTML and a shared stylesheet; no dependencies or build step.
+SvelteKit support and privacy pages for touchtips.app, prerendered with adapter-static. Shared navigation and styling live in `src/routes/+layout.svelte` and `src/styles.css`. The app icon supplies the site branding and browser icons in `static/`.
 
-- `/support` — contact and help
-- `/privacy` — privacy policy
-- `/` redirects to `/support`; there is no landing page.
+## Development
 
-## Vercel
+```sh
+bun install --frozen-lockfile
+bun run dev
+bun run build
+```
 
-Connect `harivansh-afk/TouchTips`, set **Root Directory** to `web`, and use the **Other** framework preset. `vercel.json` defines the `public` output directory and routes. Production follows `main`.
+## Deployment
 
-The iOS app and Swift packages remain at the repository root. Web changes are confined to this directory.
+Vercel follows `main` in `harivansh-afk/TouchTips`, with `web` as the Root Directory. `vercel.json` defines the build and `build` output directory. `/support` and `/privacy` are the only pages; `/` redirects to Support.
+
+The Swift app and packages remain independent at the repository root.
