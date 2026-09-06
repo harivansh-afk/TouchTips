@@ -1,16 +1,17 @@
 <svelte:head>
   <title>Support — TouchTips</title>
-  <meta name="description" content="Get help with TouchTips, permissions, and saved meeting details." />
+  <meta name="description" content="Contact TouchTips support." />
   <link rel="canonical" href="https://touchtips.app/support" />
 </svelte:head>
 
 <h1>Support</h1>
-      <p>For help with TouchTips, email <a href="mailto:rathiharivansh@gmail.com?subject=TouchTips%20support">rathiharivansh@gmail.com</a>. Include your iPhone model, iOS version, and what happened. Remove private contact details from any screenshots.</p>
-      <h2>Find your people</h2>
-      <p>Allow Contacts access during setup. Choose the list or timeline in TouchTips settings, or open the map to browse by meeting place.</p>
-      <h2>Correct a meeting</h2>
-      <p>Open a person to change their meeting date, place, or note. Automatic suggestions can be incomplete: iOS does not notify a suspended app about every contact change. After adding a contact, return to TouchTips and review the details.</p>
-      <h2>Change permissions</h2>
-      <p>Manage Contacts, Location, and Notifications in iPhone Settings. Location helps with place suggestions. Notifications are optional.</p>
-      <h2>Remove saved details</h2>
-      <p>Swipe left on a person and confirm to remove their meeting details and note. To clear all TouchTips records, choose “Delete all data” in the app’s settings. Neither action deletes your iPhone contacts.</p>
+<p>Email <a href="mailto:hari@touchtips.app">hari@touchtips.app</a>. Include your iPhone model, iOS version, and what went wrong.</p>
+
+<h2>Missing contacts</h2>
+<p>Check that TouchTips has full Contacts access in iPhone Settings. Return to the app after saving a new contact.</p>
+
+<h2>Dates and places</h2>
+<p>TouchTips can miss when or where a contact was added. Open a person to correct their meeting details or add a note. Location access helps with place suggestions.</p>
+
+<h2>Delete data</h2>
+<p>Swipe left on a person to remove their meeting details and note. To clear everything, choose “Delete all data” in TouchTips settings. Your iPhone contacts are not deleted.</p>
