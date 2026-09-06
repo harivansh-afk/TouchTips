@@ -1,18 +1,10 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<svelte:head>
   <title>Privacy — TouchTips</title>
-  <meta name="description" content="How TouchTips handles contacts, location, meeting details, and notes.">
-  <link rel="canonical" href="https://touchtips.app/privacy">
-  <link rel="stylesheet" href="/styles.css">
-</head>
-<body>
-  <div class="page">
-    <header><p class="brand">TouchTips</p><nav aria-label="Information"><a href="/support">Support</a><a href="/privacy" aria-current="page">Privacy</a></nav></header>
-    <main>
-      <h1>Privacy</h1>
+  <meta name="description" content="How TouchTips handles contacts, location, meeting details, and notes." />
+  <link rel="canonical" href="https://touchtips.app/privacy" />
+</svelte:head>
+
+<h1>Privacy</h1>
       <p class="date">Effective September 6, 2026</p>
       <p>TouchTips is developed by Harivansh Rathi. The app stores meeting details and notes on your iPhone and does not require an account.</p>
       <h2>Data used by the app</h2>
@@ -25,8 +17,3 @@
       <h2>Website and support</h2>
       <p>This website uses no cookies or analytics scripts. It is hosted by <a href="https://vercel.com/legal/privacy-policy">Vercel</a>, which processes requests to deliver the pages.</p>
       <p>If you email for help, the developer receives your email address and the information you send, and uses them to respond. For privacy questions, contact <a href="mailto:rathiharivansh@gmail.com?subject=TouchTips%20privacy">rathiharivansh@gmail.com</a>.</p>
-      <footer>Harivansh Rathi · TouchTips</footer>
-    </main>
-  </div>
-</body>
-</html>

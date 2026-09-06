@@ -11,7 +11,8 @@
 body { margin: 0; background: var(--bg); color: var(--muted); font: 16px/1.7 "Berkeley Mono", ui-monospace, monospace; }
 .page { max-width: 920px; margin: 0 auto; padding: 80px 28px; display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 64px; }
 header { align-self: start; position: sticky; top: 80px; }
-.brand { margin: 0 0 28px; color: var(--fg); }
+.brand { display: inline-block; margin: 0 0 28px; line-height: 0; }
+.brand img { display: block; width: 56px; height: 56px; border-radius: 13px; }
 nav { display: grid; gap: 10px; font-size: 14px; }
 a { color: var(--fg); text-underline-offset: 4px; }
 nav a { color: var(--muted); text-decoration: none; }

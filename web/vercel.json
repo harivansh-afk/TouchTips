@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "outputDirectory": "public",
+  "framework": "sveltekit",
+  "outputDirectory": "build",
   "cleanUrls": true,
   "redirects": [
     {
@@ -9,5 +9,7 @@
       "destination": "/support",
       "permanent": false
     }
-  ]
+  ],
+  "buildCommand": "bun run build",
+  "installCommand": "bun install --frozen-lockfile"
 }
