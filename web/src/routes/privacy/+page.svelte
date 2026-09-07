@@ -6,7 +6,7 @@
 
 <h1>Privacy</h1>
 <p class="date">Effective September 6, 2026</p>
-<p>TouchTips is developed by Harivansh Rathi. It stores meeting details and notes on your iPhone. No account is required.</p>
+<p>TouchTips is developed by <a href="https://harivan.sh">Harivansh Rathi</a>. It stores meeting details and notes on your iPhone. No account is required.</p>
 
 <h2>Contacts and location</h2>
 <p>With your permission, the app reads your contacts and uses location information to suggest meeting places. It does not send your contacts, meeting history, or notes to the developer. There are no ads or analytics SDKs.</p>
