@@ -3,10 +3,7 @@
   src: url("/fonts/BerkeleyMono-Regular.otf") format("opentype");
   font-display: swap;
 }
-:root { --bg: #0d0d0b; --fg: #f3f3ee; --muted: hsl(45 5% 65%); color-scheme: dark; }
-@media (prefers-color-scheme: light) {
-  :root { --bg: #fdfdfc; --fg: #1a1a1a; --muted: #6b6b66; color-scheme: light; }
-}
+:root { --bg: #fdfdfc; --fg: #1a1a1a; --muted: #6b6b66; color-scheme: only light; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--muted); font: 16px/1.7 "Berkeley Mono", ui-monospace, monospace; }
 .page { max-width: 920px; margin: 0 auto; padding: 80px 28px; display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 64px; }
