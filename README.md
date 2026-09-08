@@ -18,18 +18,28 @@ Changing one field confirms only that field. "Confirm meeting" accepts the entir
 any unknown place. Existing edits are preserved on upgrade; older records whose confirmation cannot
 be established remain suggestions until reviewed. Automatic location matches retain the discovery
 interval. Point locations are considered only for intervals of at most 60 seconds, and current fixes
-are requested only for contact changes heard while the app is continuously running.
+are requested only for recent contact-change callbacks. Callbacks can be delayed by suspension;
+only the last successful Contacts read establishes the beginning of a discovery interval.
 
 ## How it works
 
 iOS does not provide a contact-save wake mechanism for a suspended or terminated app. Background
 location and refresh are additional opportunities to scan; they cannot guarantee continuous execution.
 
-1. A retained Contacts store reads change history. A 300 ms debounce coalesces notifications while running. Concurrent wakes share one scan task, with a follow-up scan for changes received during it.
-2. First access silently snapshots existing contacts. Later additions are resolved against available visits and an optional location fix, bounded to eight seconds. History resets reconcile names and deletions while retaining notes and meetings for surviving IDs.
+1. A retained Contacts store reads change history. A 300 ms coalesce keeps the earliest requested scan, so another wake cannot continually postpone it. Concurrent wakes share one scan task, with a follow-up scan for changes received during it. Transient failures retry after two and five seconds, then retain the cursor for a later wake.
+2. First access silently snapshots existing contacts. Later additions are resolved against available visits and saved immediately. Optional location enrichment runs independently, bounded to eight seconds, and can improve an unconfirmed meeting afterward. History resets reconcile names and deletions while retaining notes and meetings for surviving IDs. Failed history enumeration returns no partial events or new cursor.
 3. The contact, meeting, history token, and pending notification commit in one SQLite transaction. An in-app Add queues through the same table. A failed transaction advances none of them.
-4. Notification delivery retries queued records on wakes and after authorization. Place naming runs independently and cannot block submission. A stable request ID reconciles notifications already pending or delivered after a process interruption. SQLite acknowledges successful submission, not proof that iOS displayed a banner.
+4. Notification delivery retries queued records on wakes and after authorization, with two bounded retries for transient failures. One failing record does not block the others. All concurrent callers wait for the shared delivery; removed notices are rechecked before submission. Location and place naming cannot block submission. A stable request ID reconciles notifications already pending or delivered after a process interruption. SQLite acknowledges successful submission, not proof that iOS displayed a banner.
 5. Taps wait for the active scene, onboarding, and the People navigation stack. They replace the People path without a zoom transition. Missing or unreadable contacts have visible fallback screens and a Back action.
+6. Background refresh requests become eligible after fifteen minutes, while preserving an earlier pending request. This is a request to iOS, not a polling interval or delivery guarantee. Expiration cancels the shared scan and ends its background assertion immediately.
+
+In-app Add retains the saved system-contact identity if its SQLite write fails. A retry updates that
+contact and preserves the original meeting time. The selected place, meeting, and pending notice
+commit together. Notes flush when the scene becomes inactive; diagnostic heartbeat history retains
+seven days.
+
+See the [September 8 architecture review](docs/architecture-review-2026-09-08.md) for findings,
+regression coverage, and the remaining physical-device verification boundary.
 
 See [notification testing](docs/notification-testing.md) for automated checks, device release checks,
 and remaining platform limitations. The older `docs/design/capture-v1.html` describes the original design.

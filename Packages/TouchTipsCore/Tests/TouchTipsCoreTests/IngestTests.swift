@@ -111,25 +111,26 @@ struct IngestTests {
         #expect(row.place == nil)
     }
 
-    @Test func aliveSinceNarrowsTheAddInterval() throws {
+    @Test func delayedDiscoveryRetainsTheLastSuccessfulReadAsLowerBound() throws {
         try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:00"), to: db)
         try Ingest.apply(
             ContactChangeSet(added: [snapshot("new")], token: Data([2])),
-            now: t("2026-09-02T14:14"), aliveSince: t("2026-09-02T13:50"), to: db
-        )
-        let meet = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
-        #expect(meet.addSeenStart == t("2026-09-02T13:50"))
-        #expect(meet.addSeenEnd == t("2026-09-02T14:14"))
-    }
-
-    @Test func aliveSinceNeverWidensTheAddInterval() throws {
-        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:00"), to: db)
-        try Ingest.apply(
-            ContactChangeSet(added: [snapshot("new")], token: Data([2])),
-            now: t("2026-09-02T14:14"), aliveSince: t("2026-09-01T08:00"), to: db
+            now: t("2026-09-02T14:14"), to: db
         )
         let meet = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
         #expect(meet.addSeenStart == t("2026-09-02T09:00"))
+        #expect(meet.addSeenEnd == t("2026-09-02T14:14"))
+    }
+
+    @Test func clockMovingBackwardsDoesNotInvertTheDiscoveryInterval() throws {
+        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T14:14"), to: db)
+        try Ingest.apply(
+            ContactChangeSet(added: [snapshot("new")], token: Data([2])),
+            now: t("2026-09-02T09:00"), to: db
+        )
+        let meet = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
+        #expect(meet.addSeenStart == t("2026-09-02T09:00"))
+        #expect(meet.addSeenEnd == meet.addSeenStart)
     }
 
     @Test func confirmingKeepsTheAnswerAndMakesItTheUsers() throws {
@@ -185,7 +186,7 @@ struct IngestTests {
         let arrival = t("2026-09-02T10:00")
         let addedAt = t("2026-09-02T15:00")
         let receivedAt = t("2026-09-02T16:00")
-        try Ingest.apply(ContactChangeSet(token: Data([1])), now: t("2026-09-02T09:00"), to: db)
+        try Ingest.apply(ContactChangeSet(token: Data([1])), now: addedAt, to: db)
         let visit = try Ingest.recordLiveVisit(
             LiveVisit(
                 latitude: 1, longitude: 2, accuracyMeters: 10, arrival: arrival, departure: previousDeparture
@@ -194,7 +195,7 @@ struct IngestTests {
         )
         try Ingest.apply(
             ContactChangeSet(added: [snapshot("new")], token: Data([2])),
-            now: addedAt, aliveSince: addedAt, to: db
+            now: addedAt, to: db
         )
         let before = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
         #expect(before.tier == .witnessed)

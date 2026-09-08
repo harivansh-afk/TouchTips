@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import TouchTipsCore
 
-@Suite struct StatsTests {
+struct StatsTests {
     let now = t("2026-09-02T12:00")
 
     private func beat(_ source: WakeSource, _ at: String, battery: Double? = nil) -> Heartbeat {
@@ -11,7 +11,11 @@ import Testing
 
     @Test func uptimeIsTheShareOfFiveMinuteSlotsWithABeat() {
         // 288 slots in a day. Three beats in three different slots.
-        let beats = [beat(.presence, "2026-09-02T11:00"), beat(.presence, "2026-09-02T11:05"), beat(.launch, "2026-09-02T11:10")]
+        let beats = [
+            beat(.presence, "2026-09-02T11:00"),
+            beat(.presence, "2026-09-02T11:05"),
+            beat(.launch, "2026-09-02T11:10"),
+        ]
         let stats = CaptureStats.make(from: beats, now: now)
         #expect(abs(stats.uptime - 3.0 / 288.0) < 1e-9)
     }
@@ -44,5 +48,21 @@ import Testing
         #expect(stats.uptime == 0)
         #expect(stats.wakes.isEmpty)
         #expect(stats.batteryPerHour == nil)
+    }
+
+    @Test func fullDayIncludingBothBoundariesCannotExceedOneHundredPercent() {
+        let beats = (0 ... 288).map {
+            Heartbeat(source: .presence, at: now.addingTimeInterval(Double($0 - 288) * CaptureStats.bucket))
+        }
+        #expect(CaptureStats.make(from: beats, now: now).uptime == 1)
+    }
+
+    @Test func heartbeatHistoryIsBoundedWithoutDeletingMeetings() throws {
+        let db = try AppDatabase.inMemory()
+        try Ingest.addExact(contactID: "a", name: "A", at: now, placeID: nil, to: db)
+        try Ingest.recordHeartbeat(.launch, at: now.addingTimeInterval(-8 * 86400), batteryLevel: nil, to: db)
+        try Ingest.recordHeartbeat(.launch, at: now, batteryLevel: nil, to: db)
+        #expect(try db.reader.read { try Heartbeat.fetchCount($0) } == 1)
+        #expect(try db.reader.read { try Meet.fetchCount($0) } == 1)
     }
 }

@@ -26,6 +26,7 @@ struct AddSheet: View {
     @State private var origin: CLLocationCoordinate2D?
     @State private var note: PlaceChooser.Note? = .locating
     @State private var problem: String?
+    @State private var creation = ContactCreation()
     @FocusState private var focus: Field?
 
     private enum Field { case name, phone }
@@ -201,39 +202,12 @@ struct AddSheet: View {
     // MARK: - Save
 
     private func save() {
-        let contact = CNMutableContact()
-        let parts = trimmedName.split(separator: " ", maxSplits: 1)
-        contact.givenName = parts.first.map(String.init) ?? ""
-        contact.familyName = parts.count > 1 ? String(parts[1]) : ""
-        let typed = phone.trimmingCharacters(in: .whitespaces)
-        if !typed.isEmpty {
-            // Stored as +14345551234 when it parses, so Contacts and Phone treat it as a real number.
-            let utility = PhoneNumberUtility()
-            let stored = (try? utility.parse(typed)).map { utility.format($0, toType: .e164) } ?? typed
-            contact.phoneNumbers = [CNLabeledValue(
-                label: CNLabelPhoneNumberMobile,
-                value: CNPhoneNumber(stringValue: stored)
-            )]
-        }
-
-        let request = CNSaveRequest()
-        request.add(contact, toContainerWithIdentifier: nil)
         do {
-            try CNContactStore().execute(request)
-            var placeID: Int64?
-            if let chosen = placeSelection.chosen {
-                placeID = try app.database.writer.write { db in
-                    try Place.findOrCreate(
-                        db, key: chosen.key, latitude: chosen.latitude, longitude: chosen.longitude, name: chosen.name
-                    ).id
-                }
+            let place = placeSelection.chosen.map {
+                Place(key: $0.key, latitude: $0.latitude, longitude: $0.longitude, name: $0.name)
             }
-            try Ingest.addExact(
-                contactID: contact.identifier,
-                name: trimmedName,
-                at: .now,
-                placeID: placeID,
-                to: app.database
+            try creation.save(
+                name: trimmedName, phone: phone, place: place, to: app.database
             )
             app.capture.scheduleTick(.user, after: 0)
             HapticManager.success()

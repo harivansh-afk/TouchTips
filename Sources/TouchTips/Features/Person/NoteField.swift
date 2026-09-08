@@ -8,6 +8,7 @@ struct NoteField: View {
     var autofocus = false
 
     @Environment(AppModel.self) private var app
+    @Environment(\.scenePhase) private var scenePhase
     @State private var text: String
     @FocusState private var focused: Bool
     @State private var pending: Task<Void, Never>?
@@ -43,6 +44,11 @@ struct NoteField: View {
             focused = true
         }
         .onDisappear { save(now: true) }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                save(now: true)
+            }
+        }
         // A vertical field turns Return into a newline. Here Return means done: keep the note on one
         // breath, put the keyboard away, save.
         .onChange(of: text) { _, new in

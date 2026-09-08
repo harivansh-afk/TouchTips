@@ -1,5 +1,9 @@
 # Notification reliability
 
+The [September 8 architecture review](architecture-review-2026-09-08.md) records the current fixes,
+56 core tests, 62 hosted tests, five notification UI tests, and diagnostic evidence from a connected
+iPhone. The older validation narrative below describes the September 5 work.
+
 The capture path is local: Contacts history → SQLite contact/meeting/outbox transaction →
 UNUserNotificationCenter → delegate → People navigation. No server participates.
 

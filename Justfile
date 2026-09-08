@@ -16,7 +16,7 @@ build: gen
 
 # Stream the app's own log lines from the plugged-in iPhone. No debugger, so background behaviour is real.
 log:
-    idevicesyslog -p TouchTips | grep --line-buffered 'TouchTips(TouchTips'
+    idevicesyslog -p TouchTips
 
 # Run the core package tests (no simulator needed)
 test:

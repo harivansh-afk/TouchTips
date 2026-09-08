@@ -15,14 +15,14 @@ actor ContactsDiff {
         ]
 
         var error: NSError?
-        guard let result = TTChangeHistoryEnumerator(store, request, &error)
+        guard let result = TTReadContactHistory(store, request, &error)
         else { throw error ?? CNError(.communicationError) }
 
-        var changes = ContactChangeSet(token: result.currentHistoryToken)
-        for case let event as CNChangeHistoryEvent in result.value {
+        var changes = ContactChangeSet(token: result.token)
+        for event in result.events {
             switch event {
             case is CNChangeHistoryDropEverythingEvent:
-                changes = ContactChangeSet(token: result.currentHistoryToken, isSnapshot: true)
+                changes = ContactChangeSet(token: result.token, isSnapshot: true)
             case let add as CNChangeHistoryAddContactEvent:
                 changes.deletedIDs.removeAll { $0 == add.contact.identifier }
                 changes.added.removeAll { $0.contactID == add.contact.identifier }

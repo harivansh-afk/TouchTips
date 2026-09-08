@@ -45,7 +45,7 @@ final class CaptureResetTests: XCTestCase {
         await capture.tick(.foreground)
         XCTAssertEqual(tokens.count, 1)
         pendingDelta?.resume(returning: ContactChangeSet(added: [new], token: Data([2])))
-        await tick.value
+        _ = await tick.value
         try await reset.value
 
         XCTAssertEqual(tokens.count, 2)

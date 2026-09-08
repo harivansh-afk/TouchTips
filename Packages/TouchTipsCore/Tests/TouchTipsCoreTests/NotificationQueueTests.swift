@@ -3,6 +3,44 @@ import Testing
 @testable import TouchTipsCore
 
 struct NotificationQueueTests {
+    @Test func exactAddRecoveredAfterInitialSnapshotStillQueues() throws {
+        let db = try AppDatabase.inMemory()
+        try Ingest.apply(
+            ContactChangeSet(added: [.init(contactID: "a", name: "A")], token: Data([1]), isSnapshot: true),
+            now: .now, to: db
+        )
+        try Ingest.addExact(contactID: "a", name: "A", at: .now, placeID: nil, to: db)
+        #expect(try db.reader.read { try PendingNotice.fetchCount($0) } == 1)
+    }
+
+    @Test func exactSaveRetryPreservesExistingNoteAndDoesNotRequeueDeliveredNotice() throws {
+        let db = try AppDatabase.inMemory()
+        try Ingest.addExact(contactID: "a", name: "A", at: .now, placeID: nil, to: db)
+        try Ingest.setNote(contactID: "a", note: "Keep this", to: db)
+        _ = try db.writer.write { try PendingNotice.deleteOne($0, key: "a") }
+        try Ingest.addExact(contactID: "a", name: "Updated", at: .now, placeID: nil, to: db)
+        #expect(try db.reader.read { try Person.fetchOne($0, key: "a")?.note } == "Keep this")
+        #expect(try db.reader.read { try PendingNotice.fetchCount($0) } == 0)
+    }
+
+    @Test func selectedPlaceRollsBackWithFailedExactSave() throws {
+        let db = try AppDatabase.inMemory()
+        try db.writer.write {
+            try $0
+                .execute(
+                    sql: "CREATE TRIGGER fail_notice BEFORE INSERT ON pendingNotice BEGIN SELECT RAISE(ABORT, 'test'); END"
+                )
+        }
+        #expect(throws: (any Error).self) {
+            try Ingest.addExact(
+                contactID: "a", name: "A", at: .now,
+                place: Place(key: "test", latitude: 1, longitude: 2, name: "Test"), to: db
+            )
+        }
+        #expect(try db.reader.read { try Place.fetchCount($0) } == 0)
+        #expect(try db.reader.read { try Person.fetchCount($0) } == 0)
+    }
+
     @Test func snapshotPreservesAnExactAddCommittedAfterTheReadBegan() throws {
         let db = try AppDatabase.inMemory()
         let readStarted = Date(timeIntervalSince1970: 1000)

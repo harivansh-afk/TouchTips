@@ -14,7 +14,13 @@ final class NotificationTests: XCTestCase {
             authorization: { .authorized }, submittedIDs: { [] },
             submit: { _ in await withCheckedContinuation { submission = $0 } }
         ))
-        let capture = CaptureCoordinator(database: db, notifier: notifier)
+        // This test's person exists only in SQLite; real Contacts reconciliation would remove it.
+        let capture = CaptureCoordinator(database: db, notifier: notifier, contacts: CaptureContacts(
+            authorized: { false }, changes: { _ in
+                XCTFail("This test isolates delivery ownership")
+                return ContactChangeSet(token: Data())
+            }
+        ))
         let first = Task { await capture.tick(.user) }
         for _ in 0 ..< 50 {
             if submission != nil {
@@ -31,7 +37,7 @@ final class NotificationTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(50))
         XCTAssertFalse(secondReturned, "A background wake must not report completion while the scan is still running")
         submission?.resume()
-        await first.value
+        _ = await first.value
         await second.value
         XCTAssertTrue(secondReturned)
     }
@@ -49,7 +55,7 @@ final class NotificationTests: XCTestCase {
                     throw CocoaError(.fileWriteUnknown)
                 }
             }
-        ))
+        ), retryDelays: [])
         await notifier.deliverPending()
         XCTAssertEqual(attempts, 0)
         permission = .authorized
