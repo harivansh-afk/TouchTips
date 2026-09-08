@@ -25,7 +25,7 @@ struct PlaceChooser: View {
     @State private var results: [PlaceChoice] = []
     @State private var searching = false
     @State private var searchTask: Task<Void, Never>?
-    /// Places picked from search, so they stay on offer after "No place".
+    /// Places picked from search stay available as suggestions.
     @State private var picked: [PlaceChoice] = []
 
     /// One chip per place. A pick that the caller later hands back as a candidate, once it is on
@@ -146,28 +146,30 @@ struct PlaceChooser: View {
                 Spacer()
                 Button("Open Settings") {
                     HapticManager.light()
-                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        openURL(url)
+                    }
                 }
                 .buttonStyle(.glass)
             }
             .padding(.horizontal, 6)
         default:
-            GlassEffectContainer(spacing: 8) {
-                FlowLayout(spacing: 8) {
-                    ForEach(chips) { choice in
-                        chip(choice.name, selected: selection?.key == choice.key, id: choice.key) {
-                            selection = choice
+            ScrollView(.horizontal, showsIndicators: false) {
+                GlassEffectContainer(spacing: 8) {
+                    HStack(spacing: 8) {
+                        ForEach(chips) { choice in
+                            chip(choice.name, selected: selection?.key == choice.key, id: choice.key) {
+                                selection = choice
+                            }
                         }
                     }
-                    chip("No place", selected: selection == nil, id: "none", dashed: true) {
-                        selection = nil
-                    }
+                    .padding(.vertical, 4)
                 }
             }
         }
     }
 
-    private func chip(_ title: String, selected: Bool, id: String, dashed: Bool = false, action: @escaping () -> Void) -> some View {
+    private func chip(_ title: String, selected: Bool, id: String, action: @escaping () -> Void) -> some View {
         Button {
             HapticManager.selection()
             action()
@@ -178,11 +180,6 @@ struct PlaceChooser: View {
                 .foregroundStyle(selected ? .black : .white)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
-                .overlay {
-                    if dashed, !selected {
-                        Capsule().strokeBorder(Color.dashed, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                    }
-                }
         }
         .buttonStyle(.plain)
         .glassEffect(selected ? .regular.tint(.white).interactive() : .clear.interactive(), in: .capsule)
