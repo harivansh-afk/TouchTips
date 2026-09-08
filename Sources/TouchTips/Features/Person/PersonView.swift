@@ -24,22 +24,17 @@ struct PersonView: View {
                             .multilineTextAlignment(.center)
                     }
                     VStack(alignment: .leading, spacing: 12) {
-                        MeetCard(row: row)
-                            .smoothAppear()
-                        if row.meet?.isConfirmed == false {
-                            Button("Confirm meeting") {
-                                do {
-                                    try Ingest.confirmMeet(contactID: row.id, now: .now, to: app.database)
-                                    confirmationProblem = nil
-                                    HapticManager.selection()
-                                } catch {
-                                    confirmationProblem = error.localizedDescription
-                                    HapticManager.error()
-                                }
+                        MeetCard(row: row) {
+                            do {
+                                try Ingest.confirmMeet(contactID: row.id, now: .now, to: app.database)
+                                confirmationProblem = nil
+                                HapticManager.selection()
+                            } catch {
+                                confirmationProblem = error.localizedDescription
+                                HapticManager.error()
                             }
-                            .buttonStyle(.glass)
-                            .accessibilityIdentifier("meeting.confirm")
                         }
+                        .smoothAppear()
                         if let confirmationProblem {
                             Text(confirmationProblem)
                                 .font(.footnote)
@@ -122,11 +117,28 @@ struct PersonView: View {
 
 private struct MeetCard: View {
     let row: PersonRow
+    let confirm: () -> Void
     @Environment(Router.self) private var router
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            SectionLabel(text: row.meet?.isConfirmed == false ? "Suggested meeting" : "First met")
+            HStack {
+                SectionLabel(text: row.meet?.isConfirmed == false ? "Suggested meeting" : "First met")
+                Spacer(minLength: 8)
+                if row.meet?.isConfirmed == false {
+                    Button(action: confirm) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .frame(width: 30, height: 30)
+                            .glassEffect(.clear.interactive(), in: .circle)
+                            .frame(width: 44, height: 44)
+                            .contentShape(.circle)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Confirm meeting")
+                    .accessibilityIdentifier("meeting.confirm")
+                }
+            }
             if let meet = row.meet {
                 HStack(spacing: 8) {
                     ConfidenceDot(meet: meet)
