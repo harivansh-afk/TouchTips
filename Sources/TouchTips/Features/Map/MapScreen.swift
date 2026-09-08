@@ -47,6 +47,10 @@ struct MapScreen: View {
             Map(position: $camera) {
                 UserAnnotation()
             }
+            .simultaneousGesture(TapGesture().onEnded {
+                guard selection != nil else { return }
+                selection = nil
+            })
             .mapStyle(styleChoice.style)
             .mapControls {
                 MapCompass()
