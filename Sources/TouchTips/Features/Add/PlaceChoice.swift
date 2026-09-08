@@ -50,12 +50,22 @@ struct PlaceChoice: Identifiable, Hashable, Sendable {
         )
     }
 
-    /// Keep distinct named places, allowing a newly resolved name to replace an unnamed entry.
-    static func suggestions(picked: [Self], candidates: [Self]) -> [Self] {
-        var seen: Set<String> = []
-        return (picked + candidates).filter { choice in
-            Format.placeLabel(choice.name, latitude: choice.latitude, longitude: choice.longitude) != "Meeting location"
-                && seen.insert(choice.key).inserted
+    /// One suggestion per visible place name, with the selected record taking priority.
+    /// Visits and map searches can give the same location different storage keys.
+    static func suggestions(picked: [Self], candidates: [Self], selection: Self? = nil) -> [Self] {
+        var seenKeys: Set<String> = []
+        var seenNames: Set<String> = []
+        return ([selection].compactMap { $0 } + picked + candidates).compactMap { choice in
+            let label = Format.placeLabel(choice.name, latitude: choice.latitude, longitude: choice.longitude)
+            guard label != "Meeting location" else { return nil }
+            let normalizedName = label.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+                .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            guard !seenKeys.contains(choice.key), !seenNames.contains(normalizedName) else { return nil }
+            seenKeys.insert(choice.key)
+            seenNames.insert(normalizedName)
+            var suggestion = choice
+            suggestion.name = label
+            return suggestion
         }
     }
 

@@ -31,10 +31,20 @@ final class MeetingPresentationTests: XCTestCase {
     func testSuggestionsHideUnnamedEntriesAndDeduplicateByPlace() {
         let unnamed = PlaceChoice(key: "a", name: "Meeting location", latitude: 0, longitude: 0)
         let named = PlaceChoice(key: "a", name: "Coffee", latitude: 0, longitude: 0)
-        let otherBranch = PlaceChoice(key: "b", name: "Coffee", latitude: 1, longitude: 1)
-        let choices = PlaceChoice.suggestions(picked: [unnamed, unnamed], candidates: [named, named, otherBranch])
+        let otherPlace = PlaceChoice(key: "b", name: "Park", latitude: 1, longitude: 1)
+        let choices = PlaceChoice.suggestions(picked: [unnamed, unnamed], candidates: [named, named, otherPlace])
         XCTAssertEqual(choices.map(\.key), ["a", "b"])
-        XCTAssertEqual(choices.map(\.name), ["Coffee", "Coffee"])
+        XCTAssertEqual(choices.map(\.name), ["Coffee", "Park"])
         XCTAssertTrue(PlaceChoice.suggestions(picked: [unnamed], candidates: [unnamed]).isEmpty)
     }
+    func testRepeatedPlaceNamesUseTheSelectedRecordAcrossDifferentKeys() {
+        let visit = PlaceChoice(key: "visit", name: "Café  Central", latitude: 38, longitude: -78)
+        let search = PlaceChoice(key: "search", name: " cafe central ", latitude: 38.0001, longitude: -78)
+        let selected = PlaceChoice(key: "saved", name: "Café Central", latitude: 38, longitude: -78)
+        let choices = PlaceChoice.suggestions(picked: [search], candidates: [visit], selection: selected)
+        XCTAssertEqual(choices.map(\.key), ["saved"])
+        XCTAssertEqual(choices.map(\.name), ["Café Central"])
+        XCTAssertEqual(PlaceChoice.suggestions(picked: [search], candidates: [visit]).count, 1)
+    }
+
 }

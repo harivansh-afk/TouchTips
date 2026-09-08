@@ -30,10 +30,9 @@ struct PlaceChooser: View {
     /// Places picked from search stay available as suggestions.
     @State private var picked: [PlaceChoice] = []
 
-    /// One chip per place. A pick that the caller later hands back as a candidate, once it is on
-    /// record, is the same place under another detail line; the pick's line wins.
+    /// Keep the selected record visible when multiple sources suggest the same place name.
     private var chips: [PlaceChoice] {
-        PlaceChoice.suggestions(picked: picked, candidates: candidates)
+        PlaceChoice.suggestions(picked: picked, candidates: candidates, selection: selection)
     }
 
     @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
