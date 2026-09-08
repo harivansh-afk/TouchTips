@@ -33,7 +33,12 @@ struct PlaceChooser: View {
     /// One chip per place. A pick that the caller later hands back as a candidate, once it is on
     /// record, is the same place under another detail line; the pick's line wins.
     private var chips: [PlaceChoice] {
-        picked + candidates.filter { candidate in !picked.contains { $0.key == candidate.key } }
+        let choices = picked + candidates.filter { candidate in !picked.contains { $0.key == candidate.key } }
+        // Unnamed visits all have the same fallback label, so they are not useful choices.
+        // The selected location still appears on the map even when it has no name.
+        return choices.filter {
+            Format.placeLabel($0.name, latitude: $0.latitude, longitude: $0.longitude) != "Meeting location"
+        }
     }
 
     @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
