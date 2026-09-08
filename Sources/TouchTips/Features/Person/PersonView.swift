@@ -5,6 +5,7 @@ struct PersonView: View {
     let contactID: String
 
     @Environment(AppModel.self) private var app
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var allowDismissalGesture: AllowedNavigationDismissalGestures = .none
     @State private var row: PersonRow?
     @State private var showCard = false
@@ -25,7 +26,6 @@ struct PersonView: View {
                     }
                     VStack(alignment: .leading, spacing: 12) {
                         MeetCard(row: row)
-                            .smoothAppear()
                         if row.meet?.isConfirmed == false {
                             Button("Confirm meeting") {
                                 do {
@@ -61,6 +61,10 @@ struct PersonView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
+                .smoothAppear()
+                .transaction { transaction in
+                    if reduceMotion { transaction.animation = nil }
+                }
             } else if loadFailed {
                 ContentUnavailableView(
                     "Couldn't load this contact",
