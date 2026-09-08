@@ -65,11 +65,15 @@ struct PlaceChooser: View {
             }
             aim(at: chosen?.coordinate ?? origin, animated: true)
         }
-        .onChange(of: origin?.latitude, initial: true) { _, _ in
+        .onChange(of: [origin?.latitude, origin?.longitude], initial: true) { _, _ in
             if selection == nil {
                 aim(at: origin, animated: false)
             }
         }
+    }
+
+    private var selectionLabel: String {
+        selection.map { Format.placeLabel($0.name, latitude: $0.latitude, longitude: $0.longitude) } ?? "Map preview"
     }
 
     // MARK: - Map
@@ -89,9 +93,10 @@ struct PlaceChooser: View {
                 onOpenMap?()
             })
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(selection?.name ?? "Map preview")
+            .accessibilityLabel(selectionLabel)
             .accessibilityAddTraits(onOpenMap == nil ? [] : .isButton)
             .accessibilityHint(onOpenMap == nil ? "" : "Shows this meeting location on the map")
+            .accessibilityAction { onOpenMap?() }
             .accessibilityIdentifier("meeting.map")
     }
 
@@ -263,6 +268,7 @@ struct PlaceChooser: View {
             searching = false
             return
         }
+        results = []
         searching = true
         let near = selection?.coordinate ?? origin
         searchTask = Task {
