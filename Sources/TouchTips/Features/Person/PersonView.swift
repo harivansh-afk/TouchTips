@@ -24,17 +24,22 @@ struct PersonView: View {
                             .multilineTextAlignment(.center)
                     }
                     VStack(alignment: .leading, spacing: 12) {
-                        MeetCard(row: row) {
-                            do {
-                                try Ingest.confirmMeet(contactID: row.id, now: .now, to: app.database)
-                                confirmationProblem = nil
-                                HapticManager.selection()
-                            } catch {
-                                confirmationProblem = error.localizedDescription
-                                HapticManager.error()
+                        MeetCard(row: row)
+                            .smoothAppear()
+                        if row.meet?.isConfirmed == false {
+                            Button("Confirm meeting") {
+                                do {
+                                    try Ingest.confirmMeet(contactID: row.id, now: .now, to: app.database)
+                                    confirmationProblem = nil
+                                    HapticManager.selection()
+                                } catch {
+                                    confirmationProblem = error.localizedDescription
+                                    HapticManager.error()
+                                }
                             }
+                            .buttonStyle(.glass)
+                            .accessibilityIdentifier("meeting.confirm")
                         }
-                        .smoothAppear()
                         if let confirmationProblem {
                             Text(confirmationProblem)
                                 .font(.footnote)
@@ -117,35 +122,24 @@ struct PersonView: View {
 
 private struct MeetCard: View {
     let row: PersonRow
-    let confirm: () -> Void
     @Environment(Router.self) private var router
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 SectionLabel(text: row.meet?.isConfirmed == false ? "Suggested meeting" : "First met")
-                Spacer(minLength: 8)
-                if row.meet?.isConfirmed == false {
-                    Button(action: confirm) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .frame(width: 30, height: 30)
-                            .glassEffect(.clear.interactive(), in: .circle)
-                            .frame(width: 44, height: 44)
-                            .contentShape(.circle)
+                Spacer(minLength: 0)
+                if let meet = row.meet {
+                    HStack(spacing: 6) {
+                        ConfidenceDot(meet: meet)
+                        Text(meet.isConfirmed ? "Confirmed" : "Not yet confirmed")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Confirm meeting")
-                    .accessibilityIdentifier("meeting.confirm")
                 }
             }
             if let meet = row.meet {
-                HStack(spacing: 8) {
-                    ConfidenceDot(meet: meet)
-                    Text(meet.isConfirmed ? "Confirmed" : "Not yet confirmed")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
                 let headline = Format.headline(for: meet)
                 Text(headline.lead).font(.display(32))
                 Text(headline.body).font(.system(size: 30, weight: .bold)).kerning(-0.9)
