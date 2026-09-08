@@ -101,7 +101,7 @@ struct MapScreen: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+            .presentationBackgroundInteraction(.enabled)
         }
         .task { await observe() }
         .task(id: photoLoads) {
