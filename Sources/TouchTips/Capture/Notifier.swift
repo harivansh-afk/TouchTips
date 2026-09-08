@@ -7,17 +7,28 @@ struct NotificationDelivery {
     var authorization: () async -> UNAuthorizationStatus
     var submittedIDs: () async -> Set<String>
     var submit: (UNNotificationRequest) async throws -> Void
+    var remove: ([String]) -> Void = { _ in }
 
     static var system: Self {
         let center = UNUserNotificationCenter.current()
         return Self(
-            authorization: { await center.notificationSettings().authorizationStatus },
+            authorization: {
+                let settings = await center.notificationSettings()
+                Log.notify.notice(
+                    "presentation settings: alerts=\(settings.alertSetting.rawValue, privacy: .public) sound=\(settings.soundSetting.rawValue, privacy: .public) lockScreen=\(settings.lockScreenSetting.rawValue, privacy: .public) center=\(settings.notificationCenterSetting.rawValue, privacy: .public) summary=\(settings.scheduledDeliverySetting.rawValue, privacy: .public)"
+                )
+                return settings.authorizationStatus
+            },
             submittedIDs: {
                 let delivered = await center.deliveredNotifications().map(\.request.identifier)
                 let pending = await center.pendingNotificationRequests().map(\.identifier)
                 return Set(delivered + pending)
             },
-            submit: { try await center.add($0) }
+            submit: { try await center.add($0) },
+            remove: {
+                center.removePendingNotificationRequests(withIdentifiers: $0)
+                center.removeDeliveredNotifications(withIdentifiers: $0)
+            }
         )
     }
 }
@@ -36,7 +47,8 @@ final class Notifier: NSObject {
     private let database: AppDatabase
     private let center = UNUserNotificationCenter.current()
     private let delivery: NotificationDelivery
-    private var delivering = false
+    private let retryDelays: [Duration]
+    private var deliveryTask: Task<Void, Never>?
     private var deliveryRequested = false
 
     private(set) var status: UNAuthorizationStatus = .notDetermined
@@ -47,9 +59,13 @@ final class Notifier: NSObject {
         status == .authorized || status == .provisional || status == .ephemeral
     }
 
-    init(database: AppDatabase, delivery: NotificationDelivery = .system) {
+    init(
+        database: AppDatabase, delivery: NotificationDelivery = .system,
+        retryDelays: [Duration] = [.seconds(2), .seconds(5)]
+    ) {
         self.database = database
         self.delivery = delivery
+        self.retryDelays = retryDelays
         super.init()
     }
 
@@ -76,6 +92,7 @@ final class Notifier: NSObject {
 
     func refresh() async {
         status = await delivery.authorization()
+        Log.notify.notice("notification authorization: \(self.status.rawValue, privacy: .public)")
     }
 
     func request() async {
@@ -87,49 +104,110 @@ final class Notifier: NSObject {
     /// Retry on every wake and after permission is enabled. Stable identifiers reconcile a submission
     /// that succeeded just before the process stopped, before its database acknowledgement.
     func deliverPending(timing: NoticeTiming? = nil) async {
-        guard !delivering else {
+        guard !Task.isCancelled else { return }
+        let work: Task<Void, Never>
+        if let deliveryTask {
             deliveryRequested = true
-            return
+            work = deliveryTask
+        } else {
+            work = Task { [weak self] in
+                guard let self else { return }
+                defer { deliveryTask = nil }
+                var retries = retryDelays.makeIterator()
+                repeat {
+                    deliveryRequested = false
+                    let failed = await submitQueued(timing: timing)
+                    guard !Task.isCancelled else { return }
+                    if deliveryRequested {
+                        continue
+                    }
+                    guard failed, let delay = retries.next() else { return }
+                    do {
+                        try await Task.sleep(for: delay)
+                    } catch { return }
+                    deliveryRequested = true
+                } while deliveryRequested
+            }
+            deliveryTask = work
         }
-        delivering = true
-        defer { delivering = false }
-        repeat {
-            deliveryRequested = false
-            await refresh()
-            guard granted else { return }
-            do {
-                let submitted = await delivery.submittedIDs()
-                let notices = try await database.reader.read { db in try PendingNotice.all().fetchAll(db) }
-                for notice in notices {
+        // Every caller holds its background window until the shared delivery actually finishes.
+        await withTaskCancellationHandler {
+            await work.value
+        } onCancel: {
+            work.cancel()
+        }
+        if work.isCancelled, !Task.isCancelled {
+            await deliverPending(timing: timing)
+        }
+    }
+
+    func cancelDelivery() async {
+        deliveryTask?.cancel()
+        await deliveryTask?.value
+    }
+
+    private func submitQueued(timing: NoticeTiming?) async -> Bool {
+        await refresh()
+        guard granted, !Task.isCancelled else { return false }
+        do {
+            var submitted = await delivery.submittedIDs()
+            let notices = try await database.reader.read { db in try PendingNotice.all().fetchAll(db) }
+            var failed = false
+            Log.notify.notice("notification queue: \(notices.count, privacy: .public)")
+            for notice in notices {
+                do {
                     try Task.checkCancellation()
-                    guard let row = try await database.reader
-                        .read({ db in try Person.row(contactID: notice.contactID).fetchOne(db) }) else { continue }
-                    if !submitted.contains(Self.identifier(for: notice.contactID)) {
+                    // An earlier submission can suspend while this person is forgotten or reset.
+                    guard let row = try await database.reader.read({ db -> PersonRow? in
+                        guard try PendingNotice.fetchOne(db, key: notice.contactID) == notice else { return nil }
+                        return try Person.row(contactID: notice.contactID).fetchOne(db)
+                    }) else { continue }
+                    try Task.checkCancellation()
+                    let identifier = Self.identifier(for: notice.contactID)
+                    if !submitted.contains(identifier) {
                         try await postMeet(
                             contactID: notice.contactID,
                             name: row.person.name,
                             meet: row.meet,
                             placeName: row.place?.name
                         )
+                        // Keep this receipt even if SQLite acknowledgement fails on this pass.
+                        submitted.insert(identifier)
                     }
-                    var stamps = timing ?? NoticeTiming(
+                    // A current scan's timing must not conceal how long an older notice waited.
+                    var stamps = timing.flatMap {
+                        notice.createdAt >= $0.ticked.addingTimeInterval(-0.001) ? $0 : nil
+                    } ?? NoticeTiming(
                         heard: notice.createdAt,
                         ticked: notice.createdAt,
                         posted: Date()
                     )
                     stamps.posted = Date()
                     let encoded = try stamps.encoded()
-                    try await database.writer.write { db in
+                    let acknowledged = try await database.writer.write { db in
+                        guard try PendingNotice.fetchOne(db, key: notice.contactID) == notice else { return false }
                         _ = try PendingNotice.deleteOne(db, key: notice.contactID)
                         try db.setValue(encoded, for: .lastNotice)
+                        return true
                     }
-                    Log.notify.notice("notification submitted")
+                    if acknowledged {
+                        Log.notify.notice("notification submitted; queue age \(stamps.total, privacy: .public) s")
+                    } else {
+                        delivery.remove([identifier])
+                    }
+                } catch is CancellationError {
+                    return false
+                } catch {
+                    // A failing record cannot starve unrelated people behind it.
+                    failed = true
+                    Log.notify.error("notification remains queued: \(error.localizedDescription)")
                 }
-            } catch {
-                Log.notify.error("notification remains queued: \(error.localizedDescription)")
-                return
             }
-        } while deliveryRequested
+            return failed
+        } catch {
+            Log.notify.error("notification queue unavailable: \(error.localizedDescription)")
+            return true
+        }
     }
 
     private static func identifier(for contactID: String) -> String {

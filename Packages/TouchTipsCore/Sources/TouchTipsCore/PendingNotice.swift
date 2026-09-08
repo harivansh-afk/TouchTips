@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 
 /// Saved in the same transaction as the contact and history token. Removed after notification submission.
-public struct PendingNotice: Codable, FetchableRecord, PersistableRecord, Sendable {
+public struct PendingNotice: Codable, Hashable, FetchableRecord, PersistableRecord, Sendable {
     public var contactID: String
     public var createdAt: Date
 

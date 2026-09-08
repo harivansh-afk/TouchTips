@@ -19,6 +19,36 @@ struct CaptureContacts {
     }
 }
 
+@MainActor
+struct CaptureLocation {
+    var authorized: () -> Bool
+    var fix: (Duration) async -> CLLocation?
+
+    static var system: Self {
+        let oneShot = OneShotLocation()
+        return Self(
+            authorized: {
+                let status = CLLocationManager().authorizationStatus
+                return status == .authorizedAlways || status == .authorizedWhenInUse
+            },
+            fix: { await oneShot.fix(timeout: $0) }
+        )
+    }
+}
+
+@MainActor
+struct CaptureRefresh {
+    var pending: () async -> [BGTaskRequest]
+    var submit: (BGTaskRequest) throws -> Void
+
+    static var system: Self {
+        Self(
+            pending: { await BGTaskScheduler.shared.pendingTaskRequests() },
+            submit: { try BGTaskScheduler.shared.submit($0) }
+        )
+    }
+}
+
 /// Every way the app wakes lands here, runs one tick, and posts one notification per new person.
 ///
 /// Contacts changes are observed while running. Location events and background refresh offer additional
@@ -40,22 +70,26 @@ final class CaptureCoordinator: NSObject {
     private let database: AppDatabase
     private let notifier: Notifier
     private let manager = CLLocationManager()
-    private let oneShot = OneShotLocation()
+    private let location: CaptureLocation
     private let contacts: CaptureContacts
+    private let refresh: CaptureRefresh
+    private let retryDelays: [Duration]
     private var tickTask: Task<Void, Never>?
+    private var scheduledSource: WakeSource?
+    private var tickDeadline: Date?
     private var heartbeatTask: Task<Void, Never>?
     private var fenceTask: Task<Void, Never>?
     private var monitor: CLMonitor?
     private var contactsObserver: (any NSObjectProtocol)?
     private var presenceActive = false
-    private var activeTick: Task<Void, Never>?
+    private var activeTick: Task<Bool, Never>?
+    private var enrichmentTask: Task<Void, Never>?
+    private var refreshScheduling: Task<Void, Never>?
     /// A wake that arrived mid-tick. Runs once the current one is done.
     private var queuedSource: WakeSource?
     private var lastLocation: CLLocation?
     /// When the first contact-change notification of the current burst arrived. The clock for the latency stats.
     private var pendingHeard: Date?
-    /// Start of the current unbroken stretch of running. Moves forward whenever a gap shows the process was suspended.
-    private var aliveSince = Date()
     private var lastHeartbeat = Date()
 
     private(set) var locationStatus: CLAuthorizationStatus
@@ -82,10 +116,17 @@ final class CaptureCoordinator: NSObject {
         LocationPermissionAction(status: locationStatus)
     }
 
-    init(database: AppDatabase, notifier: Notifier, contacts: CaptureContacts = .system) {
+    init(
+        database: AppDatabase, notifier: Notifier, contacts: CaptureContacts = .system,
+        location: CaptureLocation = .system, refresh: CaptureRefresh = .system,
+        retryDelays: [Duration] = [.seconds(2), .seconds(5)]
+    ) {
         self.database = database
         self.notifier = notifier
         self.contacts = contacts
+        self.location = location
+        self.refresh = refresh
+        self.retryDelays = retryDelays
         locationStatus = manager.authorizationStatus
         presencePolicy = PresencePolicy.stored
         super.init()
@@ -128,6 +169,8 @@ final class CaptureCoordinator: NSObject {
         contactsObserver = nil
         tickTask?.cancel()
         tickTask = nil
+        scheduledSource = nil
+        tickDeadline = nil
     }
 
     func requestLocation() {
@@ -138,41 +181,77 @@ final class CaptureCoordinator: NSObject {
     func scheduleTick(_ source: WakeSource, after delay: TimeInterval = 0.3) {
         guard !isResetting else { return }
         if activeTick != nil {
-            queuedSource = source
+            queue(source)
+            return
+        }
+        if scheduledSource != .contacts {
+            scheduledSource = source
+        }
+        let deadline = Date(timeIntervalSinceNow: delay)
+        // Coalesce toward the earliest requested scan. A busy sync cannot postpone discovery forever.
+        if tickTask != nil, let tickDeadline, tickDeadline <= deadline {
             return
         }
         tickTask?.cancel()
+        tickDeadline = deadline
         tickTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
-            guard !Task.isCancelled else { return }
-            self?.tickTask = nil
-            await self?.tick(source)
+            guard !Task.isCancelled, let self else { return }
+            let next = scheduledSource ?? source
+            tickTask = nil
+            scheduledSource = nil
+            tickDeadline = nil
+            await tick(next)
         }
     }
 
     /// Diff the contact store, witness any add with a fix, resolve, notify. Safe to call repeatedly.
-    func tick(_ source: WakeSource) async {
-        guard !isResetting else { return }
+    @discardableResult
+    func tick(_ source: WakeSource) async -> Bool {
+        guard !isResetting, !Task.isCancelled else { return false }
         if let activeTick {
-            queuedSource = source
-            await activeTick.value
-            return
+            queue(source)
+            return await withTaskCancellationHandler {
+                await activeTick.value
+            } onCancel: { activeTick.cancel() }
         }
         let work = Task { [weak self] in
-            guard let self else { return }
-            defer { activeTick = nil }
+            guard let self else { return false }
+            defer {
+                activeTick = nil
+                // A foreground/contact wake may arrive while expired work is unwinding.
+                if Task.isCancelled, let queuedSource, !isResetting {
+                    self.queuedSource = nil
+                    scheduleTick(queuedSource, after: 0)
+                }
+            }
+            var success = true
+            var retries = retryDelays.makeIterator()
             var next: WakeSource? = source
             while let source = next, !Task.isCancelled {
                 queuedSource = nil
-                await performTick(source)
+                let completed = await performTick(source)
+                success = completed
                 next = queuedSource
+                if next == nil, !completed, contacts.authorized(), !Task.isCancelled,
+                   let delay = retries.next() {
+                    do { try await Task.sleep(for: delay) } catch { break }
+                    next = queuedSource ?? source
+                }
             }
+            return success && !Task.isCancelled
         }
         activeTick = work
-        await withTaskCancellationHandler {
+        return await withTaskCancellationHandler {
             await work.value
         } onCancel: {
             work.cancel()
+        }
+    }
+
+    private func queue(_ source: WakeSource) {
+        if queuedSource != .contacts {
+            queuedSource = source
         }
     }
 
@@ -183,11 +262,16 @@ final class CaptureCoordinator: NSObject {
         resetGeneration += 1
         tickTask?.cancel()
         tickTask = nil
+        scheduledSource = nil
+        tickDeadline = nil
         queuedSource = nil
         if let activeTick {
             activeTick.cancel()
-            await activeTick.value
+            _ = await activeTick.value
         }
+        enrichmentTask?.cancel()
+        await enrichmentTask?.value
+        await notifier.cancelDelivery()
         if let monitor {
             await monitor.remove(Self.fenceID)
         }
@@ -201,35 +285,27 @@ final class CaptureCoordinator: NSObject {
         lastLocation = nil
         lastTick = nil
         pendingHeard = nil
-        aliveSince = Date()
-        lastHeartbeat = aliveSince
+        lastHeartbeat = Date()
         applyPresence()
         didIngest?()
         isResetting = false
         await tick(.user)
     }
 
-    private func performTick(_ source: WakeSource) async {
-        let background = UIApplication.shared.beginBackgroundTask(withName: "Capture contacts") { [weak self] in
-            Task { @MainActor in self?.activeTick?.cancel() }
-        }
-        defer {
-            if background != .invalid {
-                UIApplication.shared.endBackgroundTask(background)
-            }
-        }
+    private func performTick(_ source: WakeSource) async -> Bool {
+        let background = CaptureBackgroundTask { [weak self] in self?.activeTick?.cancel() }
+        defer { background.end() }
 
-        await notifier.deliverPending()
-        guard contacts.authorized() else { return }
+        guard contacts.authorized() else {
+            Log.capture.notice("capture skipped: full Contacts access unavailable")
+            await notifier.deliverPending()
+            return false
+        }
 
         let now = Date()
         let heard = pendingHeard ?? now
         pendingHeard = nil
-        var fixedAt: Date?
         let continuous = now.timeIntervalSince(lastHeartbeat) <= Self.gapTolerance
-        if !continuous {
-            aliveSince = now
-        }
         lastHeartbeat = now
         record(source, at: now)
 
@@ -238,31 +314,8 @@ final class CaptureCoordinator: NSObject {
             let token = try await database.reader.read { db in try db.value(for: .contactsHistoryToken) }
             let changes = try await contacts.changes(token)
             try Task.checkCancellation()
-
-            // A current fix is useful only for a live contact change, never a delayed discovery on wake.
-            if source == .contacts, continuous, token != nil, !changes.isSnapshot, !changes.added.isEmpty,
-               locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse,
-               let location = await oneShot.fix(timeout: Self.fixTimeout),
-               location.horizontalAccuracy >= 0,
-               abs(location.timestamp.timeIntervalSince(now)) <= Resolver.fixWindow {
-                lastLocation = location
-                fixedAt = Date()
-                Log.capture
-                    .notice(
-                        "fix ±\(Int(location.horizontalAccuracy), privacy: .public) m after \(Self.ms(since: now), privacy: .public)"
-                    )
-                let fix = LiveFix(
-                    latitude: location.coordinate.latitude, longitude: location.coordinate.longitude,
-                    accuracyMeters: location.horizontalAccuracy, at: now
-                )
-                try Ingest.recordFix(fix, now: now, to: database)
-            }
-
-            // A change heard by a continuously running process cannot predate the moment it came alive.
-            try Task.checkCancellation()
-            let narrow = source == .contacts && continuous ? aliveSince : nil
             let summary = try await Task.detached(priority: .utility) {
-                try Ingest.apply(changes, now: now, aliveSince: narrow, to: database)
+                try Ingest.apply(changes, now: now, to: database)
             }.value
             let resolvedAt = Date()
             lastTick = now
@@ -272,21 +325,52 @@ final class CaptureCoordinator: NSObject {
             if summary != IngestSummary() {
                 didIngest?()
             }
-            if !summary.added.isEmpty {
-                await notifier.deliverPending(timing: NoticeTiming(
-                    heard: heard, ticked: now, fixed: fixedAt, resolved: resolvedAt, posted: resolvedAt
-                ))
+            if source == .contacts, continuous, token != nil, !changes.isSnapshot, !summary.added.isEmpty {
+                enrich(at: now)
             }
+            // Reconcile deletions before draining. Location and place naming cannot delay this commit or alert.
+            await notifier.deliverPending(timing: NoticeTiming(
+                heard: heard, ticked: now, resolved: resolvedAt, posted: resolvedAt
+            ))
+            rearmFence(at: lastLocation)
+            return !Task.isCancelled
         } catch {
             Log.capture.error("tick failed: \(error.localizedDescription)")
+            // A Contacts read failure must not prevent already-durable notices from being retried.
+            await notifier.deliverPending()
+            return false
         }
-        rearmFence(at: lastLocation)
+    }
+
+    private func enrich(at now: Date) {
+        guard enrichmentTask == nil, location.authorized() else { return }
+        let generation = resetGeneration
+        enrichmentTask = Task { [weak self] in
+            guard let self else { return }
+            defer { enrichmentTask = nil }
+            guard let fix = await location.fix(Self.fixTimeout), !Task.isCancelled,
+                  !isResetting, generation == resetGeneration,
+                  fix.horizontalAccuracy >= 0,
+                  abs(fix.timestamp.timeIntervalSince(now)) <= Resolver.fixWindow else { return }
+            do {
+                try Ingest.recordFix(LiveFix(
+                    latitude: fix.coordinate.latitude, longitude: fix.coordinate.longitude,
+                    accuracyMeters: fix.horizontalAccuracy, at: now
+                ), now: .now, to: database)
+                lastLocation = fix
+                didIngest?()
+                rearmFence(at: fix)
+                Log.capture.notice("location enrichment completed after \(Self.ms(since: now), privacy: .public)")
+            } catch {
+                Log.capture.error("location enrichment failed: \(error.localizedDescription)")
+            }
+        }
     }
 
     /// Mark where the phone is right now. The next add inside the window is witnessed by it.
     func witness() async -> Bool {
         let generation = resetGeneration
-        guard !isResetting, let location = await oneShot.fix(timeout: Self.fixTimeout),
+        guard !isResetting, let location = await location.fix(Self.fixTimeout),
               !isResetting, generation == resetGeneration else { return false }
         lastLocation = location
         let now = Date()
@@ -370,9 +454,6 @@ final class CaptureCoordinator: NSObject {
 
     private func beat() {
         let now = Date()
-        if now.timeIntervalSince(lastHeartbeat) > Self.gapTolerance {
-            aliveSince = now
-        }
         lastHeartbeat = now
         record(.presence, at: now)
         scheduleTick(.presence, after: 0)
@@ -432,19 +513,37 @@ final class CaptureCoordinator: NSObject {
         let work = Task { [weak self] in await self?.tick(.refresh) }
         task.expirationHandler = { work.cancel() }
         Task {
-            await work.value
-            task.setTaskCompleted(success: !work.isCancelled)
+            let success = await work.value ?? false
+            task.setTaskCompleted(success: success && !work.isCancelled)
         }
     }
 
-    private func scheduleRefresh() {
-        let request = BGAppRefreshTaskRequest(identifier: Self.refreshTaskID)
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 4 * 3600)
-        do {
-            try BGTaskScheduler.shared.submit(request)
-        } catch {
-            Log.capture.notice("refresh not scheduled: \(error.localizedDescription)")
+    @discardableResult
+    func scheduleRefresh() -> Task<Void, Never> {
+        if let refreshScheduling {
+            return refreshScheduling
         }
+        let work = Task { [weak self] in
+            guard let self else { return }
+            defer { refreshScheduling = nil }
+            let pending = await refresh.pending()
+            // Submission replaces an existing request. Never postpone an earlier eligible refresh.
+            let earliest = Date(timeIntervalSinceNow: 15 * 60)
+            if pending.contains(where: {
+                $0.identifier == Self.refreshTaskID && ($0.earliestBeginDate ?? .distantPast) <= earliest
+            }) {
+                return
+            }
+            let request = BGAppRefreshTaskRequest(identifier: Self.refreshTaskID)
+            request.earliestBeginDate = earliest
+            do {
+                try refresh.submit(request)
+            } catch {
+                Log.capture.notice("refresh not scheduled: \(error.localizedDescription)")
+            }
+        }
+        refreshScheduling = work
+        return work
     }
 
     // MARK: - Location events

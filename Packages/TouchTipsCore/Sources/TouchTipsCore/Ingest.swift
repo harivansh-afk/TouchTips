@@ -84,19 +84,15 @@ public enum Ingest {
     /// Apply a contacts diff. The first run (no stored token) snapshots everyone as before-install;
     /// later runs treat unknown adds as new people who appeared since the last tick.
     ///
-    /// `aliveSince` is when the process was last known to be continuously running. Pass it only when the
-    /// diff was prompted by a live change notification: a running process hears an add at once, so the add
-    /// cannot predate the moment the process came alive.
+    /// Only a successful Contacts read establishes the lower bound. A change callback can have been
+    /// queued during suspension, so process launch/resume time is not evidence of contact absence.
     @discardableResult
     public static func apply(
-        _ change: ContactChangeSet, now: Date, aliveSince: Date? = nil, to database: AppDatabase
+        _ change: ContactChangeSet, now: Date, to database: AppDatabase
     ) throws -> IngestSummary {
         try database.writer.write { db in
             let firstRun = try db.value(for: .contactsHistoryToken) == nil
-            var seenStart = try db.date(for: .lastTick) ?? now
-            if let aliveSince {
-                seenStart = min(max(seenStart, aliveSince), now)
-            }
+            let seenStart = try min(db.date(for: .lastTick) ?? now, now)
             var summary = IngestSummary()
 
             if change.isSnapshot {
@@ -220,6 +216,8 @@ public enum Ingest {
         to database: AppDatabase
     ) throws -> Heartbeat {
         try database.writer.write { db in
+            // Diagnostic history is bounded; meetings and visits are never aged out here.
+            _ = try Heartbeat.filter(Heartbeat.Columns.at < at.addingTimeInterval(-7 * 86400)).deleteAll(db)
             var beat = Heartbeat(source: source, at: at, batteryLevel: batteryLevel)
             try beat.insert(db)
             return beat
@@ -339,15 +337,37 @@ public enum Ingest {
         to database: AppDatabase
     ) throws {
         try database.writer.write { db in
-            let isNew = try Person.fetchOne(db, key: contactID) == nil
-            try Person(contactID: contactID, name: name, beforeInstall: false, createdAt: now).save(db)
-            try Meet(
-                contactID: contactID, start: now, end: now, precision: .exact, placeID: placeID, tier: .exact,
-                userSet: true, addSeenStart: now, addSeenEnd: now, computedAt: now
-            ).save(db)
-            if isNew {
-                try PendingNotice(contactID: contactID, createdAt: now).insert(db)
+            try addExact(contactID: contactID, name: name, at: now, placeID: placeID, in: db)
+        }
+    }
+
+    /// The selected place, exact meeting, and outbox are one local transaction.
+    public static func addExact(
+        contactID: String, name: String, at now: Date, place: Place?, to database: AppDatabase
+    ) throws {
+        try database.writer.write { db in
+            let placeID = try place.map {
+                try Place.findOrCreate(db, key: $0.key, latitude: $0.latitude, longitude: $0.longitude, name: $0.name)
+                    .id!
             }
+            try addExact(contactID: contactID, name: name, at: now, placeID: placeID, in: db)
+        }
+    }
+
+    private static func addExact(
+        contactID: String, name: String, at now: Date, placeID: Int64?, in db: Database
+    ) throws {
+        let existing = try Person.fetchOne(db, key: contactID)
+        var person = existing ?? Person(contactID: contactID, name: name, beforeInstall: false, createdAt: now)
+        person.name = name
+        person.beforeInstall = false
+        try person.save(db)
+        try Meet(
+            contactID: contactID, start: now, end: now, precision: .exact, placeID: placeID, tier: .exact,
+            userSet: true, addSeenStart: now, addSeenEnd: now, computedAt: now
+        ).save(db)
+        if existing == nil || existing?.beforeInstall == true {
+            try PendingNotice(contactID: contactID, createdAt: now).insert(db)
         }
     }
 

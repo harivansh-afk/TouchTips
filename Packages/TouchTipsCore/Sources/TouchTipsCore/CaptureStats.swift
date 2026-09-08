@@ -35,7 +35,7 @@ public struct CaptureStats: Hashable, Sendable {
 
         var buckets = Set<Int>()
         for beat in recent {
-            buckets.insert(Int(beat.at.timeIntervalSince(start) / bucket))
+            buckets.insert(min(Int(beat.at.timeIntervalSince(start) / bucket), Int(span / bucket) - 1))
         }
         let uptime = Double(buckets.count) / (span / bucket)
 
@@ -45,7 +45,9 @@ public struct CaptureStats: Hashable, Sendable {
         }
         var wakes = counts.map { Wake(source: $0.key, count: $0.value) }
         wakes.sort { a, b in
-            if a.count != b.count { return a.count > b.count }
+            if a.count != b.count {
+                return a.count > b.count
+            }
             return a.source.rawValue < b.source.rawValue
         }
 
@@ -53,7 +55,9 @@ public struct CaptureStats: Hashable, Sendable {
         var previous: Double?
         for beat in recent {
             guard let level = beat.batteryLevel else { continue }
-            if let previous, level < previous { lost += previous - level }
+            if let previous, level < previous {
+                lost += previous - level
+            }
             previous = level
         }
         var hours = 0.0
