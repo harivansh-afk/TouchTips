@@ -83,7 +83,7 @@ struct PlaceChooser: View {
             .frame(height: 210)
             .clipShape(.rect(cornerRadius: 22))
             // Keep the label clear of the map attribution.
-            .overlay(alignment: .topTrailing) {
+            .overlay(alignment: .topLeading) {
                 if selection != nil {
                     caption.padding(10)
                 }
