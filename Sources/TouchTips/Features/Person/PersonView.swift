@@ -141,7 +141,7 @@ private struct MeetCard: View {
                         .kerning(-0.9)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                // Where, on its own line, marked with a pin.
+                // Where, on its own line.
                 if let name = Format.placeName(row), let placeID = row.place?.id {
                     Button {
                         HapticManager.selection()
@@ -163,10 +163,7 @@ private struct MeetCard: View {
     }
 
     private func placeLine(_ name: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Icon(.mapPin, size: 16)
-            Text(name)
-        }
+        Text("@ \(name)")
         .font(.callout.weight(.medium))
         .foregroundStyle(.primary)
     }
