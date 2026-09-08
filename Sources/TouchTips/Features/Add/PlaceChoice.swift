@@ -50,6 +50,15 @@ struct PlaceChoice: Identifiable, Hashable, Sendable {
         )
     }
 
+    /// Keep distinct named places, allowing a newly resolved name to replace an unnamed entry.
+    static func suggestions(picked: [Self], candidates: [Self]) -> [Self] {
+        var seen: Set<String> = []
+        return (picked + candidates).filter { choice in
+            Format.placeLabel(choice.name, latitude: choice.latitude, longitude: choice.longitude) != "Meeting location"
+                && seen.insert(choice.key).inserted
+        }
+    }
+
     /// A map item from a nearby search, a text search, or a tap on the map.
     nonisolated init?(mapItem item: MKMapItem, from origin: CLLocation?) {
         guard let name = item.name ?? item.address?.shortAddress else { return nil }

@@ -33,12 +33,7 @@ struct PlaceChooser: View {
     /// One chip per place. A pick that the caller later hands back as a candidate, once it is on
     /// record, is the same place under another detail line; the pick's line wins.
     private var chips: [PlaceChoice] {
-        let choices = picked + candidates.filter { candidate in !picked.contains { $0.key == candidate.key } }
-        // Unnamed visits all have the same fallback label, so they are not useful choices.
-        // The selected location still appears on the map even when it has no name.
-        return choices.filter {
-            Format.placeLabel($0.name, latitude: $0.latitude, longitude: $0.longitude) != "Meeting location"
-        }
+        PlaceChoice.suggestions(picked: picked, candidates: candidates)
     }
 
     @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
@@ -64,7 +59,8 @@ struct PlaceChooser: View {
         .animation(.appleMusic, value: trimmedQuery.isEmpty)
         .onChange(of: query) { _, _ in search() }
         .onChange(of: selection, initial: true) { _, chosen in
-            if let chosen, !chips.contains(where: { $0.key == chosen.key }) {
+            if let chosen, !candidates.contains(where: { $0.key == chosen.key }) {
+                picked.removeAll { $0.key == chosen.key }
                 picked.insert(chosen, at: 0)
             }
             aim(at: chosen?.coordinate ?? origin, animated: true)
@@ -125,7 +121,9 @@ struct PlaceChooser: View {
 
     private var caption: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(selection?.name ?? "Meeting location")
+            Text(selection
+                .map { Format.placeLabel($0.name, latitude: $0.latitude, longitude: $0.longitude) } ??
+                "Meeting location")
                 .font(.subheadline.weight(.medium))
                 .lineLimit(1)
             if let detail = selection?.detail {
