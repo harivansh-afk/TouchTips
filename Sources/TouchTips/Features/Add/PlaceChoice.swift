@@ -12,13 +12,22 @@ struct PlaceChoice: Identifiable, Hashable, Sendable {
     var detail: String?
     var distance: Double?
 
-    var id: String { key }
+    var id: String {
+        key
+    }
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 
-    init(key: String, name: String, latitude: Double, longitude: Double, detail: String? = nil, distance: Double? = nil) {
+    init(
+        key: String,
+        name: String,
+        latitude: Double,
+        longitude: Double,
+        detail: String? = nil,
+        distance: Double? = nil
+    ) {
         self.key = key
         self.name = name
         self.latitude = latitude
@@ -32,9 +41,13 @@ struct PlaceChoice: Identifiable, Hashable, Sendable {
         self.init(key: place.key, name: name, latitude: place.latitude, longitude: place.longitude, detail: detail)
     }
 
-    /// A place on record, under the name it has; coordinates when it has none yet.
+    /// A place on record, under the name it has; a friendly label when it has none yet.
     init(place: Place, detail: String?) {
-        self.init(place: place, name: place.name ?? Format.coordinates(place.latitude, place.longitude), detail: detail)
+        self.init(
+            place: place,
+            name: Format.placeLabel(place.name, latitude: place.latitude, longitude: place.longitude),
+            detail: detail
+        )
     }
 
     /// A map item from a nearby search, a text search, or a tap on the map.
@@ -44,7 +57,9 @@ struct PlaceChoice: Identifiable, Hashable, Sendable {
         let distance = origin?.distance(from: location)
         // The whole address, on one line, so two branches of one chain can be told apart.
         var address = item.address?.fullAddress.replacingOccurrences(of: "\n", with: ", ")
-        if address == nil || address == name { address = item.addressRepresentations?.cityWithContext }
+        if address == nil || address == name {
+            address = item.addressRepresentations?.cityWithContext
+        }
         self.init(
             key: item.identifier.map { PlaceKey.apple($0.rawValue) }
                 ?? PlaceKey.cell(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude),

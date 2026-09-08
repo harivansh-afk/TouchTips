@@ -60,9 +60,15 @@ enum Format {
         }
     }
 
+    static func placeLabel(_ name: String?, latitude: Double, longitude: Double) -> String {
+        guard let name, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              name != coordinates(latitude, longitude) else { return "Meeting location" }
+        return name
+    }
+
     static func placeName(_ row: PersonRow) -> String? {
         guard let place = row.place else { return nil }
-        return place.name ?? coordinates(place.latitude, place.longitude)
+        return placeLabel(place.name, latitude: place.latitude, longitude: place.longitude)
     }
 
     /// Second line of a people row: place, date only, or no meeting details.
