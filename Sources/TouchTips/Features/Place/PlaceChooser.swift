@@ -13,6 +13,8 @@ struct PlaceChooser: View {
     var origin: CLLocationCoordinate2D?
     /// What is going on under the map while there are no candidates yet.
     var note: Note?
+    /// Opens the saved meeting location from the contact page.
+    var onOpenMap: (() -> Void)?
 
     enum Note: Equatable {
         case locating
@@ -33,13 +35,16 @@ struct PlaceChooser: View {
     private var chips: [PlaceChoice] {
         picked + candidates.filter { candidate in !picked.contains { $0.key == candidate.key } }
     }
+
     @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
     /// Bumped as the camera moves, so the dot is placed again from the map's current frame.
     @State private var cameraTick = 0
     @FocusState private var focused: Bool
     @Namespace private var chipGlass
 
-    private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
+    private var trimmedQuery: String {
+        query.trimmingCharacters(in: .whitespaces)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -60,7 +65,9 @@ struct PlaceChooser: View {
             aim(at: chosen?.coordinate ?? origin, animated: true)
         }
         .onChange(of: origin?.latitude, initial: true) { _, _ in
-            if selection == nil { aim(at: origin, animated: false) }
+            if selection == nil {
+                aim(at: origin, animated: false)
+            }
         }
     }
 
@@ -70,10 +77,21 @@ struct PlaceChooser: View {
         mapView
             .frame(height: 210)
             .clipShape(.rect(cornerRadius: 22))
-            // Top left, clear of the map's own mark in the bottom corner.
-            .overlay(alignment: .topLeading) {
-                caption.padding(10)
+            // Keep the label clear of the map attribution.
+            .overlay(alignment: .topTrailing) {
+                if selection != nil {
+                    caption.padding(10)
+                }
             }
+            .contentShape(.rect)
+            .simultaneousGesture(TapGesture().onEnded {
+                onOpenMap?()
+            })
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(selection?.name ?? "Map preview")
+            .accessibilityAddTraits(onOpenMap == nil ? [] : .isButton)
+            .accessibilityHint(onOpenMap == nil ? "" : "Shows this meeting location on the map")
+            .accessibilityIdentifier("meeting.map")
     }
 
     /// The dot sits over the map, not in it, so Muted's filter greys the map and not the dot.
@@ -102,7 +120,7 @@ struct PlaceChooser: View {
 
     private var caption: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(selection?.name ?? "No place")
+            Text(selection?.name ?? "Meeting location")
                 .font(.subheadline.weight(.medium))
                 .lineLimit(1)
             if let detail = selection?.detail {
@@ -247,7 +265,7 @@ struct PlaceChooser: View {
         searchTask = Task {
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
-            let found = (try? await NearbyPlaces.search(text, near: near)) ?? []
+            let found = await (try? NearbyPlaces.search(text, near: near)) ?? []
             guard !Task.isCancelled else { return }
             results = found
             searching = false

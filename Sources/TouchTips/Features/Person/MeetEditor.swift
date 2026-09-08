@@ -9,6 +9,7 @@ struct MeetEditor: View {
     let row: PersonRow
 
     @Environment(AppModel.self) private var app
+    @Environment(Router.self) private var router
     @State private var date: Date
     @State private var place: PlaceChoice?
     @State private var suggestions: [PlaceChoice] = []
@@ -50,7 +51,12 @@ struct MeetEditor: View {
                         place = $0
                         save(dateChanged: false)
                     }
-                ), origin: origin)
+                ), origin: origin, onOpenMap: row.place?.id.map { placeID in
+                    {
+                        HapticManager.selection()
+                        router.showPlace(placeID)
+                    }
+                })
                 if row.meet == nil, place != nil {
                     Text("Choose a date to save this place.")
                         .font(.footnote)

@@ -117,7 +117,7 @@ final class RegularUseUITests: XCTestCase {
         let app = launch()
         person("QA Alice", in: app).tap()
         XCTAssertTrue(app.buttons["QA Coffee"].firstMatch.waitForExistence(timeout: 5))
-        app.buttons["QA Coffee"].firstMatch.tap()
+        app.buttons["meeting.map"].tap()
         XCTAssertTrue(app.maps.firstMatch.waitForExistence(timeout: 10))
         let pin = app.buttons["QA Alice"]
         XCTAssertTrue(pin.waitForExistence(timeout: 10), app.debugDescription)
