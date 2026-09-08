@@ -133,22 +133,9 @@ private struct MeetCard: View {
             if let meet = row.meet {
                 let headline = Format.headline(for: meet)
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .top, spacing: 12) {
-                        Text(headline.lead)
-                            .font(.display(32))
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 0)
-                        HStack(spacing: 6) {
-                            ConfidenceDot(meet: meet)
-                                .accessibilityHidden(true)
-                            Text(meet.isConfirmed ? "Confirmed" : "Not yet confirmed")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.trailing)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(.top, 6)
-                    }
+                    Text(headline.lead)
+                        .font(.display(32))
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(headline.body)
                         .font(.system(size: 30, weight: .bold))
                         .kerning(-0.9)
