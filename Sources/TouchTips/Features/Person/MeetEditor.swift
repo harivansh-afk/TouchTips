@@ -147,6 +147,7 @@ struct MeetEditor: View {
             let visited = try await app.database.reader.read { db in
                 try Place.visited(between: start, and: end).limit(8).fetchAll(db)
             }
+            guard !Task.isCancelled else { return }
             suggestions = visited.map { PlaceChoice(place: $0, detail: "You were here") }
         } catch {
             Log.ui.error("suggestions failed: \(error.localizedDescription)")
@@ -184,6 +185,8 @@ struct MeetEditor: View {
             }
             problem = nil
         } catch {
+            date = row.meet?.start ?? .now
+            place = row.place.map { PlaceChoice(place: $0, detail: "Current") }
             HapticManager.error()
             problem = error.localizedDescription
         }
