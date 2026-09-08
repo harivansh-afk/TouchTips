@@ -125,24 +125,31 @@ private struct MeetCard: View {
     @Environment(Router.self) private var router
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                SectionLabel(text: row.meet?.isConfirmed == false ? "Suggested meeting" : "First met")
-                Spacer(minLength: 0)
-                if let meet = row.meet {
-                    HStack(spacing: 6) {
-                        ConfidenceDot(meet: meet)
-                        Text(meet.isConfirmed ? "Confirmed" : "Not yet confirmed")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.trailing)
-                    }
-                }
-            }
+        VStack(alignment: .leading, spacing: 14) {
             if let meet = row.meet {
                 let headline = Format.headline(for: meet)
-                Text(headline.lead).font(.display(32))
-                Text(headline.body).font(.system(size: 30, weight: .bold)).kerning(-0.9)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Text(headline.lead)
+                            .font(.display(32))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                        HStack(spacing: 6) {
+                            ConfidenceDot(meet: meet)
+                                .accessibilityHidden(true)
+                            Text(meet.isConfirmed ? "Confirmed" : "Not yet confirmed")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.top, 6)
+                    }
+                    Text(headline.body)
+                        .font(.system(size: 30, weight: .bold))
+                        .kerning(-0.9)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 // Where, on its own line, marked with a pin.
                 if let name = Format.placeName(row), let placeID = row.place?.id {
                     Button {
@@ -152,7 +159,6 @@ private struct MeetCard: View {
                         placeLine(name)
                     }
                     .buttonStyle(.press)
-                    .padding(.top, 6)
                     .accessibilityHint("Shows this place on the map")
                 }
             } else {
@@ -160,7 +166,8 @@ private struct MeetCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(22)
+        .padding(.horizontal, 22)
+        .padding(.vertical, 18)
         .glassEffect(.clear, in: .rect(cornerRadius: 22))
     }
 
