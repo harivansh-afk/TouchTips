@@ -92,32 +92,31 @@ struct SettingsSheet: View {
 
                 if BuildEnvironment.isDev {
                     Section {
-                        // Stays here until a week of numbers picks the default. Awake, an add is heard the moment it is
-                        // saved.
-                        Picker("Stay awake", selection: $presence) {
+                        // These diagnostics describe sampled execution, not continuous background availability.
+                        Picker("Background location", selection: $presence) {
                             ForEach(PresencePolicy.allCases) { policy in
                                 Text(policy.title).tag(policy)
                             }
                         }
                         .onChange(of: presence) { _, policy in app.capture.presencePolicy = policy }
                         if let stats {
-                            LabeledContent("Awake", value: Format.percent(stats.uptime))
+                            LabeledContent("Scan coverage", value: Format.percent(stats.uptime))
                             LabeledContent("Wakes", value: wakesText(stats))
                             if let drain = stats.batteryPerHour {
                                 LabeledContent(
-                                    "Battery",
+                                    "Device battery",
                                     value: "\(drain.formatted(.number.precision(.fractionLength(1))))% per hour"
                                 )
                             }
                         }
                         if let lastNotice {
-                            LabeledContent("Last notice", value: CaptureCoordinator.describe(lastNotice))
+                            LabeledContent("Detection to submission", value: CaptureCoordinator.describe(lastNotice))
                         }
                     } header: {
                         Text("Dev")
                     } footer: {
                         Text(
-                            "Last 24 hours. Background scans depend on iOS and may be delayed. Debug and TestFlight builds only."
+                            "Last 24 hours. Coverage samples app execution; battery measures the whole device. Notification timing starts at detection, not contact save."
                         )
                     }
 
