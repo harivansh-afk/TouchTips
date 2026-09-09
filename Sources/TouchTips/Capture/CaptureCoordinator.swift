@@ -101,9 +101,27 @@ final class CaptureCoordinator: NSObject {
     /// Fires after anything landed in the database.
     var didIngest: (() -> Void)?
 
+    static let autoCaptureLocationKey = "autoCaptureLocation"
+    private let defaults: UserDefaults
+
+    var autoCaptureLocation: Bool {
+        didSet {
+            defaults.set(autoCaptureLocation, forKey: Self.autoCaptureLocationKey)
+            if !autoCaptureLocation {
+                enrichmentTask?.cancel()
+                currentVisit = nil
+                lastLocation = nil
+            }
+            if autoCaptureLocation, presencePolicy == .off {
+                presencePolicy = .always
+            }
+            applyLocationServices()
+        }
+    }
+
     var presencePolicy: PresencePolicy {
         didSet {
-            UserDefaults.standard.set(presencePolicy.rawValue, forKey: PresencePolicy.key)
+            defaults.set(presencePolicy.rawValue, forKey: PresencePolicy.key)
             applyPresence()
         }
     }
@@ -120,11 +138,17 @@ final class CaptureCoordinator: NSObject {
         database: AppDatabase, notifier: Notifier, contacts: CaptureContacts = .system,
         location: CaptureLocation = .system, refresh: CaptureRefresh = .system,
         retryDelays: [Duration] = [.seconds(2), .seconds(5)],
+        defaults: UserDefaults = .standard,
         beginBackground: @escaping (@escaping @MainActor () -> Void) -> CaptureBackgroundTask = {
             CaptureBackgroundTask(expiration: $0)
         }
     ) {
+        self.defaults = defaults
+        // Preserve existing capture unless the user previously chose Off in the dev picker.
+        autoCaptureLocation = defaults.object(forKey: Self.autoCaptureLocationKey) as? Bool
+            ?? (defaults.string(forKey: PresencePolicy.key) != PresencePolicy.off.rawValue)
         self.database = database
+
         self.notifier = notifier
         self.contacts = contacts
         self.location = location
@@ -132,7 +156,7 @@ final class CaptureCoordinator: NSObject {
         self.retryDelays = retryDelays
         self.beginBackground = beginBackground
         locationStatus = manager.authorizationStatus
-        presencePolicy = PresencePolicy.stored
+        presencePolicy = defaults.string(forKey: PresencePolicy.key).flatMap(PresencePolicy.init) ?? .always
         super.init()
     }
 
@@ -376,13 +400,13 @@ final class CaptureCoordinator: NSObject {
     }
 
     private func enrich(at now: Date) {
-        guard enrichmentTask == nil, location.authorized() else { return }
+        guard autoCaptureLocation, enrichmentTask == nil, location.authorized() else { return }
         let generation = resetGeneration
         enrichmentTask = Task { [weak self] in
             guard let self else { return }
             defer { enrichmentTask = nil }
             guard let fix = await location.fix(Self.fixTimeout), !Task.isCancelled,
-                  !isResetting, generation == resetGeneration,
+                  !isResetting, autoCaptureLocation, generation == resetGeneration,
                   fix.horizontalAccuracy >= 0,
                   abs(fix.timestamp.timeIntervalSince(now)) <= Resolver.fixWindow else { return }
             do {
@@ -445,11 +469,11 @@ final class CaptureCoordinator: NSObject {
     private func applyLocationServices(restartPresence: Bool = false) {
         guard hasStarted else { return }
         restoreFence()
-        if locationGranted, UIApplication.shared.applicationState == .active {
+        if autoCaptureLocation, locationGranted, UIApplication.shared.applicationState == .active {
             // A missing fence gets one bounded foreground fix; capture and notification delivery never wait.
             fence.seedIfNeeded { [location] in await location.fix(Self.fixTimeout) }
         }
-        if locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse {
+        if autoCaptureLocation, locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse {
             manager.startMonitoringVisits()
             manager.startMonitoringSignificantLocationChanges()
         } else {
@@ -469,7 +493,7 @@ final class CaptureCoordinator: NSObject {
         case .off: false
         }
         presence.update(
-            enabled: wanted, applicationState: UIApplication.shared.applicationState,
+            enabled: autoCaptureLocation && wanted, applicationState: UIApplication.shared.applicationState,
             restart: restart, significantChangeWake: significantChangeWake
         )
     }
@@ -517,12 +541,13 @@ final class CaptureCoordinator: NSObject {
         guard hasStarted else { return }
         fence.configure(
             authorized: locationStatus == .authorizedAlways,
-            protectedDataAvailable: UIApplication.shared.isProtectedDataAvailable
+            protectedDataAvailable: UIApplication.shared.isProtectedDataAvailable,
+            enabled: autoCaptureLocation
         )
     }
 
     private func rearmFence(at location: CLLocation?) {
-        guard hasStarted, !isResetting, let location else { return }
+        guard hasStarted, autoCaptureLocation, !isResetting, let location else { return }
         fence.update(location)
     }
 
@@ -569,7 +594,7 @@ final class CaptureCoordinator: NSObject {
     // MARK: - Location events
 
     func record(_ live: LiveVisit) {
-        guard !isResetting else { return }
+        guard autoCaptureLocation, !isResetting else { return }
         scheduleTick(.visit, after: 0)
         do {
             let visit = try Ingest.recordLiveVisit(live, now: .now, to: database)
@@ -583,7 +608,7 @@ final class CaptureCoordinator: NSObject {
 
     /// Presence updates and significant changes both provide an execution opportunity.
     private func moved(to location: CLLocation?) {
-        guard !isResetting else { return }
+        guard autoCaptureLocation, !isResetting else { return }
         // Even a cached or imprecise location is a chance to catch up on Contacts while iOS grants CPU.
         scheduleTick(.movement, after: 0)
         guard let location, location.horizontalAccuracy >= 0,

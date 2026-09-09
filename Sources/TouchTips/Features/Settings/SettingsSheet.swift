@@ -20,6 +20,33 @@ struct SettingsSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Toggle("Auto-capture location", isOn: Binding(
+                        get: { app.capture.autoCaptureLocation },
+                        set: {
+                            app.capture.autoCaptureLocation = $0
+                            HapticManager.selection()
+                            if $0 {
+                                app.capture.requestLocation()
+                            }
+                        }
+                    ))
+                    .tint(.blue)
+                    if app.capture.autoCaptureLocation, !app.capture.locationGranted {
+                        Button("Allow background location") {
+                            switch app.capture.locationPermissionAction {
+                            case .request: app.capture.requestLocation()
+                            case .openSettings: openSettings()
+                            case .allowed: break
+                            }
+                        }
+                    }
+                } footer: {
+                    Text(app.capture.autoCaptureLocation && !app.capture.locationGranted
+                        ? "Choose Always in Settings to automatically capture location in the background."
+                        : "Automatically remember where you meet people, even when TouchTips is in the background.")
+                }
+
                 Section("Access") {
                     LabeledContent("Contacts") {
                         if app.contactsAccess.granted {

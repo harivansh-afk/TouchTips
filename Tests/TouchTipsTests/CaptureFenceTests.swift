@@ -4,7 +4,47 @@ import XCTest
 
 @MainActor
 final class CaptureFenceTests: XCTestCase {
-    func testReleasingFenceCancelsObservationAndAuthorizationSession() async {
+    func testDisabledColdLaunchRemovesPersistedFenceAfterUnlockWithoutSession() async {
+        let probe = FenceProbe()
+        probe.storedCenter = fix(latitude: 1)
+        let fence = probe.fence()
+        fence.configure(authorized: true, protectedDataAvailable: false, enabled: false)
+        XCTAssertTrue(probe.calls.isEmpty)
+        fence.configure(authorized: true, protectedDataAvailable: true, enabled: false)
+        await eventually { probe.removals == 1 }
+        XCTAssertNil(probe.storedCenter)
+        XCTAssertEqual(probe.calls, ["open", "remove"])
+        fence.seedIfNeeded { XCTFail("Disabled capture must not request a fix"); return nil }
+        fence.update(fix(latitude: 2))
+        XCTAssertTrue(probe.replacements.isEmpty)
+    }
+
+    func testDisablingDuringFenceWriteRemovesLateWriteAndCanResume() async {
+        let probe = FenceProbe()
+        var write: CheckedContinuation<Void, Never>?
+        probe.beforeReplace = {
+            probe.beforeReplace = nil
+            await withCheckedContinuation { write = $0 }
+        }
+        let fence = probe.fence()
+        fence.configure(authorized: true, protectedDataAvailable: true)
+        fence.update(fix(latitude: 1))
+        await eventually { write != nil && probe.activeObservations == 1 }
+        fence.configure(authorized: true, protectedDataAvailable: true, enabled: false)
+        probe.emit?()
+        XCTAssertEqual(probe.wakes, 0)
+        write?.resume()
+        await eventually { probe.removals == 1 && probe.activeObservations == 0 }
+        XCTAssertNil(probe.storedCenter)
+        fence.configure(authorized: true, protectedDataAvailable: true)
+        fence.update(fix(latitude: 2))
+        await eventually { probe.replacements.count == 2 && probe.activeObservations == 1 }
+        XCTAssertEqual(probe.storedCenter?.coordinate.latitude, 2)
+        fence.configure(authorized: false, protectedDataAvailable: true)
+    }
+
+    func testReleasingFenceCancelsObservationAndAuthorizationSession()
+        async {
         let probe = FenceProbe()
         var fence: CaptureFence? = probe.fence()
         let isReleased = { [weak fence] in fence == nil }

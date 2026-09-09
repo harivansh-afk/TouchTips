@@ -18,8 +18,8 @@ enum BuildEnvironment {
         #endif
     }()
 
-    /// Debug and TestFlight builds get the tools; the App Store build never sees them.
+    /// Developer tools and onboarding replay are exclusive to Debug builds.
     static var isDev: Bool {
-        current != .appStore
+        current == .debug
     }
 }

@@ -60,6 +60,7 @@ final class CaptureFence {
     private var seed: Task<Void, Never>?
     private var seedGeneration = 0
     private var authorized = false
+    private var enabled = true
     private var protectedDataAvailable = false
     private var desiredLocation: CLLocation?
     private var needsRemoval = false
@@ -87,8 +88,16 @@ final class CaptureFence {
         endSession?()
     }
 
-    func configure(authorized: Bool, protectedDataAvailable: Bool) {
+    func configure(authorized: Bool, protectedDataAvailable: Bool, enabled: Bool = true) {
+        if !enabled, self.enabled {
+            desiredLocation = nil
+            needsRemoval = true
+            revision += 1
+        }
+        self.enabled = enabled
+        let authorized = authorized && enabled
         self.authorized = authorized
+
         self.protectedDataAvailable = protectedDataAvailable
         if authorized {
             // Synchronous: retake authorization during launch, before awaiting the monitor or its events.
@@ -102,6 +111,9 @@ final class CaptureFence {
         }
         guard authorized else {
             observation?.cancel()
+            if needsRemoval {
+                synchronize()
+            }
             return
         }
         // Protected data is a prerequisite for opening the monitor, not for consuming an
@@ -186,7 +198,7 @@ final class CaptureFence {
         }
         // CLMonitor persists its records in a protected file. Apple's initial-open requirement
         // does not require an existing monitor to stop observing whenever the device locks.
-        guard authorized, protectedDataAvailable else { return nil }
+        guard authorized || (!enabled && needsRemoval), protectedDataAvailable else { return nil }
         let connect = connect
         let task = Task { await connect() }
         opening = task
@@ -228,7 +240,8 @@ final class CaptureFence {
         if let mutation {
             return mutation
         }
-        guard protectedDataAvailable, authorized || monitor != nil || opening != nil else { return nil }
+        guard protectedDataAvailable,
+              authorized || (!enabled && needsRemoval) || monitor != nil || opening != nil else { return nil }
         mutation = Task { [weak self] in
             guard let self else { return }
             defer { mutation = nil }
