@@ -40,4 +40,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         session.retry()
         return true
     }
+
+    func applicationProtectedDataDidBecomeAvailable(_ application: UIApplication) {
+        // A background launch before first unlock can also fail to open the database.
+        session.retry()
+        session.app?.capture.restoreFence()
+    }
 }

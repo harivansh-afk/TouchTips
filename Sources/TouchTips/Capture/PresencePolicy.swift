@@ -1,6 +1,6 @@
 import Foundation
 
-/// When the process stays resident. Always by default; the Settings sheet can narrow it.
+/// When to request coarse location updates. iOS still controls background execution.
 enum PresencePolicy: String, CaseIterable, Identifiable {
     case always
     /// Only while CoreLocation says we are at a place.
@@ -9,7 +9,9 @@ enum PresencePolicy: String, CaseIterable, Identifiable {
 
     static let key = "presence"
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var title: String {
         switch self {

@@ -57,11 +57,6 @@ struct CaptureRefresh {
 @Observable
 final class CaptureCoordinator: NSObject {
     static let refreshTaskID = "sh.harivan.touchtips.refresh"
-    /// CLMonitor rejects anything but letters and digits in the name; it becomes a file under Library.
-    // Persisted CoreLocation identity: keep this across app renames to reuse the installed monitor.
-    private static let fenceName = "TouchedTipsFence"
-    private static let fenceID = "breadcrumb"
-    private static let fenceRadius: CLLocationDistance = 150
     private static let heartbeatInterval: TimeInterval = 5 * 60
     /// A heartbeat later than this means the process was suspended in between.
     private static let gapTolerance: TimeInterval = heartbeatInterval * 1.5
@@ -78,8 +73,8 @@ final class CaptureCoordinator: NSObject {
     private var scheduledSource: WakeSource?
     private var tickDeadline: Date?
     private var heartbeatTask: Task<Void, Never>?
-    private var fenceTask: Task<Void, Never>?
-    private var monitor: CLMonitor?
+    @ObservationIgnored private lazy var fence = CaptureFence { [weak self] in self?.scheduleTick(.fence, after: 0) }
+    private var hasStarted = false
     private var contactsObserver: (any NSObjectProtocol)?
     private var presenceActive = false
     private var activeTick: Task<Bool, Never>?
@@ -136,9 +131,10 @@ final class CaptureCoordinator: NSObject {
     /// what lets CoreLocation deliver the event that relaunched a terminated app. AppDelegate registers
     /// background refresh separately, so storage recovery can safely start capture later.
     func start() {
+        guard !hasStarted else { return }
+        hasStarted = true
         manager.delegate = self
         applyLocationServices()
-        startFence()
         startHeartbeat()
         scheduleRefresh()
         startObservingContacts()
@@ -272,9 +268,7 @@ final class CaptureCoordinator: NSObject {
         enrichmentTask?.cancel()
         await enrichmentTask?.value
         await notifier.cancelDelivery()
-        if let monitor {
-            await monitor.remove(Self.fenceID)
-        }
+        await fence.reset()
         do {
             try Ingest.deleteAll(database)
         } catch {
@@ -293,6 +287,7 @@ final class CaptureCoordinator: NSObject {
     }
 
     private func performTick(_ source: WakeSource) async -> Bool {
+        restoreFence()
         let background = CaptureBackgroundTask { [weak self] in self?.activeTick?.cancel() }
         defer { background.end() }
 
@@ -404,6 +399,8 @@ final class CaptureCoordinator: NSObject {
     // MARK: - Presence
 
     private func applyLocationServices() {
+        guard hasStarted else { return }
+        restoreFence()
         if locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse {
             manager.startMonitoringVisits()
             manager.startMonitoringSignificantLocationChanges()
@@ -417,6 +414,7 @@ final class CaptureCoordinator: NSObject {
     /// Background location offers more chances to scan. It does not guarantee continuous execution
     /// or control which radios the system uses.
     private func applyPresence() {
+        guard hasStarted else { return }
         let wanted: Bool = switch presencePolicy {
         case .always: locationStatus == .authorizedAlways
         case .atPlaces: locationStatus == .authorizedAlways && currentVisit != nil
@@ -476,34 +474,19 @@ final class CaptureCoordinator: NSObject {
 
     // MARK: - Fence
 
-    /// One small region around wherever the phone last was. Leaving it is a wake, and the place you just
-    /// left is the place for anything that appeared meanwhile.
-    private func startFence() {
-        fenceTask?.cancel()
-        fenceTask = Task { [weak self] in
-            let monitor = await CLMonitor(Self.fenceName)
-            guard let self else { return }
-            self.monitor = monitor
-            do {
-                for try await event in await monitor.events {
-                    guard event.identifier == Self.fenceID, event.state == .unsatisfied else { continue }
-                    self.scheduleTick(.fence, after: 0.5)
-                }
-            } catch {
-                Log.capture.error("fence: \(error.localizedDescription)")
-            }
-        }
+    /// Called on launch, foregrounding, protected-data availability and later system wakes.
+    /// Reuses the monitor and restores an event stream that ended after a permission/storage interruption.
+    func restoreFence() {
+        guard hasStarted else { return }
+        fence.configure(
+            authorized: locationStatus == .authorizedAlways,
+            protectedDataAvailable: UIApplication.shared.isProtectedDataAvailable
+        )
     }
 
     private func rearmFence(at location: CLLocation?) {
-        guard !isResetting, let location, let monitor, locationStatus == .authorizedAlways else { return }
-        let generation = resetGeneration
-        Task {
-            let condition = CLMonitor.CircularGeographicCondition(center: location.coordinate, radius: Self.fenceRadius)
-            await monitor.remove(Self.fenceID)
-            guard !isResetting, generation == resetGeneration else { return }
-            await monitor.add(condition, identifier: Self.fenceID, assuming: .satisfied)
-        }
+        guard hasStarted, !isResetting, let location else { return }
+        fence.update(location)
     }
 
     // MARK: - Refresh
@@ -563,7 +546,13 @@ final class CaptureCoordinator: NSObject {
 
     /// Presence updates and significant changes both land here. Either means the phone moved.
     private func moved(to location: CLLocation) {
+        guard location.horizontalAccuracy >= 0, CLLocationCoordinate2DIsValid(location.coordinate) else { return }
+        if let lastLocation, location.timestamp < lastLocation.timestamp {
+            return
+        }
         lastLocation = location
+        restoreFence()
+        rearmFence(at: location)
         // The launch tick covers the first update. After that, one movement tick per heartbeat interval is plenty.
         guard let lastTick, Date().timeIntervalSince(lastTick) >= Self.heartbeatInterval else { return }
         scheduleTick(.movement, after: 1)
