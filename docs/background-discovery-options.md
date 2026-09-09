@@ -2,6 +2,11 @@
 
 Research date: 2026-09-09. This document separates documented API behavior from proposed TouchTips experiments. No option below has been installed or validated on the phone as part of this research.
 
+Follow-up: the [background wake repair](background-wake-repair.md) identifies specific Apple guidance
+missed in this initial review: combining coarse standard updates with significant-change monitoring
+and a hidden location indicator can lead to suspension. That supported configuration repair and its
+phone results should be read before treating the general suspension discussion below as the full diagnosis.
+
 ## What suspension means
 
 iOS normally suspends an app after it leaves the foreground: its process may remain in memory but receives no execution time. Background capabilities provide execution for particular features; an entry in the app switcher does not confer execution. This reduces battery use and system load. [Apple DTS explanation](https://developer.apple.com/forums/thread/841001)

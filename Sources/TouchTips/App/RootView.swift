@@ -36,14 +36,16 @@ struct RootView: View {
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active {
                 app.contactsAccess.refresh()
-                app.capture.scheduleTick(.foreground)
+                app.capture.foreground()
                 app.geocoder.kick()
                 openNotification()
             }
         }
         .onChange(of: app.notifier.pendingPerson, initial: true) { _, _ in openNotification() }
         .onChange(of: onboardingDone) { _, done in
-            if !done { replay() }
+            if !done {
+                replay()
+            }
             openNotification()
         }
         .onChange(of: router.peopleReady) { _, _ in openNotification() }

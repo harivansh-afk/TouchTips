@@ -10,6 +10,7 @@ final class CaptureFenceTests: XCTestCase {
         let isReleased = { [weak fence] in fence == nil }
         fence?.configure(authorized: true, protectedDataAvailable: true)
         await eventually { probe.activeObservations == 1 }
+        fence?.configure(authorized: true, protectedDataAvailable: false)
         fence = nil
         await eventually { isReleased() && probe.activeObservations == 0 }
         XCTAssertEqual(probe.calls.filter { $0 == "invalidate" }.count, 1)
@@ -23,6 +24,7 @@ final class CaptureFenceTests: XCTestCase {
         fence.configure(authorized: false, protectedDataAvailable: true)
         XCTAssertTrue(probe.calls.isEmpty)
         fence.configure(authorized: true, protectedDataAvailable: false)
+        fence.seedIfNeeded { XCTFail("Seeding must wait for initial protected-data availability"); return nil }
         XCTAssertEqual(probe.calls, ["authorize"])
         fence.configure(authorized: true, protectedDataAvailable: true)
         await eventually { probe.observations == 1 }
@@ -31,6 +33,46 @@ final class CaptureFenceTests: XCTestCase {
         fence.configure(authorized: false, protectedDataAvailable: true)
         await eventually { probe.activeObservations == 0 }
         XCTAssertEqual(probe.calls.filter { $0 == "invalidate" }.count, 1)
+    }
+
+    func testLockKeepsObserverDeliveringWhileConditionChangesWaitForUnlock() async {
+        let probe = FenceProbe()
+        let fence = probe.fence()
+        fence.configure(authorized: true, protectedDataAvailable: true)
+        await eventually { probe.activeObservations == 1 }
+
+        fence.configure(authorized: true, protectedDataAvailable: false)
+        fence.update(fix(latitude: 1))
+        probe.emit?()
+        await Task.yield()
+        XCTAssertEqual(probe.wakes, 1)
+        XCTAssertEqual(probe.activeObservations, 1)
+        XCTAssertTrue(probe.replacements.isEmpty)
+
+        fence.configure(authorized: true, protectedDataAvailable: true)
+        await eventually { probe.replacements.count == 1 }
+        XCTAssertEqual(probe.observations, 1)
+        XCTAssertEqual(probe.calls.filter { $0 == "open" }.count, 1)
+        fence.configure(authorized: false, protectedDataAvailable: true)
+        await eventually { probe.activeObservations == 0 }
+    }
+
+    func testLockDuringOpeningStillStartsObservationWhenMonitorArrives() async {
+        let probe = FenceProbe()
+        var opening: CheckedContinuation<CaptureFenceMonitor, Never>?
+        let fence = CaptureFence(beginSession: { {} }, connect: {
+            await withCheckedContinuation { opening = $0 }
+        }, wake: { probe.wakes += 1 })
+        fence.configure(authorized: true, protectedDataAvailable: true)
+        await eventually { opening != nil }
+
+        fence.configure(authorized: true, protectedDataAvailable: false)
+        opening?.resume(returning: probe.monitor)
+        await eventually { probe.activeObservations == 1 }
+        probe.emit?()
+        XCTAssertEqual(probe.wakes, 1)
+        fence.configure(authorized: false, protectedDataAvailable: false)
+        await eventually { probe.activeObservations == 0 }
     }
 
     func testPermissionRestoredDuringCancellationReusesOneMonitorAndOneObserver() async {
@@ -44,6 +86,23 @@ final class CaptureFenceTests: XCTestCase {
         XCTAssertEqual(probe.calls.filter { $0 == "open" }.count, 1)
         XCTAssertEqual(probe.maximumObservers, 1)
         fence.configure(authorized: false, protectedDataAvailable: true)
+        await eventually { probe.activeObservations == 0 }
+    }
+
+    func testPermissionRestoredWhileLockedResumesExistingMonitor() async {
+        let probe = FenceProbe()
+        let fence = probe.fence()
+        fence.configure(authorized: true, protectedDataAvailable: true)
+        await eventually { probe.activeObservations == 1 }
+        fence.configure(authorized: false, protectedDataAvailable: false)
+        fence.configure(authorized: true, protectedDataAvailable: false)
+        await eventually { probe.observations == 2 }
+
+        XCTAssertEqual(probe.calls.filter { $0 == "open" }.count, 1)
+        XCTAssertEqual(probe.maximumObservers, 1)
+        probe.emit?()
+        XCTAssertEqual(probe.wakes, 1)
+        fence.configure(authorized: false, protectedDataAvailable: false)
         await eventually { probe.activeObservations == 0 }
     }
 
@@ -184,13 +243,154 @@ final class CaptureFenceTests: XCTestCase {
         await eventually { read != nil }
         fence.configure(authorized: true, protectedDataAvailable: false)
         read?.resume()
-        await eventually { probe.activeObservations == 0 }
+        await eventually { probe.completedReads == 1 }
+        await Task.yield()
+        XCTAssertEqual(probe.activeObservations, 1)
         XCTAssertTrue(probe.replacements.isEmpty)
         probe.emit?()
-        XCTAssertEqual(probe.wakes, 0)
+        XCTAssertEqual(probe.wakes, 1)
         fence.configure(authorized: true, protectedDataAvailable: true)
         await eventually { probe.replacements.count == 1 }
+        XCTAssertEqual(probe.observations, 1)
         XCTAssertEqual(probe.calls.filter { $0 == "open" }.count, 1)
+        fence.configure(authorized: false, protectedDataAvailable: true)
+        await eventually { probe.activeObservations == 0 }
+    }
+
+    func testPersistedFenceDoesNotRequestSeedFix() async {
+        let probe = FenceProbe()
+        probe.storedCenter = fix(latitude: 1)
+        let fence = probe.fence()
+        fence.configure(authorized: true, protectedDataAvailable: true)
+        var requests = 0
+        fence.seedIfNeeded {
+            requests += 1
+            return self.fix(latitude: 2)
+        }
+        await eventually { probe.completedReads == 1 }
+        await Task.yield()
+        XCTAssertEqual(requests, 0)
+        XCTAssertTrue(probe.replacements.isEmpty)
+        fence.configure(authorized: false, protectedDataAvailable: true)
+        await eventually { probe.activeObservations == 0 }
+    }
+
+    func testCoarseOnlyFirstInstallSeedsOnceWithoutBlocking() async {
+        let probe = FenceProbe()
+        let fence = probe.fence()
+        fence.configure(authorized: true, protectedDataAvailable: true)
+        fence.update(fix(latitude: 1, accuracy: 3000))
+        var result: CheckedContinuation<CLLocation?, Never>?
+        var requests = 0
+        fence.seedIfNeeded {
+            requests += 1
+            return await withCheckedContinuation { result = $0 }
+        }
+        await eventually { result != nil }
+        fence.seedIfNeeded {
+            requests += 1
+            return self.fix(latitude: 2)
+        }
+        XCTAssertTrue(probe.replacements.isEmpty)
+        result?.resume(returning: fix(latitude: 3))
+        await eventually { probe.replacements.count == 1 }
+        XCTAssertEqual(requests, 1)
+        XCTAssertEqual(probe.replacements.first?.coordinate.latitude, 3)
+        fence.configure(authorized: false, protectedDataAvailable: true)
+        await eventually { probe.activeObservations == 0 }
+    }
+
+    func testResetDoesNotWaitForSeedAndDiscardsItsLateResult() async {
+        let probe = FenceProbe()
+        let fence = probe.fence()
+        fence.configure(authorized: true, protectedDataAvailable: true)
+        var result: CheckedContinuation<CLLocation?, Never>?
+        var providerFinished = false
+        fence.seedIfNeeded {
+            let location = await withCheckedContinuation { result = $0 }
+            providerFinished = true
+            return location
+        }
+        await eventually { result != nil }
+        await fence.reset()
+        XCTAssertFalse(providerFinished)
+        result?.resume(returning: fix(latitude: 1))
+        await eventually { providerFinished }
+        await Task.yield()
+        XCTAssertTrue(probe.replacements.isEmpty)
+        XCTAssertEqual(probe.removals, 1)
+        fence.configure(authorized: false, protectedDataAvailable: true)
+        await eventually { probe.activeObservations == 0 }
+    }
+
+    func testPermissionLossDiscardsSeedEvenWhenRestoredBeforeResult() async {
+        let probe = FenceProbe()
+        let fence = probe.fence()
+        fence.configure(authorized: true, protectedDataAvailable: true)
+        var oldResult: CheckedContinuation<CLLocation?, Never>?
+        var oldProviderFinished = false
+        fence.seedIfNeeded {
+            let location = await withCheckedContinuation { oldResult = $0 }
+            oldProviderFinished = true
+            return location
+        }
+        await eventually { oldResult != nil }
+        fence.configure(authorized: false, protectedDataAvailable: true)
+        fence.configure(authorized: true, protectedDataAvailable: true)
+        var newResult: CheckedContinuation<CLLocation?, Never>?
+        fence.seedIfNeeded { await withCheckedContinuation { newResult = $0 } }
+        await eventually { newResult != nil }
+        oldResult?.resume(returning: fix(latitude: 1))
+        await eventually { oldProviderFinished }
+        await Task.yield()
+        XCTAssertTrue(probe.replacements.isEmpty)
+        fence.seedIfNeeded { XCTFail("The replacement seed must remain in flight"); return nil }
+        newResult?.resume(returning: fix(latitude: 2))
+        await eventually { probe.replacements.count == 1 }
+        XCTAssertEqual(probe.replacements.first?.coordinate.latitude, 2)
+        fence.configure(authorized: false, protectedDataAvailable: true)
+        await eventually { probe.activeObservations == 0 }
+    }
+
+    func testReleaseCancelsSeedWithoutWaitingForItsProvider() async {
+        let probe = FenceProbe()
+        var fence: CaptureFence? = probe.fence()
+        let isReleased = { [weak fence] in fence == nil }
+        fence?.configure(authorized: true, protectedDataAvailable: true)
+        var result: CheckedContinuation<CLLocation?, Never>?
+        var providerWasCancelled = false
+        fence?.seedIfNeeded {
+            let location = await withCheckedContinuation { result = $0 }
+            providerWasCancelled = Task.isCancelled
+            return location
+        }
+        await eventually { result != nil }
+        fence = nil
+        await eventually { isReleased() && probe.activeObservations == 0 }
+        result?.resume(returning: fix(latitude: 1))
+        await eventually { providerWasCancelled }
+        XCTAssertTrue(probe.replacements.isEmpty)
+        XCTAssertEqual(probe.calls.filter { $0 == "invalidate" }.count, 1)
+    }
+
+    func testAcceptedLocationSupersedesPendingSeed() async {
+        let probe = FenceProbe()
+        let fence = probe.fence()
+        fence.configure(authorized: true, protectedDataAvailable: true)
+        var result: CheckedContinuation<CLLocation?, Never>?
+        var providerFinished = false
+        fence.seedIfNeeded {
+            let location = await withCheckedContinuation { result = $0 }
+            providerFinished = true
+            return location
+        }
+        await eventually { result != nil }
+        fence.update(fix(latitude: 1))
+        await eventually { probe.replacements.count == 1 }
+        result?.resume(returning: fix(latitude: 2))
+        await eventually { providerFinished }
+        await Task.yield()
+        XCTAssertEqual(probe.replacements.map(\.coordinate.latitude), [1])
         fence.configure(authorized: false, protectedDataAvailable: true)
         await eventually { probe.activeObservations == 0 }
     }
@@ -220,6 +420,7 @@ private final class FenceProbe {
     var replacements: [CLLocation] = []
     var removals = 0
     var reads = 0
+    var completedReads = 0
     var observations = 0
     var activeObservations = 0
     var maximumObservers = 0
@@ -243,6 +444,7 @@ private final class FenceProbe {
         CaptureFenceMonitor(center: {
             self.reads += 1
             await self.beforeRead?()
+            self.completedReads += 1
             return self.storedCenter
         }, replace: { location in
             await self.beforeReplace?()

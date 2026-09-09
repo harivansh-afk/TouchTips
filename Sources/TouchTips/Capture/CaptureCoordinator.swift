@@ -64,11 +64,17 @@ final class CaptureCoordinator: NSObject {
 
     private let database: AppDatabase
     private let notifier: Notifier
+    /// Only visits and significant-change monitoring use this manager, so its location callbacks
+    /// can establish a standard session after a significant-change background launch.
     private let manager = CLLocationManager()
+    private let presence = CapturePresence()
     private let location: CaptureLocation
     private let contacts: CaptureContacts
     private let refresh: CaptureRefresh
     private let retryDelays: [Duration]
+    private let beginBackground: (@escaping @MainActor () -> Void) -> CaptureBackgroundTask
+    private var backgroundTask: CaptureBackgroundTask?
+    private var backgroundGeneration = 0
     private var tickTask: Task<Void, Never>?
     private var scheduledSource: WakeSource?
     private var tickDeadline: Date?
@@ -76,7 +82,6 @@ final class CaptureCoordinator: NSObject {
     @ObservationIgnored private lazy var fence = CaptureFence { [weak self] in self?.scheduleTick(.fence, after: 0) }
     private var hasStarted = false
     private var contactsObserver: (any NSObjectProtocol)?
-    private var presenceActive = false
     private var activeTick: Task<Bool, Never>?
     private var enrichmentTask: Task<Void, Never>?
     private var refreshScheduling: Task<Void, Never>?
@@ -114,7 +119,10 @@ final class CaptureCoordinator: NSObject {
     init(
         database: AppDatabase, notifier: Notifier, contacts: CaptureContacts = .system,
         location: CaptureLocation = .system, refresh: CaptureRefresh = .system,
-        retryDelays: [Duration] = [.seconds(2), .seconds(5)]
+        retryDelays: [Duration] = [.seconds(2), .seconds(5)],
+        beginBackground: @escaping (@escaping @MainActor () -> Void) -> CaptureBackgroundTask = {
+            CaptureBackgroundTask(expiration: $0)
+        }
     ) {
         self.database = database
         self.notifier = notifier
@@ -122,6 +130,7 @@ final class CaptureCoordinator: NSObject {
         self.location = location
         self.refresh = refresh
         self.retryDelays = retryDelays
+        self.beginBackground = beginBackground
         locationStatus = manager.authorizationStatus
         presencePolicy = PresencePolicy.stored
         super.init()
@@ -133,12 +142,13 @@ final class CaptureCoordinator: NSObject {
     func start() {
         guard !hasStarted else { return }
         hasStarted = true
+        scheduleTick(.launch, after: 0)
         manager.delegate = self
+        presence.manager.delegate = self
         applyLocationServices()
         startHeartbeat()
         scheduleRefresh()
         startObservingContacts()
-        scheduleTick(.launch, after: 2)
     }
 
     func startObservingContacts() {
@@ -163,6 +173,11 @@ final class CaptureCoordinator: NSObject {
             NotificationCenter.default.removeObserver(contactsObserver)
         }
         contactsObserver = nil
+        cancelScheduledTick()
+        endBackgroundIfIdle()
+    }
+
+    private func cancelScheduledTick() {
         tickTask?.cancel()
         tickTask = nil
         scheduledSource = nil
@@ -174,8 +189,10 @@ final class CaptureCoordinator: NSObject {
         manager.requestWhenInUseAuthorization()
     }
 
-    func scheduleTick(_ source: WakeSource, after delay: TimeInterval = 0.3) {
+    func scheduleTick(_ source: WakeSource, after delay: TimeInterval = 0) {
         guard !isResetting else { return }
+        // Keep this synchronous with the system callback. The process can suspend during a debounce.
+        retainBackgroundTask()
         if activeTick != nil {
             queue(source)
             return
@@ -205,12 +222,15 @@ final class CaptureCoordinator: NSObject {
     @discardableResult
     func tick(_ source: WakeSource) async -> Bool {
         guard !isResetting, !Task.isCancelled else { return false }
+        retainBackgroundTask()
         if let activeTick {
             queue(source)
             return await withTaskCancellationHandler {
                 await activeTick.value
             } onCancel: { activeTick.cancel() }
         }
+        let firstSource = scheduledSource == .contacts ? .contacts : source
+        cancelScheduledTick()
         let work = Task { [weak self] in
             guard let self else { return false }
             defer {
@@ -220,10 +240,11 @@ final class CaptureCoordinator: NSObject {
                     self.queuedSource = nil
                     scheduleTick(queuedSource, after: 0)
                 }
+                endBackgroundIfIdle()
             }
             var success = true
             var retries = retryDelays.makeIterator()
-            var next: WakeSource? = source
+            var next: WakeSource? = firstSource
             while let source = next, !Task.isCancelled {
                 queuedSource = nil
                 let completed = await performTick(source)
@@ -251,20 +272,39 @@ final class CaptureCoordinator: NSObject {
         }
     }
 
+    private func retainBackgroundTask() {
+        guard backgroundTask == nil else { return }
+        backgroundGeneration += 1
+        let generation = backgroundGeneration
+        backgroundTask = beginBackground { [weak self] in
+            guard let self, backgroundGeneration == generation else { return }
+            // Expiration abandons this batch. Only a later external wake may schedule fresh work.
+            cancelScheduledTick()
+            queuedSource = nil
+            activeTick?.cancel()
+            backgroundTask?.end()
+            backgroundTask = nil
+        }
+    }
+
+    private func endBackgroundIfIdle() {
+        guard tickTask == nil, activeTick == nil else { return }
+        backgroundTask?.end()
+        backgroundTask = nil
+    }
+
     /// Finish any old-token work before erasing its cursor, then read a fresh Contacts baseline.
     func reset() async throws {
         guard !isResetting else { return }
         isResetting = true
         resetGeneration += 1
-        tickTask?.cancel()
-        tickTask = nil
-        scheduledSource = nil
-        tickDeadline = nil
+        cancelScheduledTick()
         queuedSource = nil
         if let activeTick {
             activeTick.cancel()
             _ = await activeTick.value
         }
+        endBackgroundIfIdle()
         enrichmentTask?.cancel()
         await enrichmentTask?.value
         await notifier.cancelDelivery()
@@ -288,8 +328,6 @@ final class CaptureCoordinator: NSObject {
 
     private func performTick(_ source: WakeSource) async -> Bool {
         restoreFence()
-        let background = CaptureBackgroundTask { [weak self] in self?.activeTick?.cancel() }
-        defer { background.end() }
 
         guard contacts.authorized() else {
             Log.capture.notice("capture skipped: full Contacts access unavailable")
@@ -398,9 +436,19 @@ final class CaptureCoordinator: NSObject {
 
     // MARK: - Presence
 
-    private func applyLocationServices() {
+    func foreground() {
+        scheduleTick(.foreground, after: 0)
+        locationStatus = manager.authorizationStatus
+        applyLocationServices(restartPresence: true)
+    }
+
+    private func applyLocationServices(restartPresence: Bool = false) {
         guard hasStarted else { return }
         restoreFence()
+        if locationGranted, UIApplication.shared.applicationState == .active {
+            // A missing fence gets one bounded foreground fix; capture and notification delivery never wait.
+            fence.seedIfNeeded { [location] in await location.fix(Self.fixTimeout) }
+        }
         if locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse {
             manager.startMonitoringVisits()
             manager.startMonitoringSignificantLocationChanges()
@@ -408,33 +456,22 @@ final class CaptureCoordinator: NSObject {
             manager.stopMonitoringVisits()
             manager.stopMonitoringSignificantLocationChanges()
         }
-        applyPresence()
+        applyPresence(restart: restartPresence)
     }
 
     /// Background location offers more chances to scan. It does not guarantee continuous execution
     /// or control which radios the system uses.
-    private func applyPresence() {
+    private func applyPresence(restart: Bool = false, significantChangeWake: Bool = false) {
         guard hasStarted else { return }
         let wanted: Bool = switch presencePolicy {
         case .always: locationStatus == .authorizedAlways
         case .atPlaces: locationStatus == .authorizedAlways && currentVisit != nil
         case .off: false
         }
-        guard wanted != presenceActive else { return }
-        presenceActive = wanted
-        if wanted {
-            manager.allowsBackgroundLocationUpdates = true
-            manager.pausesLocationUpdatesAutomatically = false
-            manager.showsBackgroundLocationIndicator = false
-            manager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
-            manager.distanceFilter = kCLDistanceFilterNone
-            manager.activityType = .other
-            manager.startUpdatingLocation()
-        } else {
-            manager.stopUpdatingLocation()
-            manager.allowsBackgroundLocationUpdates = false
-        }
-        Log.capture.notice("presence \(wanted ? "on" : "off", privacy: .public)")
+        presence.update(
+            enabled: wanted, applicationState: UIApplication.shared.applicationState,
+            restart: restart, significantChangeWake: significantChangeWake
+        )
     }
 
     // MARK: - Heartbeat
@@ -533,6 +570,7 @@ final class CaptureCoordinator: NSObject {
 
     func record(_ live: LiveVisit) {
         guard !isResetting else { return }
+        scheduleTick(.visit, after: 0)
         do {
             let visit = try Ingest.recordLiveVisit(live, now: .now, to: database)
             currentVisit = visit.isOngoing ? visit : nil
@@ -541,21 +579,18 @@ final class CaptureCoordinator: NSObject {
             Log.capture.error("visit not recorded: \(error.localizedDescription)")
         }
         applyPresence()
-        scheduleTick(.visit, after: 0.5)
     }
 
-    /// Presence updates and significant changes both land here. Either means the phone moved.
-    private func moved(to location: CLLocation) {
-        guard location.horizontalAccuracy >= 0, CLLocationCoordinate2DIsValid(location.coordinate) else { return }
-        if let lastLocation, location.timestamp < lastLocation.timestamp {
-            return
-        }
+    /// Presence updates and significant changes both provide an execution opportunity.
+    private func moved(to location: CLLocation?) {
+        guard !isResetting else { return }
+        // Even a cached or imprecise location is a chance to catch up on Contacts while iOS grants CPU.
+        scheduleTick(.movement, after: 0)
+        guard let location, location.horizontalAccuracy >= 0,
+              CLLocationCoordinate2DIsValid(location.coordinate),
+              lastLocation.map({ location.timestamp >= $0.timestamp }) ?? true else { return }
         lastLocation = location
-        restoreFence()
-        rearmFence(at: location)
-        // The launch tick covers the first update. After that, one movement tick per heartbeat interval is plenty.
-        guard let lastTick, Date().timeIntervalSince(lastTick) >= Self.heartbeatInterval else { return }
-        scheduleTick(.movement, after: 1)
+        // The scan rearms the fence after committing and submitting any pending notifications.
     }
 }
 
@@ -564,7 +599,9 @@ extension CaptureCoordinator: CLLocationManagerDelegate {
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
+        let managerID = ObjectIdentifier(manager)
         MainActor.assumeIsolated {
+            guard managerID == ObjectIdentifier(self.manager) else { return }
             locationStatus = status
             applyLocationServices()
         }
@@ -582,8 +619,13 @@ extension CaptureCoordinator: CLLocationManagerDelegate {
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let last = locations.last else { return }
-        MainActor.assumeIsolated { moved(to: last) }
+        let managerID = ObjectIdentifier(manager)
+        MainActor.assumeIsolated {
+            moved(to: locations.last)
+            if managerID == ObjectIdentifier(self.manager) {
+                applyPresence(significantChangeWake: true)
+            }
+        }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: any Error) {

@@ -4,9 +4,17 @@ import UIKit
 @MainActor
 final class CaptureBackgroundTask {
     private var identifier: UIBackgroundTaskIdentifier = .invalid
+    private let finish: (UIBackgroundTaskIdentifier) -> Void
 
-    init(expiration: @escaping @MainActor () -> Void) {
-        identifier = UIApplication.shared.beginBackgroundTask(withName: "Capture contacts") { [weak self] in
+    init(
+        expiration: @escaping @MainActor () -> Void,
+        begin: (@escaping @MainActor () -> Void) -> UIBackgroundTaskIdentifier = {
+            UIApplication.shared.beginBackgroundTask(withName: "Capture contacts", expirationHandler: $0)
+        },
+        end: @escaping (UIBackgroundTaskIdentifier) -> Void = { UIApplication.shared.endBackgroundTask($0) }
+    ) {
+        finish = end
+        identifier = begin { [weak self] in
             // UIApplication documents this callback on the main thread.
             MainActor.assumeIsolated {
                 expiration()
@@ -15,9 +23,14 @@ final class CaptureBackgroundTask {
         }
     }
 
+    isolated deinit {
+        end()
+    }
+
     func end() {
         guard identifier != .invalid else { return }
-        UIApplication.shared.endBackgroundTask(identifier)
+        let ended = identifier
         identifier = .invalid
+        finish(ended)
     }
 }

@@ -26,7 +26,7 @@ only the last successful Contacts read establishes the beginning of a discovery 
 iOS does not provide a contact-save wake mechanism for a suspended or terminated app. Background
 location and refresh are additional opportunities to scan; they cannot guarantee continuous execution.
 
-1. A retained Contacts store reads change history. A 300 ms coalesce keeps the earliest requested scan, so another wake cannot continually postpone it. Concurrent wakes share one scan task, with a follow-up scan for changes received during it. Transient failures retry after two and five seconds, then retain the cursor for a later wake.
+1. A retained Contacts store reads change history. Contact-change bursts coalesce for 300 ms; launch, foreground and location wakes request an immediate scan. A finite background assertion begins in the callback, before any debounce, and covers the shared scan, delivery and bounded retries. Concurrent wakes share one scan task, with a follow-up scan for changes received during it. Transient failures retry after two and five seconds, then retain the cursor for a later wake.
 2. First access silently snapshots existing contacts. Later additions are resolved against available visits and saved immediately. Optional location enrichment runs independently, bounded to eight seconds, and can improve an unconfirmed meeting afterward. History resets reconcile names and deletions while retaining notes and meetings for surviving IDs. Failed history enumeration returns no partial events or new cursor.
 3. The contact, meeting, history token, and pending notification commit in one SQLite transaction. An in-app Add queues through the same table. A failed transaction advances none of them.
 4. Notification delivery retries queued records on wakes and after authorization, with two bounded retries for transient failures. One failing record does not block the others. All concurrent callers wait for the shared delivery; removed notices are rechecked before submission. Location and place naming cannot block submission. A stable request ID reconciles notifications already pending or delivered after a process interruption. SQLite acknowledges successful submission, not proof that iOS displayed a banner.
@@ -37,6 +37,13 @@ In-app Add retains the saved system-contact identity if its SQLite write fails. 
 contact and preserves the original meeting time. The selected place, meeting, and pending notice
 commit together. Notes flush when the scene becomes inactive; diagnostic heartbeat history retains
 seven days.
+
+Continuous background location is established from the foreground, or a significant-change callback,
+with coarse accuracy and the visible iOS location indicator. Each delivered location callback offers
+a Contacts check, including cached or imprecise fixes. The persisted geofence stays observed while
+locked; an absent initial fence gets one bounded location request without delaying notifications.
+See the [background wake repair](docs/background-wake-repair.md) for the specific Apple guidance,
+device experiments and validation limits.
 
 See the [September 8 architecture review](docs/architecture-review-2026-09-08.md) for findings,
 regression coverage, and the remaining physical-device verification boundary.
