@@ -97,7 +97,6 @@ struct OnboardingView: View {
 
             PermissionRow(
                 title: "Contacts",
-                missing: "",
                 state: contactsState,
                 openSettings: openSettings
             ) {
@@ -110,7 +109,6 @@ struct OnboardingView: View {
 
             PermissionRow(
                 title: "Location, Always",
-                missing: app.capture.locationStatus == .authorizedWhenInUse
                     ? LocationPermissionAction.backgroundExplanation : "",
                 state: locationState,
                 openSettings: openSettings
@@ -121,7 +119,6 @@ struct OnboardingView: View {
 
             PermissionRow(
                 title: "Notifications",
-                missing: "",
                 state: notificationsState,
                 openSettings: openSettings
             ) {
@@ -172,7 +169,6 @@ private struct PermissionRow: View {
 
     let title: String
     /// What the app loses without it. Shown only once the answer was no.
-    let missing: String
     let state: PermissionState
     let openSettings: () -> Void
     let action: () -> Void
@@ -188,7 +184,6 @@ private struct PermissionRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
                 if state == .denied {
-                    Text(missing).font(.footnote).foregroundStyle(.primary)
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
