@@ -6,6 +6,7 @@ struct SettingsSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     @AppStorage(PeopleLayout.key) private var peopleLayout = PeopleLayout.byDate
     @AppStorage("mapStyle") private var mapStyle = MapStyleChoice.muted
@@ -41,52 +42,43 @@ struct SettingsSheet: View {
                             }
                         }
                     }
+                } header: {
+                    Text("Preferences")
                 } footer: {
                     Text(app.capture.autoCaptureLocation && !app.capture.locationGranted
                         ? "Choose Always in Settings to automatically capture location in the background."
                         : "Automatically remember where you meet people, even when TouchTips is in the background.")
                 }
 
-                Section("Access") {
-                    LabeledContent("Contacts") {
-                        if app.contactsAccess.granted {
-                            Text("Full")
-                        } else if app.contactsAccess.status == .denied || app.contactsAccess.status == .limited || app
-                            .contactsAccess.status == .restricted {
-                            Button("Open Settings", action: openSettings)
-                        } else {
-                            Button("Allow") {
-                                Task {
-                                    await app.contactsAccess.request()
-                                    app.capture.scheduleTick(.user)
-                                }
+                Section {
+                    accessRow("Contacts", status: contactsStatus) {
+                        if app.contactsAccess.status == .notDetermined {
+                            Task {
+                                await app.contactsAccess.request()
+                                app.capture.scheduleTick(.user)
                             }
-                        }
-                    }
-                    LabeledContent("Location") {
-                        switch app.capture.locationPermissionAction {
-                        case .allowed:
-                            Text("Always")
-                        case .openSettings:
-                            Button("Open Settings", action: openSettings)
-                        case .request:
-                            Button("Allow") { app.capture.requestLocation() }
-                        }
-                    }
-                    if app.capture.locationStatus == .authorizedWhenInUse {
-                        Text(LocationPermissionAction.backgroundExplanation)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    LabeledContent("Notifications") {
-                        if app.notifier.granted {
-                            Text("On")
-                        } else if app.notifier.status == .denied {
-                            Button("Open Settings", action: openSettings)
                         } else {
-                            Button("Allow") { Task { await app.notifier.request() } }
+                            openSettings()
                         }
                     }
+                    accessRow("Location", status: locationStatus) {
+                        if app.capture.locationPermissionAction == .request {
+                            app.capture.requestLocation()
+                        } else {
+                            openSettings()
+                        }
+                    }
+                    accessRow("Notifications", status: notificationsStatus) {
+                        if app.notifier.status == .notDetermined {
+                            Task { await app.notifier.request() }
+                        } else {
+                            openSettings()
+                        }
+                    }
+                } header: {
+                    Text("Access")
+                } footer: {
+                    Text("Tap a permission to change access in iOS Settings.")
                 }
 
                 Section {
@@ -98,20 +90,30 @@ struct SettingsSheet: View {
                     .pickerStyle(.inline)
                     .labelsHidden()
                 } header: {
-                    Text("People")
+                    Text("People page")
                 } footer: {
                     Text(peopleLayout.detail)
                 }
 
-                Section("Map") {
+                Section("Map page") {
                     MapStyleGrid(choice: $mapStyle)
                         .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                         .listRowBackground(Color.clear)
                 }
 
                 Section {
-                    Button("Delete all data", role: .destructive) { confirmDelete = true }
-                        .disabled(app.capture.isResetting)
+                    Button(role: .destructive) {
+                        confirmDelete = true
+                    } label: {
+                        Text("Delete all data")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.glass)
+                    .controlSize(.large)
+                    .tint(.red)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    .disabled(app.capture.isResetting)
                     if let problem {
                         Text(problem).foregroundStyle(.secondary)
                     }
@@ -185,12 +187,62 @@ struct SettingsSheet: View {
                 Text("Contacts themselves are untouched. Meetings, visits and places are removed.")
             }
             .onChange(of: peopleLayout) { _, _ in HapticManager.selection() }
-            .onAppear { app.contactsAccess.refresh() }
-            .task {
+            .task(id: scenePhase) {
+                guard scenePhase == .active else { return }
+                app.contactsAccess.refresh()
                 await app.notifier.refresh()
                 await loadStats()
             }
         }
+    }
+
+    private var contactsStatus: String {
+        switch app.contactsAccess.status {
+        case .authorized: "Full"
+        case .limited: "Limited"
+        case .denied: "Off"
+        case .restricted: "Restricted"
+        case .notDetermined: "Allow"
+        @unknown default: "Manage"
+        }
+    }
+
+    private var locationStatus: String {
+        switch app.capture.locationStatus {
+        case .authorizedAlways: "Always"
+        case .authorizedWhenInUse: "While Using"
+        case .denied: "Off"
+        case .restricted: "Restricted"
+        case .notDetermined: "Allow"
+        @unknown default: "Manage"
+        }
+    }
+
+    private var notificationsStatus: String {
+        if app.notifier.granted {
+            return "On"
+        }
+        return app.notifier.status == .notDetermined ? "Allow" : "Off"
+    }
+
+    private func accessRow(_ title: String, status: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text(status)
+                    .foregroundStyle(.secondary)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("settings-access-\(title.lowercased())")
+        .accessibilityHint(status == "Allow" ? "Request permission" : "Change access in iOS Settings")
     }
 
     private func wakesText(_ stats: CaptureStats) -> String {
