@@ -217,10 +217,21 @@ final class Notifier: NSObject {
     /// Discovery is reported as a new contact; only user-confirmed records claim a meeting.
     private func postMeet(contactID: String, name: String, meet: Meet?, placeName: String?) async throws {
         let content = UNMutableNotificationContent()
-        content.title = meet?.isConfirmed == true ? "Meeting recorded: \(name)" : "New contact: \(name)"
-        content.body = meet?.isConfirmed == true
+        // A suggestion is asked as a question, the way the app asks everything: the actions
+        // under it are the answers. Its body says where and when it thinks, so one tap can confirm
+        // it while it is fresh; with only a time known, the gap is the invitation to fix it.
+        let confirmed = meet?.isConfirmed == true
+        content.title = confirmed ? "Meeting recorded: \(name)" : "Met \(name)?"
+        let suggestion: String = if let placeName {
+            Format.notice(placeName: placeName, at: meet?.start)
+        } else if let meet {
+            "\(Format.time(meet.start)). Where?"
+        } else {
+            "Review the suggested meeting details in TouchTips."
+        }
+        content.body = confirmed
             ? [placeName, meet.map(Format.dateLine)].compactMap(\.self).joined(separator: " · ")
-            : "Review the suggested meeting details in TouchTips."
+            : suggestion
         content.sound = .default
         content.categoryIdentifier = Self.category
         content.threadIdentifier = Self.category

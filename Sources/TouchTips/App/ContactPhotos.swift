@@ -59,6 +59,8 @@ final class ContactPhotos {
     private static func fetchThumbnail(_ contactID: String) async -> Data? {
         await Task.detached(priority: .userInitiated) {
             let keys = [CNContactThumbnailImageDataKey as CNKeyDescriptor]
+            // Only with full access: a fetch under limited or undetermined access shows the system prompt.
+            guard CNContactStore.authorizationStatus(for: .contacts) == .authorized else { return nil }
             return try? CNContactStore().unifiedContact(withIdentifier: contactID, keysToFetch: keys).thumbnailImageData
         }.value
     }

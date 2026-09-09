@@ -12,6 +12,8 @@ import SwiftUI
 struct TypewriterText: View {
     let text: String
     let font: Font
+    /// The run starts the first time this is true, so a screen can hold the typing until it is seen.
+    var begin = true
     var leaving = false
     /// Runs once, on the main actor, after the last glyph has landed.
     var onFinished: () -> Void = {}
@@ -19,15 +21,20 @@ struct TypewriterText: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var progress = GlyphReveal.Progress()
     @State private var haptics = TypingHaptics()
+    @State private var started = false
 
     var body: some View {
         Text(text)
             .font(font)
             .textRenderer(GlyphReveal(progress: progress))
-            .task { await type() }
+            .task(id: begin) {
+                guard begin, !started else { return }
+                started = true
+                await type()
+            }
             .onChange(of: leaving) { _, leaving in
                 guard leaving else { return }
-                withAnimation(.easeIn(duration: 0.38)) { progress.exit = 1 }
+                withAnimation(.easeIn(duration: 0.32).delay(0.08)) { progress.exit = 1 }
             }
     }
 
@@ -39,17 +46,17 @@ struct TypewriterText: View {
     }
 
     /// A held breath on the empty screen before the first glyph.
-    private static let leadIn: TimeInterval = 0.5
-    private static let letter: TimeInterval = 0.046
-    private static let space: TimeInterval = 0.08
+    private static let leadIn: TimeInterval = 0.35
+    private static let letter: TimeInterval = 0.034
+    private static let space: TimeInterval = 0.06
     /// The pause before a question mark, as if deciding to ask.
-    private static let hesitation: TimeInterval = 0.16
+    private static let hesitation: TimeInterval = 0.12
     /// How long a question mark takes to rise.
-    private static let markRise: TimeInterval = 0.4
+    private static let markRise: TimeInterval = 0.3
     /// How far into the rise the thud lands.
-    private static let landing: TimeInterval = 0.2
+    private static let landing: TimeInterval = 0.15
     /// After a mark lands, before the next line starts.
-    private static let linePause: TimeInterval = 0.3
+    private static let linePause: TimeInterval = 0.2
 
     private static func schedule(_ lines: [Substring]) -> (steps: [Step], end: TimeInterval) {
         var steps: [Step] = []
@@ -99,7 +106,7 @@ struct TypewriterText: View {
                 progress = .start(ofLine: line)
             }
             progress.slow = step.glyph == "?"
-            withAnimation(.easeOut(duration: step.glyph == "?" ? Self.markRise : 0.18)) { progress.glyphs += 1 }
+            withAnimation(.easeOut(duration: step.glyph == "?" ? Self.markRise : 0.15)) { progress.glyphs += 1 }
         }
         try? await clock.sleep(until: start + .seconds(end))
         guard !Task.isCancelled else { return }

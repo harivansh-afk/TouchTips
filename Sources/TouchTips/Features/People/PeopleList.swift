@@ -24,6 +24,21 @@ struct PeopleList: View {
         sections.isEmpty && undocumented.isEmpty
     }
 
+    private static let undocumentedKey = "undocumented"
+
+    /// The beat each heading lands on when the app arrives; its rows follow one beat apart. The
+    /// header is beat zero. Far down the list the beats are capped, so this only matters up top.
+    private var arrivalOrders: [String: Int] {
+        var orders: [String: Int] = [:]
+        var next = 1
+        for section in sections {
+            orders[section.id] = next
+            next += 1 + section.rows.count
+        }
+        orders[Self.undocumentedKey] = next
+        return orders
+    }
+
     var body: some View {
         List {
             if isEmpty, !query.isEmpty {
@@ -31,17 +46,21 @@ struct PeopleList: View {
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())
             } else {
+                let starts = arrivalOrders
                 ForEach(sections) { section in
                     heading(section.title, subtitle: section.subtitle, placeID: section.placeID)
                         .id(section.id)
-                    rows(section.rows)
+                        .arrives(order: starts[section.id, default: 1])
+                    rows(section.rows, from: starts[section.id, default: 1] + 1)
                 }
                 if !undocumented.isEmpty {
                     if expandUndocumented {
                         heading("Undocumented")
-                        rows(undocumented)
+                            .arrives(order: starts[Self.undocumentedKey, default: 1])
+                        rows(undocumented, from: starts[Self.undocumentedKey, default: 1] + 1)
                     } else {
                         undocumentedRow
+                            .arrives(order: starts[Self.undocumentedKey, default: 1])
                     }
                 }
             }
@@ -89,7 +108,7 @@ struct PeopleList: View {
         .contentShape(.rect)
     }
 
-    private func rows(_ people: [PersonRow]) -> some View {
+    private func rows(_ people: [PersonRow], from firstOrder: Int) -> some View {
         let rows = people.indexedRows()
         return ForEach(rows) { indexed in
             let row = indexed.item
@@ -104,6 +123,7 @@ struct PeopleList: View {
             .personListRow(showSeparator: index < rows.count - 1)
             .personTransitionSource(id: row.id, in: zoom)
             .personSwipeActions(row: row)
+            .arrives(order: firstOrder + index)
         }
     }
 

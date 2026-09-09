@@ -10,6 +10,7 @@ struct SettingsSheet: View {
     @AppStorage(PeopleLayout.key) private var peopleLayout = PeopleLayout.byDate
     @AppStorage("mapStyle") private var mapStyle = MapStyleChoice.muted
     @AppStorage("onboardingDone") private var onboardingDone = false
+    @AppStorage(OnboardingAccess.pretendKey) private var pretendPending = false
     @AppStorage(PresencePolicy.key) private var presence = PresencePolicy.always
     @State private var stats: CaptureStats?
     @State private var lastNotice: NoticeTiming?
@@ -112,17 +113,21 @@ struct SettingsSheet: View {
                         if let lastNotice {
                             LabeledContent("Last notice", value: CaptureCoordinator.describe(lastNotice))
                         }
-                        Button("Replay onboarding") {
-                            HapticManager.medium()
-                            onboardingDone = false
-                            dismiss()
-                        }
                     } header: {
                         Text("Dev")
                     } footer: {
                         Text(
                             "Last 24 hours. Background scans depend on iOS and may be delayed. Debug and TestFlight builds only."
                         )
+                    }
+
+                    Section("Onboarding") {
+                        Toggle("Replay with access pending", isOn: $pretendPending)
+                        Button("Replay onboarding") {
+                            HapticManager.medium()
+                            onboardingDone = false
+                            dismiss()
+                        }
                     }
                 }
             }

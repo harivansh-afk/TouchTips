@@ -16,7 +16,9 @@
                 throw CocoaError(.fileReadNoPermission)
             }
             let database = try AppDatabase.onDisk(in: support.appendingPathComponent("QATests/\(session)"))
-            if let token = CNContactStore().currentHistoryToken {
+            // Only once access is settled: asking for the token with it undetermined shows the system prompt.
+            if CNContactStore.authorizationStatus(for: .contacts) == .authorized,
+               let token = CNContactStore().currentHistoryToken {
                 try Ingest.apply(ContactChangeSet(token: token), now: .now, to: database)
             }
             guard environment["TOUCHTIPS_QA_DATA"] != "empty" else { return database }

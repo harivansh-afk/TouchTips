@@ -26,6 +26,8 @@ struct TouchTipsApp: App {
                 if let app = delegate.session.app {
                     RootView()
                         .environment(app)
+                        // The first-run screen waits for the wordmark to leave before it starts typing.
+                        .environment(\.splashShowing, isShowingSplash)
                 } else {
                     ContentUnavailableView {
                         Label("Saved data unavailable", systemImage: "externaldrive.badge.exclamationmark")
@@ -65,6 +67,11 @@ struct TouchTipsApp: App {
         .allowsHitTesting(isShowingSplash)
         .animation(.easeInOut(duration: 0.2), value: isShowingSplash)
     }
+}
+
+extension EnvironmentValues {
+    /// True while the wordmark still covers the window. Nothing underneath should start moving.
+    @Entry var splashShowing = false
 }
 
 private struct SplashView: View {

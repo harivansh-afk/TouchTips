@@ -27,6 +27,7 @@ struct PeopleView: View {
                             HeaderButton(glyph: .gearSix, label: "Settings") { showSettings = true }
                         }
                     }
+                    .arrives(order: 0)
                 }
                 .sheet(isPresented: $showAdd) {
                     AddSheet()
@@ -54,7 +55,7 @@ struct PeopleView: View {
                 .minimizesTabBarOnScroll()
                 .overlay {
                     if people.rows.isEmpty {
-                        emptyState
+                        emptyState.arrives(order: 1)
                     }
                 }
                 .onChange(of: router.scrollToTop[.people, default: 0]) { _, _ in

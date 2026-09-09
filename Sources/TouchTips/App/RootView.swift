@@ -5,20 +5,32 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("onboardingDone") private var onboardingDone = false
     @State private var router = Router()
-    /// True from the end of onboarding until the tab bar has risen into place.
-    @State private var arriving = false
+    /// Where the finished app is in coming into view. Settled from the start on a warm launch.
+    @State private var arrival: ArrivalPhase
+    /// The first-run screen stays over the app past `onboardingDone`, until its last glyph has left.
+    @State private var showingOnboarding: Bool
 
     /// Content stops this far above the bottom safe area, so lists end above the capsule.
     private static let barInset = TabBar.height + TabBar.bottomPadding + 8 - 34
 
+    init() {
+        let done = UserDefaults.standard.bool(forKey: "onboardingDone")
+        _arrival = State(initialValue: done ? .settled : .hidden)
+        _showingOnboarding = State(initialValue: !done)
+    }
+
     var body: some View {
         ZStack {
             tabs
-                .allowsHitTesting(onboardingDone)
-                .accessibilityHidden(!onboardingDone)
-            if !onboardingDone {
-                OnboardingView { arrive() }
-                    .transition(.opacity)
+                .environment(\.arrival, arrival)
+                .allowsHitTesting(!showingOnboarding)
+                .accessibilityHidden(showingOnboarding)
+            if showingOnboarding {
+                OnboardingView(finish: arrive)
+                    // Above the app while it leaves; a removed view otherwise drops behind its siblings.
+                    .zIndex(1)
+                    // A replay fades in over the app. Leaving is the screen's own choreography.
+                    .transition(.asymmetric(insertion: .opacity, removal: .identity))
             }
         }
         .onChange(of: scenePhase, initial: true) { _, phase in
@@ -30,7 +42,10 @@ struct RootView: View {
             }
         }
         .onChange(of: app.notifier.pendingPerson, initial: true) { _, _ in openNotification() }
-        .onChange(of: onboardingDone) { _, _ in openNotification() }
+        .onChange(of: onboardingDone) { _, done in
+            if !done { replay() }
+            openNotification()
+        }
         .onChange(of: router.peopleReady) { _, _ in openNotification() }
     }
 
@@ -42,17 +57,28 @@ struct RootView: View {
         app.notifier.pendingPerson = nil
     }
 
-    /// The overlay fades to reveal the finished app; the bar follows from below, with a tick.
-    /// The bar drops below the screen first, unanimated and still covered, so its first frame in
-    /// view is the rise.
+    /// Continue was tapped and the first-run screen is on its way out. The app rises in under it
+    /// while its last parts leave: header first, rows a beat apart, the bar from below, one tick
+    /// as the header lands. The screen itself is removed once it has nothing left to draw.
     private func arrive() {
-        arriving = true
-        withAnimation(.easeInOut(duration: 0.45)) { onboardingDone = true }
+        // Remembered now, before the choreography: a crash mid-arrival must not replay the screen.
+        onboardingDone = true
         Task {
-            try? await Task.sleep(for: .milliseconds(150))
+            try? await Task.sleep(for: .milliseconds(250))
+            arrival = .arriving
+            try? await Task.sleep(for: .milliseconds(250))
             HapticManager.light()
-            withAnimation(.spring(response: 0.55, dampingFraction: 0.8)) { arriving = false }
+            try? await Task.sleep(for: .milliseconds(200))
+            showingOnboarding = false
+            try? await Task.sleep(for: .seconds(1))
+            arrival = .settled
         }
+    }
+
+    /// The dev button in Settings: the screen comes back over the app, which hides under it at once.
+    private func replay() {
+        arrival = .hidden
+        withAnimation(.easeInOut(duration: 0.3)) { showingOnboarding = true }
     }
 
     private var tabs: some View {
@@ -80,7 +106,15 @@ struct RootView: View {
 
             TabBar()
                 .ignoresSafeArea(.keyboard)
-                .offset(y: arriving ? 140 : 0)
+                // One transform for the whole bar, not one per glyph.
+                .geometryGroup()
+                // Below the screen while the first-run screen is up, so its first frame in view is the rise.
+                .offset(y: arrival == .hidden ? 140 : 0)
+                .animation(
+                    // Critically damped: the bar rises to its place and stops, no bounce past it.
+                    arrival == .arriving ? .spring(response: 0.55, dampingFraction: 1).delay(0.1) : nil,
+                    value: arrival == .hidden
+                )
         }
         .tint(.white)
         .environment(router)

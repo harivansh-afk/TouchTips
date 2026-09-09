@@ -15,7 +15,8 @@ struct PeopleTimeline: View {
 
     var body: some View {
         List {
-            ForEach(items) { item in
+            ForEach(items.indexedRows()) { indexed in
+                let item = indexed.item
                 Group {
                     switch item {
                     case let .month(_, title): tick(title)
@@ -35,9 +36,11 @@ struct PeopleTimeline: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
+                .arrives(order: 1 + indexed.index)
             }
             if !undocumented.isEmpty {
                 undocumentedRow
+                    .arrives(order: 1 + items.count)
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
