@@ -97,7 +97,7 @@ struct OnboardingView: View {
 
             PermissionRow(
                 title: "Contacts",
-                missing: "Allow access to find new contacts.",
+                missing: "",
                 state: contactsState,
                 openSettings: openSettings
             ) {
@@ -111,7 +111,7 @@ struct OnboardingView: View {
             PermissionRow(
                 title: "Location, Always",
                 missing: app.capture.locationStatus == .authorizedWhenInUse
-                    ? LocationPermissionAction.backgroundExplanation : "Allow location to suggest meeting places.",
+                    ? LocationPermissionAction.backgroundExplanation : "",
                 state: locationState,
                 openSettings: openSettings
             ) {
@@ -121,7 +121,7 @@ struct OnboardingView: View {
 
             PermissionRow(
                 title: "Notifications",
-                missing: "Get notified about new contacts.",
+                missing: "",
                 state: notificationsState,
                 openSettings: openSettings
             ) {
@@ -134,7 +134,7 @@ struct OnboardingView: View {
                 HapticManager.heavy()
                 leave()
             } label: {
-                Text("Start")
+                Text("Continue")
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
@@ -216,7 +216,7 @@ private struct PermissionRow: View {
         switch state {
         case .pending: "Allow"
         case .granted: "Allowed"
-        case .denied: "Open Settings"
+        case .denied: "Allow"
         }
     }
 }
