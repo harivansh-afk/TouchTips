@@ -151,7 +151,7 @@ struct PermissionRow: View {
             if !dynamicTypeSize.isAccessibilitySize {
                 Spacer(minLength: 8)
             }
-            Button(state == .granted ? "Allowed" : "Allow") {
+            Button(state == .granted ? "Allowed" : "Continue") {
                 HapticManager.heavy()
                 if state == .denied {
                     openAppSettings(openURL)
