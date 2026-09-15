@@ -1,5 +1,7 @@
 # TouchTips
 
+[Watch the demo](https://harivan.sh/previews/touchtips.mp4)
+
 When and where did we meet?
 This is a question i often ask myself since i meet so many people on a daily basis. 
 I tried sending selfies to the people i find interesting, but this doesnt scale
