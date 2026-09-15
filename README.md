@@ -1,6 +1,6 @@
 # TouchTips
 
-[Watch the demo](https://harivan.sh/previews/touchtips.mp4)
+https://github.com/user-attachments/assets/7cdbffcf-0509-4225-865b-ecfd2ee23a39
 
 ```sh
 just gen
