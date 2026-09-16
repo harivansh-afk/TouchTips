@@ -92,6 +92,14 @@ final class NotificationUITests: XCTestCase {
             contacts.buttons["Continue"].tap()
         }
         let add = contacts.buttons["Add"]
+        // Contacts restores its last card across launches, including the previous test run.
+        // Return to the list instead of assuming every launch begins there.
+        if !add.exists {
+            let back = contacts.navigationBars.buttons["BackButton"]
+            if back.waitForExistence(timeout: 2) {
+                back.tap()
+            }
+        }
         XCTAssertTrue(add.waitForExistence(timeout: 5), contacts.debugDescription)
         add.tap()
         let name = "ContactUITest \(UUID().uuidString.prefix(8))"
