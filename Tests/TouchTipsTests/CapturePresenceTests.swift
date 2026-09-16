@@ -61,8 +61,8 @@ private final class PresenceManagerProbe: CLLocationManager {
     private(set) var stops = 0
     private var backgroundAllowed = false
 
-    // Legacy policy tests must not invoke the real setter: the production app deliberately
-    // no longer declares the location background mode required by Core Location's setter.
+    /// Legacy policy tests must not invoke the real setter: the production app deliberately
+    /// no longer declares the location background mode required by Core Location's setter.
     override var allowsBackgroundLocationUpdates: Bool {
         get { backgroundAllowed }
         set { backgroundAllowed = newValue }

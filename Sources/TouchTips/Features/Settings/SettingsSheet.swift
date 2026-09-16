@@ -30,7 +30,9 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Automatic checks")
                 } footer: {
-                    Text("Use a Shortcuts automation to check contacts when you leave Contacts or Phone. No background location needed.")
+                    Text(
+                        "Use a Shortcuts automation to check contacts when you leave Contacts or Phone. No background location needed."
+                    )
                 }
 
                 Section {
@@ -61,7 +63,9 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Access")
                 } footer: {
-                    Text("Tap a permission to change access in iOS Settings. Location is optional and only used when adding a place in TouchTips.")
+                    Text(
+                        "Tap a permission to change access in iOS Settings. Location is optional and only used when adding a place in TouchTips."
+                    )
                 }
 
                 Section {
@@ -104,7 +108,6 @@ struct SettingsSheet: View {
 
                 if BuildEnvironment.isDev {
                     Section {
-
                         if let lastNotice {
                             LabeledContent("Detection to submission", value: CaptureCoordinator.describe(lastNotice))
                         }
@@ -211,7 +214,6 @@ struct SettingsSheet: View {
         .accessibilityIdentifier("settings-access-\(title.lowercased())")
         .accessibilityHint(status == "Allow" ? "Request permission" : "Change access in iOS Settings")
     }
-
 
     private func openSettings() {
         if let url = URL(string: UIApplication.openSettingsURLString) {

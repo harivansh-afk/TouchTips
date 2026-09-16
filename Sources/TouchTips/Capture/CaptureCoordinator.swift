@@ -95,7 +95,7 @@ final class CaptureCoordinator: NSObject {
     static let autoCaptureLocationKey = "autoCaptureLocation"
     private let defaults: UserDefaults
 
-    // Compatibility for older UI bindings. Legacy preferences cannot re-enable location capture.
+    /// Compatibility for older UI bindings. Legacy preferences cannot re-enable location capture.
     var autoCaptureLocation: Bool {
         get { false }
         set { defaults.set(false, forKey: Self.autoCaptureLocationKey) }
@@ -142,13 +142,17 @@ final class CaptureCoordinator: NSObject {
     func start(checkOnLaunch: Bool = true) {
         guard !hasStarted else { return }
         hasStarted = true
-        if checkOnLaunch { scheduleTick(.launch, after: 0) }
+        if checkOnLaunch {
+            scheduleTick(.launch, after: 0)
+        }
         manager.delegate = self
         manager.stopMonitoringVisits()
         manager.stopMonitoringSignificantLocationChanges()
         restoreFence()
         scheduleRefresh()
-        if checkOnLaunch { startObservingContacts() }
+        if checkOnLaunch {
+            startObservingContacts()
+        }
     }
 
     func startObservingContacts() {
@@ -259,7 +263,9 @@ final class CaptureCoordinator: NSObject {
         let work = Task { [weak self] in
             guard let self else { return false }
             defer {
-                if Task.isCancelled { cancelledBatchGeneration += 1 }
+                if Task.isCancelled {
+                    cancelledBatchGeneration += 1
+                }
                 activeTick = nil
                 // A foreground/contact wake may arrive while expired work is unwinding.
                 if Task.isCancelled, let queuedSource, !isResetting {
@@ -404,7 +410,9 @@ final class CaptureCoordinator: NSObject {
     }
 
     /// Legacy debug action. Automatic location evidence is disabled, including explicit witnesses.
-    func witness() async -> Bool { false }
+    func witness() async -> Bool {
+        false
+    }
 
     // MARK: - Notify
 

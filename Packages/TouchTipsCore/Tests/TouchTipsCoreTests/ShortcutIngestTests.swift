@@ -17,7 +17,7 @@ struct ShortcutIngestTests {
         try Ingest.addExact(contactID: "keep", name: "Keep", at: now, placeID: nil, to: db)
         try Ingest.setNote(contactID: "keep", note: "A note", to: db)
         let before = try db.reader.read { db in
-            (try Person.fetchAll(db), try Meet.fetchAll(db), try PendingNotice.all().fetchAll(db))
+            try (Person.fetchAll(db), Meet.fetchAll(db), PendingNotice.all().fetchAll(db))
         }
         #expect(throws: StaleContactHistory.self) {
             try Ingest.apply(
@@ -30,7 +30,7 @@ struct ShortcutIngestTests {
                 useLocationEvidence: false, to: db
             )
         }
-        try db.reader.read { (db: Database) throws -> Void in
+        try db.reader.read { (db: Database) throws in
             #expect(try Person.fetchAll(db) == before.0)
             #expect(try Meet.fetchAll(db) == before.1)
             #expect(try PendingNotice.all().fetchAll(db) == before.2)
@@ -46,7 +46,7 @@ struct ShortcutIngestTests {
                 now: t("2026-09-02T09:00"), expectedToken: Data([1]), to: db
             )
         }
-        try db.reader.read { (db: Database) throws -> Void in
+        try db.reader.read { (db: Database) throws in
             #expect(try Person.fetchCount(db) == 0)
             #expect(try db.value(for: .contactsHistoryToken) == nil)
             #expect(try db.date(for: .lastTick) == nil)
@@ -58,9 +58,9 @@ struct ShortcutIngestTests {
         try Ingest.apply(ContactChangeSet(token: Data([1])), now: now, expectedToken: nil, to: db)
         try db.writer.write { db in
             try db.execute(sql: """
-                CREATE TRIGGER reject_notice BEFORE INSERT ON pendingNotice
-                BEGIN SELECT RAISE(ABORT, 'test failure'); END
-                """)
+            CREATE TRIGGER reject_notice BEFORE INSERT ON pendingNotice
+            BEGIN SELECT RAISE(ABORT, 'test failure'); END
+            """)
         }
         #expect(throws: DatabaseError.self) {
             try Ingest.apply(
@@ -68,7 +68,7 @@ struct ShortcutIngestTests {
                 now: now.addingTimeInterval(60), expectedToken: Data([1]), useLocationEvidence: false, to: db
             )
         }
-        try db.reader.read { (db: Database) throws -> Void in
+        try db.reader.read { (db: Database) throws in
             #expect(try Person.fetchCount(db) == 0)
             #expect(try Meet.fetchCount(db) == 0)
             #expect(try PendingNotice.fetchCount(db) == 0)
@@ -88,8 +88,12 @@ struct ShortcutIngestTests {
         try Ingest.addExact(contactID: "keep", name: "Keep", at: start, placeID: visit.placeID, to: db)
         try Ingest.setNote(contactID: "keep", note: "Keep this note", to: db)
         let before = try db.reader.read { db in
-            (try Meet.fetchOne(db, key: "keep"), try PendingNotice.fetchOne(db, key: "keep"),
-             try Visit.fetchAll(db), try Place.fetchAll(db))
+            try (
+                Meet.fetchOne(db, key: "keep"),
+                PendingNotice.fetchOne(db, key: "keep"),
+                Visit.fetchAll(db),
+                Place.fetchAll(db)
+            )
         }
         let summary = try Ingest.apply(
             ContactChangeSet(added: [
@@ -99,7 +103,7 @@ struct ShortcutIngestTests {
             now: now, expectedToken: Data([1]), useLocationEvidence: false, to: db
         )
         #expect(summary.newPeople == 1)
-        try db.reader.read { (db: Database) throws -> Void in
+        try db.reader.read { (db: Database) throws in
             let meet = try #require(try Meet.fetchOne(db, key: "new"))
             #expect(meet.tier == .dateOnly)
             #expect(meet.placeID == nil)

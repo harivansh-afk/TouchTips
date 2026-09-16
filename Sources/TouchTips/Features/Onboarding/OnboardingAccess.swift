@@ -6,7 +6,9 @@ import UserNotifications
 enum Permission: CaseIterable, Identifiable {
     case contacts, location, notifications
 
-    var id: Self { self }
+    var id: Self {
+        self
+    }
 
     var title: String {
         switch self {
@@ -129,7 +131,9 @@ struct PermissionRow: View {
     let permission: Permission
     let access: OnboardingAccess
 
-    private var state: PermissionState { access.state(permission) }
+    private var state: PermissionState {
+        access.state(permission)
+    }
 
     private var layout: AnyLayout {
         dynamicTypeSize.isAccessibilitySize

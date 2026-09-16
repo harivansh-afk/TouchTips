@@ -283,11 +283,13 @@ private struct NoticePart: View {
             .fixedSize(horizontal: false, vertical: true)
 
             // One sentence a line, as few words as each will take.
-            Text("Set up a shortcut to check when you leave Contacts. Tap a notification to add when and where you met.")
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.bottom, 8)
-                .staged(revealed, leaving: leaving, order: 0, last: 2)
+            Text(
+                "Set up a shortcut to check when you leave Contacts. Tap a notification to add when and where you met."
+            )
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.bottom, 8)
+            .staged(revealed, leaving: leaving, order: 0, last: 2)
 
             PermissionRow(permission: .notifications, access: access)
                 .staged(revealed, leaving: leaving, order: 1, last: 2)

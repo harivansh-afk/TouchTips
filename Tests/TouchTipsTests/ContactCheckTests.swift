@@ -47,8 +47,10 @@ final class ContactCheckTests: XCTestCase {
         }
         let result = try await capture.checkForNewContacts()
         XCTAssertEqual(tokens, [Data([1])])
-        XCTAssertEqual(fixture.defaults.double(forKey: CaptureCoordinator.lastShortcutCheckKey),
-                       result.checkedAt.timeIntervalSince1970)
+        XCTAssertEqual(
+            fixture.defaults.double(forKey: CaptureCoordinator.lastShortcutCheckKey),
+            result.checkedAt.timeIntervalSince1970
+        )
         let count = try await fixture.db.reader.read { try Person.fetchCount($0) }
         XCTAssertEqual(count, 0)
     }
@@ -115,8 +117,10 @@ final class ContactCheckTests: XCTestCase {
             added: [.init(contactID: "new", name: "New")], token: Data([2])
         ))
         await eventually { delivery != nil }
-        XCTAssertNil(fixture.defaults.object(forKey: CaptureCoordinator.lastShortcutCheckKey),
-                     "A completed scan alone must not report success before delivery returns")
+        XCTAssertNil(
+            fixture.defaults.object(forKey: CaptureCoordinator.lastShortcutCheckKey),
+            "A completed scan alone must not report success before delivery returns"
+        )
         delivery?.resume()
         _ = try await first.value
         _ = try await second.value
@@ -143,7 +147,9 @@ final class ContactCheckTests: XCTestCase {
 
     private func eventually(_ predicate: () -> Bool, file: StaticString = #filePath, line: UInt = #line) async {
         for _ in 0 ..< 200 {
-            if predicate() { return }
+            if predicate() {
+                return
+            }
             try? await Task.sleep(for: .milliseconds(5))
         }
         XCTFail("Expected async capture work", file: file, line: line)

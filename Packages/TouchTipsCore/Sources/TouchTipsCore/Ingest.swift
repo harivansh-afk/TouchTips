@@ -90,6 +90,7 @@ public enum Ingest {
         case unchecked
         case matching(Data?)
     }
+
     /// Apply a contacts diff. The first run (no stored token) snapshots everyone as before-install;
     /// later runs treat unknown adds as new people who appeared since the last tick.
     ///
