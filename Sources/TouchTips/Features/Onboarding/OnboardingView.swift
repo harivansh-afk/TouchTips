@@ -284,7 +284,7 @@ private struct NoticePart: View {
 
             // One sentence a line, as few words as each will take.
             Text(
-                "Set up a shortcut to check when you leave Contacts. Tap a notification to add when and where you met."
+                "A one-time Shortcuts automation checks whenever you leave Contacts. Tap the notification to add where you met."
             )
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)

@@ -15,7 +15,7 @@ struct TouchTipsApp: App {
         !(pastFloor && finishedSplash)
     }
 
-    /// The wordmark plays for one second. A process that CoreLocation launched in the background may never
+    /// The wordmark plays for one second. A process that a background task launched may never
     /// get the animation's completion, so the first active scene also ends the splash on a clock.
     private static let splashCap: Duration = .milliseconds(1400)
 

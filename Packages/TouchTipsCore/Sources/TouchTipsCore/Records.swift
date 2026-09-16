@@ -218,23 +218,5 @@ public enum StoreKey: String, Sendable {
 
 /// What woke the app, or that it was still awake.
 public enum WakeSource: String, Codable, Hashable, Sendable, CaseIterable {
-    case launch, foreground, contacts, visit, fence, movement, refresh, intent, user
-    /// The resident process checking in on a timer. Proves uptime; is not a wake.
-    case presence
-}
-
-/// One proof the process was running. Every tick writes one; the resident process writes one on a timer.
-public struct Heartbeat: Codable, Hashable, Identifiable, Sendable {
-    public var id: Int64?
-    public var source: WakeSource
-    public var at: Date
-    /// 0 to 1, nil when the device would not say.
-    public var batteryLevel: Double?
-
-    public init(id: Int64? = nil, source: WakeSource, at: Date, batteryLevel: Double? = nil) {
-        self.id = id
-        self.source = source
-        self.at = at
-        self.batteryLevel = batteryLevel
-    }
+    case launch, foreground, contacts, refresh, intent, user
 }

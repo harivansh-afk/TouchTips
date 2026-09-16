@@ -31,7 +31,7 @@ struct SettingsSheet: View {
                     Text("Automatic checks")
                 } footer: {
                     Text(
-                        "Use a Shortcuts automation to check contacts when you leave Contacts or Phone. No background location needed."
+                        "A Shortcuts automation checks for new contacts whenever you leave Contacts. No background location."
                     )
                 }
 
@@ -47,8 +47,8 @@ struct SettingsSheet: View {
                         }
                     }
                     accessRow("Location", status: locationStatus) {
-                        if app.capture.locationPermissionAction == .request {
-                            app.capture.requestLocation()
+                        if app.locationAccess.action == .request {
+                            app.locationAccess.request()
                         } else {
                             openSettings()
                         }
@@ -160,6 +160,7 @@ struct SettingsSheet: View {
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
                 app.contactsAccess.refresh()
+                app.locationAccess.refresh()
                 await app.notifier.refresh()
                 await loadStats()
             }
@@ -178,7 +179,7 @@ struct SettingsSheet: View {
     }
 
     private var locationStatus: String {
-        switch app.capture.locationStatus {
+        switch app.locationAccess.status {
         case .authorizedAlways: "Always"
         case .authorizedWhenInUse: "While Using"
         case .denied: "Off"

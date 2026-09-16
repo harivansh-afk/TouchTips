@@ -54,21 +54,6 @@ public struct LiveVisit: Hashable, Sendable {
     }
 }
 
-/// A precise one-shot location, flattened.
-public struct LiveFix: Hashable, Sendable {
-    public var latitude: Double
-    public var longitude: Double
-    public var accuracyMeters: Double
-    public var at: Date
-
-    public init(latitude: Double, longitude: Double, accuracyMeters: Double, at: Date) {
-        self.latitude = latitude
-        self.longitude = longitude
-        self.accuracyMeters = accuracyMeters
-        self.at = at
-    }
-}
-
 public struct IngestSummary: Hashable, Sendable {
     public var newPeople = 0
     public var snapshotted = 0
@@ -226,45 +211,6 @@ public enum Ingest {
         }
     }
 
-    /// Store a fix as a zero-length visit. Any add whose interval contains the instant is witnessed by it.
-    @discardableResult
-    public static func recordFix(_ fix: LiveFix, now: Date, to database: AppDatabase) throws -> Visit {
-        try database.writer.write { db in
-            let place = try Place.findOrCreate(
-                db, key: PlaceKey.cell(latitude: fix.latitude, longitude: fix.longitude),
-                latitude: fix.latitude, longitude: fix.longitude
-            )
-            var visit = Visit(
-                placeID: place.id!,
-                start: fix.at,
-                end: fix.at,
-                source: .fix,
-                accuracyMeters: fix.accuracyMeters
-            )
-            try visit.save(db)
-            try reresolve(around: fix.at, fix.at, in: db, now: now)
-            return visit
-        }
-    }
-
-    /// One proof of life. Cheap; the app writes one on every wake and every few minutes while resident.
-    @discardableResult
-    public static func recordHeartbeat(
-        _ source: WakeSource,
-        at: Date,
-        batteryLevel: Double?,
-        to database: AppDatabase
-    ) throws -> Heartbeat {
-        try database.writer.write { db in
-            // Diagnostic history is bounded; meetings and visits are never aged out here.
-            _ = try Heartbeat.filter(Heartbeat.Columns.at < at.addingTimeInterval(-7 * 86400)).deleteAll(db)
-            var beat = Heartbeat(source: source, at: at, batteryLevel: batteryLevel)
-            try beat.insert(db)
-            return beat
-        }
-    }
-
-    /// Recompute every inferred meeting. Used after a history import.
     public static func reresolveAll(now: Date, to database: AppDatabase) throws {
         try database.writer.write { db in
             let meets = try Meet.filter(Meet.Columns.userSet == false).fetchAll(db)
@@ -417,7 +363,8 @@ public enum Ingest {
             _ = try Visit.deleteAll(db)
             _ = try Place.deleteAll(db)
             _ = try Person.deleteAll(db)
-            _ = try Heartbeat.deleteAll(db)
+            // The legacy heartbeat table is left empty; its migration stays for older databases.
+            try db.execute(sql: "DELETE FROM heartbeat")
             _ = try KeyValue.deleteAll(db)
         }
     }

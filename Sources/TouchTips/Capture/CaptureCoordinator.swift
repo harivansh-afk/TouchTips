@@ -1,6 +1,5 @@
 import BackgroundTasks
 import Contacts
-import CoreLocation
 import Observation
 import TouchTipsCore
 import UIKit
@@ -20,23 +19,6 @@ struct CaptureContacts {
 }
 
 @MainActor
-struct CaptureLocation {
-    var authorized: () -> Bool
-    var fix: (Duration) async -> CLLocation?
-
-    static var system: Self {
-        let oneShot = OneShotLocation()
-        return Self(
-            authorized: {
-                let status = CLLocationManager().authorizationStatus
-                return status == .authorizedAlways || status == .authorizedWhenInUse
-            },
-            fix: { await oneShot.fix(timeout: $0) }
-        )
-    }
-}
-
-@MainActor
 struct CaptureRefresh {
     var pending: () async -> [BGTaskRequest]
     var submit: (BGTaskRequest) throws -> Void
@@ -51,27 +33,25 @@ struct CaptureRefresh {
 
 /// Every way the app wakes lands here, runs one tick, and posts one notification per new person.
 ///
-/// Contacts changes are observed while running. Shortcuts and optional background refresh can catch up.
+/// Contacts changes are observed while running. The Shortcuts intent and optional background refresh catch up.
 @MainActor
 @Observable
-final class CaptureCoordinator: NSObject {
+final class CaptureCoordinator {
     static let refreshTaskID = "sh.harivan.touchtips.refresh"
     static let lastShortcutCheckKey = "lastShortcutCheck"
 
     private let database: AppDatabase
     private let notifier: Notifier
-    /// Permission support for an explicit foreground Add only; never starts capture services.
-    private let manager = CLLocationManager()
     private let contacts: CaptureContacts
     private let refresh: CaptureRefresh
     private let retryDelays: [Duration]
+    private let defaults: UserDefaults
     private let beginBackground: (@escaping @MainActor () -> Void) -> CaptureBackgroundTask
     private var backgroundTask: CaptureBackgroundTask?
     private var backgroundGeneration = 0
     private var tickTask: Task<Void, Never>?
     private var scheduledSource: WakeSource?
     private var tickDeadline: Date?
-    @ObservationIgnored private lazy var fence = CaptureFence(wake: {})
     private var hasStarted = false
     private var contactsObserver: (any NSObjectProtocol)?
     private var activeTick: Task<Bool, Never>?
@@ -79,63 +59,30 @@ final class CaptureCoordinator: NSObject {
     private var refreshScheduling: Task<Void, Never>?
     /// A wake that arrived mid-tick. Runs once the current one is done.
     private var queuedSource: WakeSource?
-
     /// When the first contact-change notification of the current burst arrived. The clock for the latency stats.
     private var pendingHeard: Date?
 
-    private(set) var locationStatus: CLAuthorizationStatus
-    private(set) var lastTick: Date?
-    /// Retained for foreground Add compatibility; automatic visits are disabled.
-    private(set) var currentVisit: Visit?
     private(set) var isResetting = false
 
     /// Fires after anything landed in the database.
     var didIngest: (() -> Void)?
 
-    static let autoCaptureLocationKey = "autoCaptureLocation"
-    private let defaults: UserDefaults
-
-    /// Compatibility for older UI bindings. Legacy preferences cannot re-enable location capture.
-    var autoCaptureLocation: Bool {
-        get { false }
-        set { defaults.set(false, forKey: Self.autoCaptureLocationKey) }
-    }
-
-    var presencePolicy: PresencePolicy {
-        get { .off }
-        set { defaults.set(PresencePolicy.off.rawValue, forKey: PresencePolicy.key) }
-    }
-
-    var locationGranted: Bool {
-        locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse
-    }
-
-    var locationPermissionAction: LocationPermissionAction {
-        locationGranted ? .allowed : LocationPermissionAction(status: locationStatus)
-    }
-
     init(
         database: AppDatabase, notifier: Notifier, contacts: CaptureContacts = .system,
-        location: CaptureLocation? = nil, refresh: CaptureRefresh = .system,
+        refresh: CaptureRefresh = .system,
         retryDelays: [Duration] = [.seconds(2), .seconds(5)],
         defaults: UserDefaults = .standard,
         beginBackground: @escaping (@escaping @MainActor () -> Void) -> CaptureBackgroundTask = {
             CaptureBackgroundTask(expiration: $0)
         }
     ) {
-        self.defaults = defaults
-        defaults.set(false, forKey: Self.autoCaptureLocationKey)
-        defaults.set(PresencePolicy.off.rawValue, forKey: PresencePolicy.key)
         self.database = database
-
         self.notifier = notifier
         self.contacts = contacts
         self.refresh = refresh
         self.retryDelays = retryDelays
+        self.defaults = defaults
         self.beginBackground = beginBackground
-        locationStatus = manager.authorizationStatus
-
-        super.init()
     }
 
     /// Headless startup must not silently establish a baseline before the explicit check preflight.
@@ -144,15 +91,9 @@ final class CaptureCoordinator: NSObject {
         hasStarted = true
         if checkOnLaunch {
             scheduleTick(.launch, after: 0)
-        }
-        manager.delegate = self
-        manager.stopMonitoringVisits()
-        manager.stopMonitoringSignificantLocationChanges()
-        restoreFence()
-        scheduleRefresh()
-        if checkOnLaunch {
             startObservingContacts()
         }
+        scheduleRefresh()
     }
 
     func startObservingContacts() {
@@ -186,11 +127,6 @@ final class CaptureCoordinator: NSObject {
         tickTask = nil
         scheduledSource = nil
         tickDeadline = nil
-    }
-
-    func requestLocation() {
-        guard locationPermissionAction == .request else { return }
-        manager.requestWhenInUseAuthorization()
     }
 
     func scheduleTick(_ source: WakeSource, after delay: TimeInterval = 0) {
@@ -339,15 +275,12 @@ final class CaptureCoordinator: NSObject {
         endBackgroundIfIdle()
 
         await notifier.cancelDelivery()
-        await fence.reset()
         do {
             try Ingest.deleteAll(database)
         } catch {
             isResetting = false
             throw error
         }
-        currentVisit = nil
-        lastTick = nil
         pendingHeard = nil
         defaults.removeObject(forKey: Self.lastShortcutCheckKey)
         didIngest?()
@@ -356,8 +289,6 @@ final class CaptureCoordinator: NSObject {
     }
 
     private func performTick(_ source: WakeSource) async -> Bool {
-        restoreFence()
-
         guard contacts.authorized() else {
             Log.capture.notice("capture skipped: full Contacts access unavailable")
             await notifier.deliverPending()
@@ -367,8 +298,6 @@ final class CaptureCoordinator: NSObject {
         let now = Date()
         let heard = pendingHeard ?? now
         pendingHeard = nil
-
-        record(source, at: now)
 
         let database = database
         do {
@@ -387,7 +316,6 @@ final class CaptureCoordinator: NSObject {
                 try Ingest.apply(changes, now: now, expectedToken: token, useLocationEvidence: false, to: database)
             }.value
             let resolvedAt = Date()
-            lastTick = now
             Log.capture.notice(
                 "tick \(source.rawValue, privacy: .public): \(summary.newPeople, privacy: .public) new, \(summary.snapshotted, privacy: .public) snapshotted, \(summary.updated, privacy: .public) updated, \(summary.deleted, privacy: .public) deleted, \(Self.ms(since: now), privacy: .public)"
             )
@@ -395,7 +323,7 @@ final class CaptureCoordinator: NSObject {
                 didIngest?()
             }
 
-            // Reconcile deletions before draining. Location and place naming cannot delay this commit or alert.
+            // Reconcile deletions before draining. Place naming cannot delay this commit or alert.
             await notifier.deliverPending(timing: NoticeTiming(
                 heard: heard, ticked: now, resolved: resolvedAt, posted: resolvedAt
             ))
@@ -409,18 +337,11 @@ final class CaptureCoordinator: NSObject {
         }
     }
 
-    /// Legacy debug action. Automatic location evidence is disabled, including explicit witnesses.
-    func witness() async -> Bool {
-        false
-    }
-
-    // MARK: - Notify
-
     private static func ms(since start: Date) -> String {
         "\(Int(Date().timeIntervalSince(start) * 1000)) ms"
     }
 
-    /// "3.2 s: coalesce 0.3, fix 1.9, resolve 0.1, name 0.8, post 0.0"
+    /// "0.4 s: coalesce 0.3, resolve 0.1, post 0.0"
     static func describe(_ timing: NoticeTiming) -> String {
         let stages = timing.stages.map { "\($0.name) \($0.seconds.formatted(.number.precision(.fractionLength(1))))" }
         return "\(timing.total.formatted(.number.precision(.fractionLength(1)))) s: \(stages.joined(separator: ", "))"
@@ -431,36 +352,6 @@ final class CaptureCoordinator: NSObject {
     func foreground() {
         startObservingContacts()
         scheduleTick(.foreground, after: 0)
-        locationStatus = manager.authorizationStatus
-        restoreFence()
-    }
-
-    private func record(_ source: WakeSource, at now: Date) {
-        do {
-            try Ingest.recordHeartbeat(source, at: now, batteryLevel: Self.batteryLevel, to: database)
-        } catch {
-            Log.capture.error("heartbeat not recorded: \(error.localizedDescription)")
-        }
-    }
-
-    private static var batteryLevel: Double? {
-        let device = UIDevice.current
-        device.isBatteryMonitoringEnabled = true
-        let level = device.batteryLevel
-        return level < 0 ? nil : Double(level)
-    }
-
-    // MARK: - Fence
-
-    /// Migration only: remove the persisted TouchedTipsFence/breadcrumb once protected data is available.
-    /// Disabled configuration opens no Always session and observes no event stream.
-    func restoreFence() {
-        guard hasStarted else { return }
-        fence.configure(
-            authorized: false,
-            protectedDataAvailable: UIApplication.shared.isProtectedDataAvailable,
-            enabled: false
-        )
     }
 
     // MARK: - Refresh
@@ -501,30 +392,5 @@ final class CaptureCoordinator: NSObject {
         }
         refreshScheduling = work
         return work
-    }
-
-    // MARK: - Location events
-
-    func record(_ live: LiveVisit) {}
-}
-
-extension CaptureCoordinator: CLLocationManagerDelegate {
-    // CoreLocation calls back on the thread that created the manager, which is the main thread here.
-
-    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        let status = manager.authorizationStatus
-        let managerID = ObjectIdentifier(manager)
-        MainActor.assumeIsolated {
-            guard managerID == ObjectIdentifier(self.manager) else { return }
-            locationStatus = status
-        }
-    }
-
-    nonisolated func locationManager(_ manager: CLLocationManager, didVisit visit: CLVisit) {}
-
-    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {}
-
-    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: any Error) {
-        Log.capture.error("location: \(error.localizedDescription)")
     }
 }

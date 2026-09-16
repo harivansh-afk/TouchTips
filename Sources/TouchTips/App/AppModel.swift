@@ -13,6 +13,7 @@ final class AppModel {
     let notifier: Notifier
     let photos: ContactPhotos
     let contactsAccess = ContactsAccess()
+    let locationAccess = LocationAccess()
 
     /// The app's own database in Application Support.
     convenience init() throws {

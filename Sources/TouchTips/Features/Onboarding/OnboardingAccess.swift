@@ -2,9 +2,9 @@ import Contacts
 import SwiftUI
 import UserNotifications
 
-/// The three things the first-run screen asks for, in the order it asks.
+/// The two things the first-run screen asks for, in the order it asks.
 enum Permission: CaseIterable, Identifiable {
-    case contacts, location, notifications
+    case contacts, notifications
 
     var id: Self {
         self
@@ -13,7 +13,6 @@ enum Permission: CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .contacts: "Contacts"
-        case .location: "Location (optional)"
         case .notifications: "Notifications"
         }
     }
@@ -50,12 +49,6 @@ struct OnboardingAccess {
             case .authorized: .granted
             case .denied, .restricted, .limited: .denied
             default: .pending
-            }
-        case .location:
-            return switch app.capture.locationPermissionAction {
-            case .allowed: .granted
-            case .openSettings: .denied
-            case .request: .pending
             }
         case .notifications:
             return switch app.notifier.status {
@@ -100,8 +93,6 @@ struct OnboardingAccess {
                 await app.contactsAccess.request()
                 app.capture.scheduleTick(.user)
             }
-        case .location:
-            app.capture.requestLocation()
         case .notifications:
             Task { await app.notifier.request() }
         }

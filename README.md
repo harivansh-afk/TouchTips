@@ -39,12 +39,11 @@ In-app Add retains the saved system-contact identity if its SQLite write fails. 
 contact and preserves the original meeting time. The selected place, meeting, and pending notice
 commit together. Notes flush when the scene becomes inactive.
 
-Continuous location, visits, significant-change monitoring, geofence wake observation, and heartbeat
-polling are no longer started. Upgrade cleanup removes the old persisted fence without opening an
-Always authorization session. Existing meetings, notes, places, visit history, cursor, and pending
-notifications stay in the same database. Legacy standalone location components/tests remain for
-now; they are not part of the active capture path. Earlier background-location documents describe
-the superseded architecture, not the behavior of this branch.
+TouchTips no longer uses background location. Discovery runs when the app is open, when a
+Shortcuts automation asks it to check (see [docs/shortcuts-capture.md](docs/shortcuts-capture.md)),
+and opportunistically on background refresh. Existing meetings, notes, places, visit history, cursor
+and pending notifications stay in the same database across the upgrade. Earlier background-location
+documents describe the superseded architecture.
 
 See the [September 8 architecture review](docs/architecture-review-2026-09-08.md) for findings,
 regression coverage, and the remaining physical-device verification boundary.
@@ -62,7 +61,7 @@ Everything stays on the phone. `docs/design/capture-v1.html` has the reasoning, 
 ```
 project.yml                    XcodeGen spec; TouchTips.xcodeproj is generated, not committed
 Packages/TouchTipsCore/         Records, schema (GRDB), resolver, ingest, queries, Timeline decoder. No UIKit.
-Sources/TouchTips/              The app: capture (Contacts + CoreLocation), geocoder (MapKit), SwiftUI features
+Sources/TouchTips/              The app: capture (Contacts + Shortcuts intent), geocoder (MapKit), SwiftUI features
 docs/design/TouchTips-v0.html    The design doc: screens, API lock-down, data model
 docs/design/capture-v1.html      The capture architecture: presence, relaunch net, the tick, notification, measurement
 ```

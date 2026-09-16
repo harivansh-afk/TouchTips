@@ -87,23 +87,6 @@ extension KeyValue: FetchableRecord, PersistableRecord {
     public static let databaseTableName = "kv"
 }
 
-extension Heartbeat: FetchableRecord, MutablePersistableRecord {
-    public static let databaseTableName = "heartbeat"
-
-    public enum Columns: String, ColumnExpression {
-        case id, source, at, batteryLevel
-    }
-
-    public mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
-
-    /// Heartbeats at or after `start`, oldest first.
-    public static func since(_ start: Date) -> QueryInterfaceRequest<Heartbeat> {
-        Heartbeat.filter(Columns.at >= start).order(Columns.at)
-    }
-}
-
 public extension Database {
     func value(for key: StoreKey) throws -> Data? {
         try KeyValue.fetchOne(self, key: key.rawValue)?.value

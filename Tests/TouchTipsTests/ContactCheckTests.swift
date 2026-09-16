@@ -183,10 +183,6 @@ private final class Fixture {
         return CaptureCoordinator(
             database: db, notifier: notifier,
             contacts: CaptureContacts(authorized: authorized, changes: changes),
-            location: CaptureLocation(authorized: { true }, fix: { _ in
-                XCTFail("Capture must not request location")
-                return nil
-            }),
             refresh: CaptureRefresh(pending: { [] }, submit: { _ in }),
             retryDelays: [], defaults: defaults
         )

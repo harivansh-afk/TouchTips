@@ -1,112 +1,110 @@
-import AppIntents
 import SwiftUI
 import TouchTipsCore
 
-/// Shortcuts exposes our action automatically, but only the person can install a personal automation.
+/// The one-time setup for automatic checks. iOS lets only the person create the Shortcuts
+/// automation, so this screen gets everything else ready, opens Shortcuts at the right page,
+/// and shows the five taps left. Modelled on the setup flows of one sec and Opal.
 struct AutomationSetupView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(CaptureCoordinator.lastShortcutCheckKey) private var lastShortcutCheck = 0.0
     @State private var hasBaseline = false
-    @State private var busy = false
-    @State private var problem: String?
+    @State private var preparing = false
+
+    private var ready: Bool {
+        app.contactsAccess.granted && hasBaseline
+    }
+
+    private var checked: Date? {
+        lastShortcutCheck > 0 ? Date(timeIntervalSince1970: lastShortcutCheck) : nil
+    }
 
     var body: some View {
         Form {
             Section {
                 Text(
-                    "When you leave Contacts or Phone, Shortcuts can ask TouchTips to check for new contacts without opening the app."
-                )
-                Text(
-                    "This is not a contact-save trigger. NameDrop and contacts saved elsewhere are discovered at a later check. No background location is used."
+                    "Add someone in Contacts, leave Contacts, and TouchTips reminds you to note where you met. No background location."
                 )
                 .foregroundStyle(.secondary)
-            } header: {
-                Text("How it works")
             }
 
-            Section {
-                LabeledContent("Contacts", value: app.contactsAccess.granted ? "Full access" : "Full access needed")
-                if !app.contactsAccess.granted {
-                    Button("Continue with Contacts") {
-                        Task {
-                            if app.contactsAccess.status == .notDetermined {
-                                await app.contactsAccess.request()
-                            } else {
-                                openSettings()
-                            }
-                            await refresh()
+            Section("1. Allow") {
+                accessRow("Contacts", ok: app.contactsAccess.granted, okText: "Full access") {
+                    Task {
+                        if app.contactsAccess.status == .notDetermined {
+                            await app.contactsAccess.request()
+                        } else {
+                            openSettings()
+                        }
+                        await refresh()
+                    }
+                }
+                accessRow("Notifications", ok: app.notifier.granted, okText: "Allowed") {
+                    Task {
+                        if app.notifier.status == .notDetermined {
+                            await app.notifier.request()
+                        } else {
+                            openSettings()
                         }
                     }
                 }
-                LabeledContent("Baseline", value: hasBaseline ? "Ready" : "Not ready")
-                    .accessibilityIdentifier("automation.baseline")
-                Button(busy ? "Checking…" : "Prepare contact baseline") {
-                    Task { await prepare() }
-                }
-                .disabled(busy || !app.contactsAccess.granted)
-                .accessibilityIdentifier("automation.prepare")
-                if let problem {
-                    Text(problem).foregroundStyle(.secondary)
-                }
-                LabeledContent("Notifications", value: app.notifier.granted ? "Allowed" : "Not allowed")
-                if !app.notifier.granted {
-                    Button("Continue with Notifications") {
-                        Task {
-                            if app.notifier.status == .notDetermined {
-                                await app.notifier.request()
-                            } else {
-                                openSettings()
-                            }
-                        }
-                    }
-                }
-            } header: {
-                Text("1. Prepare TouchTips")
-            } footer: {
-                Text(
-                    "The first successful check learns your existing contacts silently. Do this before saving a test contact. Later checks preserve your notes and meeting details. Recording works even without notifications."
-                )
             }
 
             Section {
-                Text("In Shortcuts, open Automation and create a new App automation.")
-                Text(
-                    "Choose Contacts (and Phone if you use it to add people), select Is Closed, and choose Run Immediately or turn off Ask Before Running."
-                )
-                Text("Add TouchTips’ Check for new contacts action, then save the automation.")
-                ShortcutsLink()
-                    .disabled(!hasBaseline || !app.contactsAccess.granted)
-                    .accessibilityIdentifier("automation.shortcuts")
+                Button {
+                    openShortcuts()
+                } label: {
+                    Label(
+                        preparing ? "Reading your contacts…" : "Open Shortcuts",
+                        systemImage: "arrow.up.forward.app"
+                    )
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+                .controlSize(.large)
+                .disabled(!ready)
+                .accessibilityIdentifier("automation.shortcuts")
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+
+                step(1, "Tap **App**.")
+                step(2, "Tap **Choose**, pick **Contacts**, then the tick.")
+                step(3, "Select **Is Closed**.")
+                step(4, "Select **Run Immediately**.", warning: "Otherwise iOS asks before every check.")
+                step(5, "Tap **Next**, then **Check for new contacts**.")
+
+                Image("shortcut-step-trigger")
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(.rect(cornerRadius: 12))
+                    .frame(maxWidth: 280)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityLabel("Shortcuts trigger set to Contacts, Is Closed, Run Immediately")
+                    .listRowBackground(Color.clear)
             } header: {
-                Text("2. Connect the trigger")
+                Text("2. Add the automation")
             } footer: {
                 Text(
-                    "This button opens TouchTips’ actions in Shortcuts; it cannot install an automation. You must create the App trigger yourself. Setup is specific to this device."
+                    "Steps 1 to 4 should look like the picture. Shortcuts saves the automation when you tap the action."
                 )
             }
 
-            Section {
-                Text(
-                    "Save a new test contact in Contacts, then switch to another app. TouchTips should submit a notification if access is allowed. Focus and notification settings may silence it."
-                )
-                if lastShortcutCheck > 0 {
-                    LabeledContent("Last shortcut check") {
-                        Text(
-                            Date(timeIntervalSince1970: lastShortcutCheck),
-                            format: .dateTime.month().day().hour().minute().second()
-                        )
+            Section("3. Test it") {
+                if let checked {
+                    Label {
+                        Text("Working. Last check \(checked, format: .dateTime.month().day().hour().minute()).")
+                    } icon: {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                     }
                 } else {
-                    Text("No successful shortcut check yet.")
+                    Text(
+                        "Save a test contact in Contacts, then go Home. A TouchTips notification should arrive within a few seconds. Until then, opening TouchTips catches up on its own."
+                    )
+                    .foregroundStyle(.secondary)
                 }
-            } header: {
-                Text("3. Test it")
-            } footer: {
-                Text(
-                    "The timestamp proves the action completed, not that an automation is installed or that a banner appeared. Opening TouchTips also checks contacts, so look for the notification before returning here."
-                )
             }
         }
         .navigationTitle("Automatic checks")
@@ -117,27 +115,58 @@ struct AutomationSetupView: View {
         }
     }
 
-    private func refresh() async {
-        app.contactsAccess.refresh()
-        await app.notifier.refresh()
-        do {
-            hasBaseline = try await app.database.reader.read { db in
-                try db.value(for: .contactsHistoryToken) != nil
+    private func accessRow(_ title: String, ok: Bool, okText: String, action: @escaping () -> Void) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            if ok {
+                Text(okText).foregroundStyle(.secondary)
+            } else {
+                Button("Allow", action: action)
             }
-        } catch {
-            hasBaseline = false
-            problem = "Saved data is unavailable. Try again after unlocking your iPhone."
         }
     }
 
-    private func prepare() async {
-        busy = true
-        problem = nil
-        defer { busy = false }
-        let success = await app.capture.tick(.user)
-        await refresh()
-        if !success || !hasBaseline {
-            problem = "The baseline could not be prepared. Check full Contacts access and try again."
+    private func step(_ number: Int, _ text: LocalizedStringKey, warning: String? = nil) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text("\(number)")
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(text)
+                if let warning {
+                    Label(warning, systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                }
+            }
+        }
+    }
+
+    /// Straight to the trigger picker. The URL is undocumented, so fall back to the app itself.
+    private func openShortcuts() {
+        HapticManager.medium()
+        openURL(URL(string: "shortcuts://create-automation")!) { accepted in
+            if !accepted, let fallback = URL(string: "shortcuts://") {
+                openURL(fallback)
+            }
+        }
+    }
+
+    /// The silent baseline of existing contacts, taken here so a test contact is never swallowed.
+    private func refresh() async {
+        app.contactsAccess.refresh()
+        await app.notifier.refresh()
+        hasBaseline = await (try? app.database.reader.read { db in
+            try db.value(for: .contactsHistoryToken) != nil
+        }) ?? false
+        if !hasBaseline, app.contactsAccess.granted, !preparing {
+            preparing = true
+            _ = await app.capture.tick(.user)
+            preparing = false
+            hasBaseline = await (try? app.database.reader.read { db in
+                try db.value(for: .contactsHistoryToken) != nil
+            }) ?? false
         }
     }
 

@@ -59,8 +59,8 @@ final class AutoCaptureSettingsUITests: XCTestCase {
         let setup = app.buttons["settings.automation"]
         XCTAssertTrue(setup.waitForExistence(timeout: 5))
         setup.tap()
-        XCTAssertTrue(app.staticTexts["How it works"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["automation.prepare"].exists)
+        XCTAssertTrue(app.staticTexts["2. Add the automation"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["automation.shortcuts"].exists)
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Shortcuts setup and baseline"
         screenshot.lifetime = .keepAlways

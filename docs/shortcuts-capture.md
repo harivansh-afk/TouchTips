@@ -30,26 +30,22 @@ branch build. Do not merge solely to obtain a test build.
 
 ## Configure the phone
 
-1. Open TouchTips → Settings → **Set up automatic checks** (also available during onboarding).
-2. Grant full Contacts access. Limited access is not treated as an empty address book.
-3. Tap **Prepare contact baseline** and verify **Baseline: Ready** before adding a test contact.
-   The first successful foreground check silently establishes the preexisting address book.
-   On upgrade the existing cursor is preserved, not replaced by a fresh baseline.
-4. Allow notifications if desired. Location can remain disabled for the entire automatic test.
-5. Open Shortcuts. The TouchTips action **Check for new contacts** is exposed automatically.
-6. In **Automation**, create an **App** automation. Select **Contacts**, and **Phone** if desired
-   and available in the app picker. Select **Is Closed** and **Run Immediately** (or disable
-   **Ask Before Running**, depending on OS wording).
-7. Add the TouchTips **Check for new contacts** action and save. Do not add an Open App action,
-   a location lookup, a wait loop, or a separate Show Notification action.
-8. Save a new throwaway contact in Contacts and switch to another app. Look for the TouchTips
-   notification **before reopening TouchTips**, since foregrounding also checks contacts.
-9. Return to setup and inspect **Last shortcut check**. Only a successful shortcut entry updates
-   this timestamp; preparing the baseline or opening TouchTips does not. It proves execution,
-   not that a personal automation remains installed or that a banner was displayed.
+1. Open TouchTips → Settings → **Set up automatic checks** (also offered during onboarding).
+2. Allow full Contacts access and notifications. The screen reads the existing address book
+   silently as soon as Contacts is allowed; on upgrade the existing cursor is kept.
+3. Tap **Open Shortcuts**. It opens the personal-automation trigger picker directly
+   (`shortcuts://create-automation`, undocumented, with `shortcuts://` as the fallback).
+4. In Shortcuts: **App** → **Choose** → **Contacts** → tick → **Is Closed** → **Run Immediately** →
+   **Next** → **Check for new contacts**. The screen shows these five steps and a picture of the
+   finished trigger. Do not add Open App, a location lookup, a wait loop, or Show Notification.
+5. Save a throwaway contact in Contacts and go Home. Look for the TouchTips notification before
+   reopening TouchTips, since opening the app also checks. The setup screen then shows
+   **Working. Last check …**, which only a successful shortcut run updates.
 
-The Shortcuts button in the app opens its actions page, not the automation editor. iOS requires the
-person to configure the trigger. There is deliberately no fabricated "automation enabled" toggle.
+iOS exposes no API to create, share, or import a personal automation, so the Shortcuts half is
+always manual on iOS 26. On iOS 27 a shared shortcut carries its automation; see
+[shortcuts-onboarding-research.md](shortcuts-onboarding-research.md) and
+[shortcuts-onboarding-precedents.md](shortcuts-onboarding-precedents.md).
 
 ## Physical-device acceptance matrix
 

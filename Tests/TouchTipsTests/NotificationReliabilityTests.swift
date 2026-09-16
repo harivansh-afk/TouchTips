@@ -1,5 +1,4 @@
 import BackgroundTasks
-import CoreLocation
 @testable import TouchTips
 import TouchTipsCore
 import UserNotifications
@@ -18,7 +17,7 @@ final class NotificationReliabilityTests: XCTestCase {
             }
         ))
         capture.scheduleTick(.contacts, after: 0.02)
-        capture.scheduleTick(.movement, after: 20)
+        capture.scheduleTick(.refresh, after: 20)
         await waitUntil { reads > 0 }
         capture.stopObservingContacts()
         XCTAssertEqual(reads, 1)
@@ -156,41 +155,6 @@ final class NotificationReliabilityTests: XCTestCase {
         await notifier.deliverPending()
         XCTAssertEqual(removed, ["meet-a"])
         XCTAssertTrue(try queued(in: db).isEmpty)
-    }
-
-    func testLocationIsNeverRequestedDuringContactCommitOrNotification() async throws {
-        let db = try AppDatabase.inMemory()
-        try Ingest.apply(ContactChangeSet(token: Data([1])), now: .now, to: db)
-        var fixes = 0
-        var posted = false
-        var finished = false
-        let notifier = Notifier(database: db, delivery: NotificationDelivery(
-            authorization: { .authorized }, submittedIDs: { [] }, submit: { _ in posted = true }
-        ))
-        let capture = CaptureCoordinator(
-            database: db, notifier: notifier,
-            contacts: CaptureContacts(authorized: { true }, changes: { _ in
-                ContactChangeSet(added: [.init(contactID: "a", name: "A")], token: Data([2]))
-            }),
-            location: CaptureLocation(authorized: { true }, fix: { _ in
-                fixes += 1
-                return nil
-            })
-        )
-        let work = Task {
-            await capture.tick(.contacts)
-            finished = true
-        }
-        await waitUntil { finished }
-        XCTAssertEqual(fixes, 0)
-        XCTAssertTrue(finished, "Optional location held the capture task open")
-        XCTAssertTrue(posted, "Optional location blocked notification delivery")
-        let token = try await db.reader.read { try $0.value(for: .contactsHistoryToken) }
-        let person = try await db.reader.read { try Person.fetchOne($0, key: "a") }
-        XCTAssertEqual(token, Data([2]))
-        XCTAssertNotNil(person)
-
-        await work.value
     }
 
     func testDeletionIsReconciledBeforeDrainingNotices() async throws {
