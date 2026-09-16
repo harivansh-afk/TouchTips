@@ -60,36 +60,4 @@ final class CaptureResetTests: XCTestCase {
         XCTAssertEqual(queued, 0)
         XCTAssertFalse(capture.isResetting)
     }
-
-    func testResetClearsCachedVisitAndCannotReuseItForLaterContact() async throws {
-        let db = try AppDatabase.inMemory()
-        var reads = 0
-        let notifier = Notifier(database: db, delivery: NotificationDelivery(
-            authorization: { .denied }, submittedIDs: { [] }, submit: { _ in }
-        ))
-        let capture = CaptureCoordinator(database: db, notifier: notifier, contacts: CaptureContacts(
-            authorized: { true }, changes: { _ in
-                reads += 1
-                return ContactChangeSet(token: Data([UInt8(reads)]), isSnapshot: true)
-            }
-        ))
-        capture.record(LiveVisit(
-            latitude: 37, longitude: -122, accuracyMeters: 10,
-            arrival: .now.addingTimeInterval(-3600), departure: nil
-        ))
-        XCTAssertNotNil(capture.currentVisit)
-        try await capture.reset()
-        XCTAssertNil(capture.currentVisit)
-        let visits = try await db.reader.read { try Visit.fetchCount($0) }
-        let places = try await db.reader.read { try Place.fetchCount($0) }
-        XCTAssertEqual(visits, 0)
-        XCTAssertEqual(places, 0)
-        try Ingest.apply(
-            ContactChangeSet(added: [.init(contactID: "later", name: "Later")], token: Data([9])),
-            now: .now, to: db
-        )
-        let meeting = try await db.reader.read { try Meet.fetchOne($0, key: "later") }
-        XCTAssertNil(meeting?.placeID)
-        XCTAssertEqual(meeting?.tier, .dateOnly)
-    }
 }

@@ -8,7 +8,7 @@ final class AutoCaptureSettingsUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
         app.buttons["Settings"].tap()
-        XCTAssertTrue(app.staticTexts["Preferences"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Automatic checks"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["People page"].exists)
         let top = XCTAttachment(screenshot: app.screenshot())
         top.name = "Settings preferences and access"
@@ -49,36 +49,21 @@ final class AutoCaptureSettingsUITests: XCTestCase {
         }
     }
 
-    func testToggleAboveAccessPersistsAcrossRelaunch() {
+    func testAutomationSetupReplacesBackgroundLocationToggle() {
         let app = XCUIApplication()
         app.launchArguments = ["-onboardingDone", "YES"]
         app.launch()
         XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
         app.buttons["Settings"].tap()
-        let toggle = app.switches["Auto-capture location"]
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-        XCTAssertLessThan(toggle.frame.maxY, app.buttons["settings-access-contacts"].frame.minY)
-        if toggle.value as? String == "0" {
-            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
-        }
-        XCTAssertEqual(toggle.value as? String, "1")
-        let enabledScreenshot = XCTAttachment(screenshot: app.screenshot())
-        enabledScreenshot.name = "Auto-capture location on"
-        enabledScreenshot.lifetime = .keepAlways
-        add(enabledScreenshot)
-        if toggle.value as? String == "1" {
-            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
-        }
-        XCTAssertEqual(toggle.value as? String, "0")
+        XCTAssertFalse(app.switches["Auto-capture location"].exists)
+        let setup = app.buttons["settings.automation"]
+        XCTAssertTrue(setup.waitForExistence(timeout: 5))
+        setup.tap()
+        XCTAssertTrue(app.staticTexts["2. Add the automation"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["automation.shortcuts"].exists)
         let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Auto-capture location off"
+        screenshot.name = "Shortcuts setup and baseline"
         screenshot.lifetime = .keepAlways
         add(screenshot)
-        app.terminate()
-        app.launch()
-        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
-        app.buttons["Settings"].tap()
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-        XCTAssertEqual(toggle.value as? String, "0")
     }
 }

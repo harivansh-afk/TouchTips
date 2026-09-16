@@ -138,24 +138,8 @@ struct AddSheet: View {
         }
 
         var list: [PlaceChoice] = []
-        if let visit = app.capture.currentVisit,
-           let place = try? await app.database.reader.read({ db in try Place.fetchOne(db, key: visit.placeID) }) {
-            origin = CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude)
-            var title = place.name
-            if title == nil {
-                title = await (try? Geocoder.reverseGeocode(latitude: place.latitude, longitude: place.longitude))?
-                    .title
-            }
-            list.append(PlaceChoice(
-                place: place,
-                name: title ?? Format.coordinates(place.latitude, place.longitude),
-                detail: "You are here · since \(Format.time(visit.start))"
-            ))
-        } else {
-            guard let found = await liveLocation() else { return }
-            origin = found
-        }
-        guard let origin else { return }
+        guard let origin = await liveLocation() else { return }
+        self.origin = origin
 
         let nearby = await (try? NearbyPlaces.around(origin)) ?? []
         for choice in nearby where !list.contains(where: { $0.key == choice.key }) && list.count < 5 {
@@ -175,7 +159,7 @@ struct AddSheet: View {
     }
 
     private func liveLocation() async -> CLLocationCoordinate2D? {
-        let status = app.capture.locationStatus
+        let status = app.locationAccess.status
         guard status != .denied, status != .restricted else {
             note = .locationOff
             return nil

@@ -86,31 +86,6 @@ struct IngestTests {
         #expect(meet.placeID != nil)
     }
 
-    @Test func aFixOnDelayedDiscoveryDoesNotInventAMeeting() throws {
-        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:38"), to: db)
-        let now = t("2026-09-02T14:14")
-        try Ingest.recordFix(
-            LiveFix(latitude: 37.7764, longitude: -122.4231, accuracyMeters: 12, at: now),
-            now: now,
-            to: db
-        )
-        let summary = try Ingest.apply(
-            ContactChangeSet(added: [snapshot("new", "Alice Chen")], token: Data([2])),
-            now: now,
-            to: db
-        )
-        #expect(summary.added == ["new"])
-
-        let row = try #require(try db.reader.read { try Person.row(contactID: "new").fetchOne($0) })
-        let meet = try #require(row.meet)
-        #expect(meet.tier == .dateOnly)
-        #expect(meet.precision == .day)
-        #expect(meet.start == t("2026-09-02T09:38"))
-        #expect(meet.end == now)
-        #expect(!meet.isConfirmed)
-        #expect(row.place == nil)
-    }
-
     @Test func delayedDiscoveryRetainsTheLastSuccessfulReadAsLowerBound() throws {
         try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:00"), to: db)
         try Ingest.apply(

@@ -2,16 +2,17 @@ import Contacts
 import SwiftUI
 import UserNotifications
 
-/// The three things the first-run screen asks for, in the order it asks.
+/// The two things the first-run screen asks for, in the order it asks.
 enum Permission: CaseIterable, Identifiable {
-    case contacts, location, notifications
+    case contacts, notifications
 
-    var id: Self { self }
+    var id: Self {
+        self
+    }
 
     var title: String {
         switch self {
         case .contacts: "Contacts"
-        case .location: "Location, Always"
         case .notifications: "Notifications"
         }
     }
@@ -49,12 +50,6 @@ struct OnboardingAccess {
             case .denied, .restricted, .limited: .denied
             default: .pending
             }
-        case .location:
-            return switch app.capture.locationPermissionAction {
-            case .allowed: .granted
-            case .openSettings: .denied
-            case .request: .pending
-            }
         case .notifications:
             return switch app.notifier.status {
             case .authorized, .provisional, .ephemeral: .granted
@@ -78,12 +73,10 @@ struct OnboardingAccess {
         #endif
     }()
 
-    /// The line under a refused row, only where there is something to say: When In Use is not enough.
+    /// Explain why limited Contacts access cannot support automatic discovery.
     func note(_ permission: Permission) -> String? {
-        guard !pretend, permission == .location, app.capture.locationStatus == .authorizedWhenInUse else {
-            return nil
-        }
-        return LocationPermissionAction.backgroundExplanation
+        guard !pretend, permission == .contacts, app.contactsAccess.status == .limited else { return nil }
+        return "Automatic checks need full Contacts access. You can still use TouchTips manually."
     }
 
     func request(_ permission: Permission) {
@@ -100,8 +93,6 @@ struct OnboardingAccess {
                 await app.contactsAccess.request()
                 app.capture.scheduleTick(.user)
             }
-        case .location:
-            app.capture.requestLocation()
         case .notifications:
             Task { await app.notifier.request() }
         }
@@ -131,7 +122,9 @@ struct PermissionRow: View {
     let permission: Permission
     let access: OnboardingAccess
 
-    private var state: PermissionState { access.state(permission) }
+    private var state: PermissionState {
+        access.state(permission)
+    }
 
     private var layout: AnyLayout {
         dynamicTypeSize.isAccessibilitySize

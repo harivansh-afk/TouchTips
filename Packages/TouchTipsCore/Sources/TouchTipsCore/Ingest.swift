@@ -54,21 +54,6 @@ public struct LiveVisit: Hashable, Sendable {
     }
 }
 
-/// A precise one-shot location, flattened.
-public struct LiveFix: Hashable, Sendable {
-    public var latitude: Double
-    public var longitude: Double
-    public var accuracyMeters: Double
-    public var at: Date
-
-    public init(latitude: Double, longitude: Double, accuracyMeters: Double, at: Date) {
-        self.latitude = latitude
-        self.longitude = longitude
-        self.accuracyMeters = accuracyMeters
-        self.at = at
-    }
-}
-
 public struct IngestSummary: Hashable, Sendable {
     public var newPeople = 0
     public var snapshotted = 0
@@ -80,7 +65,17 @@ public struct IngestSummary: Hashable, Sendable {
     public init() {}
 }
 
+/// The stored Contacts cursor changed while a diff was being fetched. Discard it and fetch again.
+public struct StaleContactHistory: Error, Equatable, Sendable {
+    public init() {}
+}
+
 public enum Ingest {
+    private enum TokenExpectation {
+        case unchecked
+        case matching(Data?)
+    }
+
     /// Apply a contacts diff. The first run (no stored token) snapshots everyone as before-install;
     /// later runs treat unknown adds as new people who appeared since the last tick.
     ///
@@ -88,10 +83,37 @@ public enum Ingest {
     /// queued during suspension, so process launch/resume time is not evidence of contact absence.
     @discardableResult
     public static func apply(
-        _ change: ContactChangeSet, now: Date, to database: AppDatabase
+        _ change: ContactChangeSet, now: Date, useLocationEvidence: Bool = true, to database: AppDatabase
+    ) throws -> IngestSummary {
+        try apply(change, now: now, expectation: .unchecked, useLocationEvidence: useLocationEvidence, to: database)
+    }
+
+    /// Atomically apply only if the stored cursor still matches the cursor used to fetch this diff.
+    /// An expected nil explicitly requires no stored cursor; it does not disable the check.
+    /// On StaleContactHistory, discard the diff and fetch again from the latest stored cursor.
+    /// Set useLocationEvidence to false for shortcut capture. This affects only new discoveries,
+    /// leaving existing meetings and legacy location history intact.
+    @discardableResult
+    public static func apply(
+        _ change: ContactChangeSet, now: Date, expectedToken: Data?,
+        useLocationEvidence: Bool = true, to database: AppDatabase
+    ) throws -> IngestSummary {
+        try apply(
+            change, now: now, expectation: .matching(expectedToken),
+            useLocationEvidence: useLocationEvidence, to: database
+        )
+    }
+
+    private static func apply(
+        _ change: ContactChangeSet, now: Date, expectation: TokenExpectation,
+        useLocationEvidence: Bool, to database: AppDatabase
     ) throws -> IngestSummary {
         try database.writer.write { db in
-            let firstRun = try db.value(for: .contactsHistoryToken) == nil
+            let storedToken = try db.value(for: .contactsHistoryToken)
+            if case let .matching(expectedToken) = expectation, storedToken != expectedToken {
+                throw StaleContactHistory()
+            }
+            let firstRun = storedToken == nil
             let seenStart = try min(db.date(for: .lastTick) ?? now, now)
             var summary = IngestSummary()
 
@@ -121,7 +143,10 @@ public enum Ingest {
                     summary.snapshotted += 1
                 } else {
                     let add = ContactAdd(contactID: snapshot.contactID, seenStart: seenStart, seenEnd: now)
-                    try resolve(add, in: db, now: now).insert(db)
+                    let meet = try useLocationEvidence
+                        ? resolve(add, in: db, now: now)
+                        : Resolver.meet(for: add, visits: [], now: now)
+                    try meet.insert(db)
                     try PendingNotice(contactID: snapshot.contactID, createdAt: now).insert(db)
                     summary.newPeople += 1
                     summary.added.append(snapshot.contactID)
@@ -186,45 +211,6 @@ public enum Ingest {
         }
     }
 
-    /// Store a fix as a zero-length visit. Any add whose interval contains the instant is witnessed by it.
-    @discardableResult
-    public static func recordFix(_ fix: LiveFix, now: Date, to database: AppDatabase) throws -> Visit {
-        try database.writer.write { db in
-            let place = try Place.findOrCreate(
-                db, key: PlaceKey.cell(latitude: fix.latitude, longitude: fix.longitude),
-                latitude: fix.latitude, longitude: fix.longitude
-            )
-            var visit = Visit(
-                placeID: place.id!,
-                start: fix.at,
-                end: fix.at,
-                source: .fix,
-                accuracyMeters: fix.accuracyMeters
-            )
-            try visit.save(db)
-            try reresolve(around: fix.at, fix.at, in: db, now: now)
-            return visit
-        }
-    }
-
-    /// One proof of life. Cheap; the app writes one on every wake and every few minutes while resident.
-    @discardableResult
-    public static func recordHeartbeat(
-        _ source: WakeSource,
-        at: Date,
-        batteryLevel: Double?,
-        to database: AppDatabase
-    ) throws -> Heartbeat {
-        try database.writer.write { db in
-            // Diagnostic history is bounded; meetings and visits are never aged out here.
-            _ = try Heartbeat.filter(Heartbeat.Columns.at < at.addingTimeInterval(-7 * 86400)).deleteAll(db)
-            var beat = Heartbeat(source: source, at: at, batteryLevel: batteryLevel)
-            try beat.insert(db)
-            return beat
-        }
-    }
-
-    /// Recompute every inferred meeting. Used after a history import.
     public static func reresolveAll(now: Date, to database: AppDatabase) throws {
         try database.writer.write { db in
             let meets = try Meet.filter(Meet.Columns.userSet == false).fetchAll(db)
@@ -377,7 +363,8 @@ public enum Ingest {
             _ = try Visit.deleteAll(db)
             _ = try Place.deleteAll(db)
             _ = try Person.deleteAll(db)
-            _ = try Heartbeat.deleteAll(db)
+            // The legacy heartbeat table is left empty; its migration stays for older databases.
+            try db.execute(sql: "DELETE FROM heartbeat")
             _ = try KeyValue.deleteAll(db)
         }
     }
