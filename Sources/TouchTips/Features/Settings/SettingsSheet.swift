@@ -12,8 +12,7 @@ struct SettingsSheet: View {
     @AppStorage("mapStyle") private var mapStyle = MapStyleChoice.muted
     @AppStorage("onboardingDone") private var onboardingDone = false
     @AppStorage(OnboardingAccess.pretendKey) private var pretendPending = false
-    @AppStorage(PresencePolicy.key) private var presence = PresencePolicy.always
-    @State private var stats: CaptureStats?
+
     @State private var lastNotice: NoticeTiming?
     @State private var problem: String?
     @State private var confirmDelete = false
@@ -22,32 +21,16 @@ struct SettingsSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("Auto-capture location", isOn: Binding(
-                        get: { app.capture.autoCaptureLocation },
-                        set: {
-                            app.capture.autoCaptureLocation = $0
-                            HapticManager.selection()
-                            if $0 {
-                                app.capture.requestLocation()
-                            }
-                        }
-                    ))
-                    .tint(.blue)
-                    if app.capture.autoCaptureLocation, !app.capture.locationGranted {
-                        Button("Allow background location") {
-                            switch app.capture.locationPermissionAction {
-                            case .request: app.capture.requestLocation()
-                            case .openSettings: openSettings()
-                            case .allowed: break
-                            }
-                        }
+                    NavigationLink {
+                        AutomationSetupView()
+                    } label: {
+                        Label("Set up automatic checks", systemImage: "bolt.fill")
                     }
+                    .accessibilityIdentifier("settings.automation")
                 } header: {
-                    Text("Preferences")
+                    Text("Automatic checks")
                 } footer: {
-                    Text(app.capture.autoCaptureLocation && !app.capture.locationGranted
-                        ? "Choose Always in Settings to automatically capture location in the background."
-                        : "Automatically remember where you meet people, even when TouchTips is in the background.")
+                    Text("Use a Shortcuts automation to check contacts when you leave Contacts or Phone. No background location needed.")
                 }
 
                 Section {
@@ -78,7 +61,7 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Access")
                 } footer: {
-                    Text("Tap a permission to change access in iOS Settings.")
+                    Text("Tap a permission to change access in iOS Settings. Location is optional and only used when adding a place in TouchTips.")
                 }
 
                 Section {
@@ -121,23 +104,7 @@ struct SettingsSheet: View {
 
                 if BuildEnvironment.isDev {
                     Section {
-                        // These diagnostics describe sampled execution, not continuous background availability.
-                        Picker("Background location", selection: $presence) {
-                            ForEach(PresencePolicy.allCases) { policy in
-                                Text(policy.title).tag(policy)
-                            }
-                        }
-                        .onChange(of: presence) { _, policy in app.capture.presencePolicy = policy }
-                        if let stats {
-                            LabeledContent("Scan coverage", value: Format.percent(stats.uptime))
-                            LabeledContent("Wakes", value: wakesText(stats))
-                            if let drain = stats.batteryPerHour {
-                                LabeledContent(
-                                    "Device battery",
-                                    value: "\(drain.formatted(.number.precision(.fractionLength(1))))% per hour"
-                                )
-                            }
-                        }
+
                         if let lastNotice {
                             LabeledContent("Detection to submission", value: CaptureCoordinator.describe(lastNotice))
                         }
@@ -145,7 +112,7 @@ struct SettingsSheet: View {
                         Text("Dev")
                     } footer: {
                         Text(
-                            "Last 24 hours. Coverage samples app execution; battery measures the whole device. Notification timing starts at detection, not contact save."
+                            "Notification timing starts at detection, not contact save. It measures submission, not banner presentation."
                         )
                     }
 
@@ -245,9 +212,6 @@ struct SettingsSheet: View {
         .accessibilityHint(status == "Allow" ? "Request permission" : "Change access in iOS Settings")
     }
 
-    private func wakesText(_ stats: CaptureStats) -> String {
-        stats.wakes.isEmpty ? "None" : stats.wakes.map { "\($0.source.rawValue) \($0.count)" }.joined(separator: ", ")
-    }
 
     private func openSettings() {
         if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -257,15 +221,10 @@ struct SettingsSheet: View {
 
     private func loadStats() async {
         guard BuildEnvironment.isDev else { return }
-        let now = Date()
         do {
-            let (beats, latency) = try await app.database.reader.read { db in
-                try (
-                    Heartbeat.since(now.addingTimeInterval(-CaptureStats.span)).fetchAll(db),
-                    db.value(for: .lastNotice).flatMap { try? NoticeTiming.decode($0) }
-                )
+            let latency = try await app.database.reader.read { db in
+                try db.value(for: .lastNotice).flatMap { try? NoticeTiming.decode($0) }
             }
-            stats = CaptureStats.make(from: beats, now: now)
             lastNotice = latency
         } catch {
             Log.ui.error("stats failed: \(error.localizedDescription)")

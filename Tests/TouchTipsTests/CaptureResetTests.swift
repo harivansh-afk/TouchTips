@@ -77,7 +77,7 @@ final class CaptureResetTests: XCTestCase {
             latitude: 37, longitude: -122, accuracyMeters: 10,
             arrival: .now.addingTimeInterval(-3600), departure: nil
         ))
-        XCTAssertNotNil(capture.currentVisit)
+        XCTAssertNil(capture.currentVisit, "Legacy visits cannot activate location capture")
         try await capture.reset()
         XCTAssertNil(capture.currentVisit)
         let visits = try await db.reader.read { try Visit.fetchCount($0) }

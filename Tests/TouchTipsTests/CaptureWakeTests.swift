@@ -105,7 +105,7 @@ final class CaptureWakeTests: XCTestCase {
         XCTAssertEqual(reads, 2)
     }
 
-    func testNewLocationWakeAfterExpirationWaitsForOldReadThenKeepsItsOwnAssertion() async throws {
+    func testNewContactWakeAfterExpirationWaitsForOldReadThenKeepsItsOwnAssertion() async throws {
         let probe = BackgroundProbe()
         var oldRead: CheckedContinuation<ContactChangeSet, Never>?
         var newRead: CheckedContinuation<ContactChangeSet, Never>?
@@ -128,9 +128,8 @@ final class CaptureWakeTests: XCTestCase {
         probe.expire()
         XCTAssertEqual(probe.ended, 1)
 
-        let manager = CLLocationManager()
         for _ in 0 ..< 3 {
-            capture.locationManager(manager, didUpdateLocations: [fix(at: .now)])
+            capture.scheduleTick(.contacts)
         }
         XCTAssertEqual(probe.started, 2)
         XCTAssertEqual(probe.ended, 1)
@@ -182,7 +181,7 @@ final class CaptureWakeTests: XCTestCase {
         XCTAssertEqual(resetProbe.ended, 2)
     }
 
-    func testEveryLocationWakeScansEvenWithoutAUsableNewCoordinate() async throws {
+    func testEveryLocationCallbackIsIgnored() async throws {
         let probe = BackgroundProbe()
         var reads = 0
         var submitted: [String] = []
@@ -202,16 +201,16 @@ final class CaptureWakeTests: XCTestCase {
             [fix(at: now, latitude: 100)],
             [],
         ]
-        for (index, locations) in updates.enumerated() {
+        for locations in updates {
             capture.locationManager(manager, didUpdateLocations: locations)
-            XCTAssertEqual(probe.started, index + 1, "A location callback must immediately protect capture work")
-            await eventually { probe.ended == index + 1 }
-            XCTAssertEqual(submitted.count, index + 1)
         }
-        XCTAssertEqual(reads, updates.count, "A recent scan or unusable coordinate cannot suppress catch-up")
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertEqual(probe.started, 0)
+        XCTAssertEqual(submitted.count, 0)
+        XCTAssertEqual(reads, 0)
     }
 
-    func testLocationBurstsShareOneAssertionAndOneQueuedFollowup() async throws {
+    func testContactBurstsShareOneAssertionAndOneQueuedFollowup() async throws {
         let probe = BackgroundProbe()
         var pending: CheckedContinuation<ContactChangeSet, Never>?
         var reads = 0
@@ -222,14 +221,13 @@ final class CaptureWakeTests: XCTestCase {
             }
             return ContactChangeSet(token: Data([3]))
         }
-        let manager = CLLocationManager()
         for _ in 0 ..< 10 {
-            capture.locationManager(manager, didUpdateLocations: [fix(at: .now)])
+            capture.scheduleTick(.contacts)
         }
         await eventually { pending != nil }
         XCTAssertEqual(reads, 1)
         for _ in 0 ..< 10 {
-            capture.locationManager(manager, didUpdateLocations: [fix(at: .now)])
+            capture.scheduleTick(.contacts)
         }
         pending?.resume(returning: ContactChangeSet(token: Data([2])))
         await eventually { probe.ended == 1 }

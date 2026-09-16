@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import TouchTipsCore
+import UIKit
 
 /// The one object views reach for. Owns the database and the long-running workers.
 @MainActor
@@ -26,15 +27,19 @@ final class AppModel {
         capture = CaptureCoordinator(database: database, notifier: notifier)
         geocoder = Geocoder(database: database)
         capture.didIngest = { [geocoder, photos] in
-            geocoder.kick()
+            // Invalidate without fetching. A background scan may consume the only photo-change event.
             photos.reset()
+            // Headless shortcut work must not start optional map work.
+            guard UIApplication.shared.applicationState == .active else { return }
+            geocoder.kick()
         }
     }
 
     func start() {
         notifier.activate()
-        capture.start()
-        geocoder.kick()
+        // The foreground scene establishes the first baseline. A cold App Intent
+        // must not silently consume the contact it was asked to discover.
+        capture.start(checkOnLaunch: false)
     }
 
     static func openDatabase() throws -> AppDatabase {

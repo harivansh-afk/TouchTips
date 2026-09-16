@@ -46,14 +46,13 @@ targets:
         UILaunchScreen: {}
         UIUserInterfaceStyle: Dark
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        UIBackgroundModes: [location, fetch]
+        UIBackgroundModes: [fetch]
         BGTaskSchedulerPermittedIdentifiers: [sh.harivan.touchtips.refresh]
         UIAppFonts: [InstrumentSerif-Italic.ttf]
         ITSAppUsesNonExemptEncryption: false
         UIApplicationSupportsIndirectInputEvents: true
         NSContactsUsageDescription: Notices new contacts. Limited access cannot see changes.
-        NSLocationWhenInUseUsageDescription: Remembers where you met people.
-        NSLocationAlwaysAndWhenInUseUsageDescription: Uses background location to help discover new contacts and remember where you may have met.
+        NSLocationWhenInUseUsageDescription: Suggests your current place when you add meeting details in TouchTips.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: sh.harivan.touchtips

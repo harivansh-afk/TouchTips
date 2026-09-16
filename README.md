@@ -5,9 +5,10 @@ This is a question i often ask myself since i meet so many people on a daily bas
 I tried sending selfies to the people i find interesting, but this doesnt scale
 I can name 5 times off the top of my head when i needed something from a person i met at some point of time but could not find their name on my phone.
 
-Contacts stay the source of truth for *who*. TouchTips records *when* and *where* a new contact was
-discovered. It checks on launch, foreground activation, contact changes while running, and available
-background wakes. A solid dot means a user-confirmed meeting; a hollow dot means a suggestion.
+Contacts stay the source of truth for *who*. TouchTips discovers new contacts and helps record
+*when* and *where* you met. It checks on foreground activation, contact changes while running,
+user-configured Shortcuts automations, and optional background refresh. A solid dot means a
+user-confirmed meeting; a hollow dot means a suggestion.
 Contacts without meeting details have no dot. Date precision and missing places are shown separately.
 
 Swipe right on a person to open their note, ready to type. Swipe left to forget their TouchTips
@@ -16,18 +17,19 @@ swipes follow Mixbridge's TrackRow pattern and work in the People list, timeline
 
 Changing one field confirms only that field. "Confirm meeting" accepts the entire record, including
 any unknown place. Existing edits are preserved on upgrade; older records whose confirmation cannot
-be established remain suggestions until reviewed. Automatic location matches retain the discovery
-interval. Point locations are considered only for intervals of at most 60 seconds, and current fixes
-are requested only for recent contact-change callbacks. Callbacks can be delayed by suspension;
-only the last successful Contacts read establishes the beginning of a discovery interval.
+be established remain suggestions until reviewed. New automatic discoveries retain the interval
+between successful Contacts reads; neither an app-close trigger nor a contact addition proves an
+exact meeting time. They do not inherit old location history. Add a place explicitly in TouchTips.
 
 ## How it works
 
-iOS does not provide a contact-save wake mechanism for a suspended or terminated app. Background
-location and refresh are additional opportunities to scan; they cannot guarantee continuous execution.
+iOS does not provide a documented contact-save wake mechanism for a suspended or terminated app.
+Set up **Contacts/Phone is closed → TouchTips: Check for new contacts** in Shortcuts. The user must
+create this automation; installing the app exposes the action but cannot install the trigger.
+NameDrop and other-app saves are not directly covered. See [setup and device testing](docs/shortcuts-capture.md).
 
-1. A retained Contacts store reads change history. Contact-change bursts coalesce for 300 ms; launch, foreground and location wakes request an immediate scan. A finite background assertion begins in the callback, before any debounce, and covers the shared scan, delivery and bounded retries. Concurrent wakes share one scan task, with a follow-up scan for changes received during it. Transient failures retry after two and five seconds, then retain the cursor for a later wake.
-2. First access silently snapshots existing contacts. Later additions are resolved against available visits and saved immediately. Optional location enrichment runs independently, bounded to eight seconds, and can improve an unconfirmed meeting afterward. History resets reconcile names and deletions while retaining notes and meetings for surviving IDs. Failed history enumeration returns no partial events or new cursor.
+1. The app and background App Intent share one runtime and one Contacts scan coordinator. A retained Contacts store reads incremental history. Contact-change bursts coalesce for 300 ms; foreground and shortcut checks run immediately. Concurrent requests share the scan and notification work. Bounded retries retain the cursor after failures, and a transactional expected-token check rejects stale diffs.
+2. First foreground access silently snapshots existing contacts. Set this baseline up before creating a test contact; an intent without a baseline returns a setup error. Later additions are saved immediately without requesting location or geocoding. History resets reconcile names and deletions while retaining notes and meetings for surviving IDs. Failed enumeration returns no partial events or new cursor.
 3. The contact, meeting, history token, and pending notification commit in one SQLite transaction. An in-app Add queues through the same table. A failed transaction advances none of them.
 4. Notification delivery retries queued records on wakes and after authorization, with two bounded retries for transient failures. One failing record does not block the others. All concurrent callers wait for the shared delivery; removed notices are rechecked before submission. Location and place naming cannot block submission. A stable request ID reconciles notifications already pending or delivered after a process interruption. SQLite acknowledges successful submission, not proof that iOS displayed a banner.
 5. Taps wait for the active scene, onboarding, and the People navigation stack. They replace the People path without a zoom transition. Missing or unreadable contacts have visible fallback screens and a Back action.
@@ -35,15 +37,14 @@ location and refresh are additional opportunities to scan; they cannot guarantee
 
 In-app Add retains the saved system-contact identity if its SQLite write fails. A retry updates that
 contact and preserves the original meeting time. The selected place, meeting, and pending notice
-commit together. Notes flush when the scene becomes inactive; diagnostic heartbeat history retains
-seven days.
+commit together. Notes flush when the scene becomes inactive.
 
-Continuous background location is established from the foreground, or a significant-change callback,
-with coarse accuracy and the visible iOS location indicator. Each delivered location callback offers
-a Contacts check, including cached or imprecise fixes. The persisted geofence stays observed while
-locked; an absent initial fence gets one bounded location request without delaying notifications.
-See the [background wake repair](docs/background-wake-repair.md) for the specific Apple guidance,
-device experiments and validation limits.
+Continuous location, visits, significant-change monitoring, geofence wake observation, and heartbeat
+polling are no longer started. Upgrade cleanup removes the old persisted fence without opening an
+Always authorization session. Existing meetings, notes, places, visit history, cursor, and pending
+notifications stay in the same database. Legacy standalone location components/tests remain for
+now; they are not part of the active capture path. Earlier background-location documents describe
+the superseded architecture, not the behavior of this branch.
 
 See the [September 8 architecture review](docs/architecture-review-2026-09-08.md) for findings,
 regression coverage, and the remaining physical-device verification boundary.
@@ -87,7 +88,7 @@ Set `DEVELOPMENT_TEAM` in `configs/Local.xcconfig` (gitignored) before building 
 ## Permissions
 
 Contacts, full access. Limited access cannot read change history.
-Location, Always. Allows background location events that offer additional chances to discover contacts.
+Location, optional When In Use. Suggests places during explicit foreground meeting capture; never required by the shortcut.
 Notifications. Optional; everything still records without them.
 
 ## Not in v0

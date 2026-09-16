@@ -3,18 +3,16 @@ import CoreLocation
 import XCTest
 
 final class LocationPermissionTests: XCTestCase {
-    func testWhileUsingCanRecoverWithoutRepeatingAnIgnoredPrompt() {
+    func testWhileUsingIsSufficientForOptionalForegroundLocation() {
         XCTAssertEqual(LocationPermissionAction(status: .notDetermined), .request)
-        // Core Location reports the same status after While Using, Allow Once, and declining
-        // the Always upgrade. Every case must provide a working route to enable background capture.
-        XCTAssertEqual(LocationPermissionAction(status: .authorizedWhenInUse), .openSettings)
+        // No Always upgrade is needed for the shortcut or explicit foreground place capture.
+        XCTAssertEqual(LocationPermissionAction(status: .authorizedWhenInUse), .allowed)
         XCTAssertEqual(LocationPermissionAction(status: .authorizedAlways), .allowed)
-        // A later downgrade in Settings must restore that recovery route.
-        XCTAssertEqual(LocationPermissionAction(status: .authorizedWhenInUse), .openSettings)
+        XCTAssertEqual(LocationPermissionAction(status: .authorizedWhenInUse), .allowed)
     }
 
     func testExpiredAllowOnceCanRequestPermissionAgain() {
-        XCTAssertEqual(LocationPermissionAction(status: .authorizedWhenInUse), .openSettings)
+        XCTAssertEqual(LocationPermissionAction(status: .authorizedWhenInUse), .allowed)
         XCTAssertEqual(LocationPermissionAction(status: .notDetermined), .request)
     }
 

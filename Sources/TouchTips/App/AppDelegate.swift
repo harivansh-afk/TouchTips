@@ -1,19 +1,10 @@
 import BackgroundTasks
 import UIKit
 
-/// Exists so capture starts at launch, including background relaunches CoreLocation triggers for a visit.
-/// SwiftUI's scene phase arrives too late for that.
+/// Registers system callbacks at launch. Intent and UI entry points share the same runtime.
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    let session = AppSession(start: { app in
-        #if DEBUG && targetEnvironment(simulator)
-            if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
-                return
-            }
-            NotificationTestFixture.prepare(app)
-        #endif
-        app.start()
-    })
+    let session = AppRuntime.session
 
     func application(
         _ application: UIApplication,

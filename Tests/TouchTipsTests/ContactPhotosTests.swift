@@ -120,6 +120,24 @@ final class ContactPhotosTests: XCTestCase {
         XCTAssertNotNil(photos.image(for: "a"))
     }
 
+    func testIngestInvalidatesPhotoCacheWithoutFetchingUntilRequested() async throws {
+        let photo = try thumbnail(.blue)
+        var requests = 0
+        let photos = ContactPhotos { _ in
+            requests += 1
+            return requests == 1 ? nil : photo
+        }
+        let app = try AppModel(database: AppDatabase.inMemory(), photos: photos)
+        await photos.load("a")
+        let oldID = photos.loadID(for: "a")
+        app.capture.didIngest?()
+        XCTAssertNotEqual(photos.loadID(for: "a"), oldID)
+        XCTAssertEqual(requests, 1, "Invalidation itself must not fetch during headless work")
+        await photos.load("a")
+        XCTAssertEqual(requests, 2)
+        XCTAssertNotNil(photos.image(for: "a"))
+    }
+
     private func thumbnail(_ color: UIColor) throws -> Data {
         let bounds = CGRect(x: 0, y: 0, width: 2, height: 2)
         let image = UIGraphicsImageRenderer(size: bounds.size).image { context in

@@ -11,7 +11,7 @@ enum Permission: CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .contacts: "Contacts"
-        case .location: "Location, Always"
+        case .location: "Location (optional)"
         case .notifications: "Notifications"
         }
     }
@@ -78,12 +78,10 @@ struct OnboardingAccess {
         #endif
     }()
 
-    /// The line under a refused row, only where there is something to say: When In Use is not enough.
+    /// Explain why limited Contacts access cannot support automatic discovery.
     func note(_ permission: Permission) -> String? {
-        guard !pretend, permission == .location, app.capture.locationStatus == .authorizedWhenInUse else {
-            return nil
-        }
-        return LocationPermissionAction.backgroundExplanation
+        guard !pretend, permission == .contacts, app.contactsAccess.status == .limited else { return nil }
+        return "Automatic checks need full Contacts access. You can still use TouchTips manually."
     }
 
     func request(_ permission: Permission) {

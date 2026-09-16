@@ -135,7 +135,7 @@ private struct QuestionsPart: View {
     /// Called once the headline has swept out, so the next part starts on an empty screen.
     let done: () -> Void
 
-    private static let permissions: [Permission] = [.contacts, .location]
+    private static let permissions: [Permission] = [.contacts]
 
     /// Flips once the headline has finished typing; everything under it rises in after.
     @State private var revealed = false
@@ -216,6 +216,7 @@ private struct NoticePart: View {
     /// The notice has dropped in. A beat after the line, with the tap a real one gives.
     @State private var noticed = false
     @State private var leaving = false
+    @State private var showingAutomation = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -237,6 +238,16 @@ private struct NoticePart: View {
                     value: noticed && !leaving
                 )
                 .accessibilityHidden(!noticed)
+        }
+        .sheet(isPresented: $showingAutomation) {
+            NavigationStack {
+                AutomationSetupView()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showingAutomation = false }
+                        }
+                    }
+            }
         }
         .task(id: revealed) {
             guard revealed else { return }
@@ -262,7 +273,7 @@ private struct NoticePart: View {
         VStack(alignment: .leading, spacing: 20) {
             Spacer()
             TypewriterText(
-                text: "When you meet someone new,\nwe'll let you know.",
+                text: "A new contact.\nA reminder to remember.",
                 font: .display(40),
                 leaving: leaving
             ) {
@@ -272,13 +283,17 @@ private struct NoticePart: View {
             .fixedSize(horizontal: false, vertical: true)
 
             // One sentence a line, as few words as each will take.
-            Text("Once you save their contact,\na notification will confirm the time and place.")
+            Text("Set up a shortcut to check when you leave Contacts. Tap a notification to add when and where you met.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 8)
                 .staged(revealed, leaving: leaving, order: 0, last: 2)
 
             PermissionRow(permission: .notifications, access: access)
+                .staged(revealed, leaving: leaving, order: 1, last: 2)
+
+            Button("Set up automatic checks") { showingAutomation = true }
+                .buttonStyle(.glass)
                 .staged(revealed, leaving: leaving, order: 1, last: 2)
 
             Spacer()

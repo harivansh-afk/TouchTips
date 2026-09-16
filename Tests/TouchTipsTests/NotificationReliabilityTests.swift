@@ -9,6 +9,7 @@ import XCTest
 final class NotificationReliabilityTests: XCTestCase {
     func testLaterWakeCannotPostponeAnAlreadyScheduledContactScan() async throws {
         let db = try AppDatabase.inMemory()
+        try Ingest.apply(ContactChangeSet(token: Data([1])), now: .now, to: db)
         var reads = 0
         let capture = CaptureCoordinator(database: db, notifier: silentNotifier(db), contacts: CaptureContacts(
             authorized: { true }, changes: { _ in
@@ -157,10 +158,10 @@ final class NotificationReliabilityTests: XCTestCase {
         XCTAssertTrue(try queued(in: db).isEmpty)
     }
 
-    func testLocationCannotDelayContactCommitOrNotification() async throws {
+    func testLocationIsNeverRequestedDuringContactCommitOrNotification() async throws {
         let db = try AppDatabase.inMemory()
         try Ingest.apply(ContactChangeSet(token: Data([1])), now: .now, to: db)
-        var fix: CheckedContinuation<CLLocation?, Never>?
+        var fixes = 0
         var posted = false
         var finished = false
         let notifier = Notifier(database: db, delivery: NotificationDelivery(
@@ -172,21 +173,23 @@ final class NotificationReliabilityTests: XCTestCase {
                 ContactChangeSet(added: [.init(contactID: "a", name: "A")], token: Data([2]))
             }),
             location: CaptureLocation(authorized: { true }, fix: { _ in
-                await withCheckedContinuation { fix = $0 }
+                fixes += 1
+                return nil
             })
         )
         let work = Task {
             await capture.tick(.contacts)
             finished = true
         }
-        await waitUntil { fix != nil && finished }
+        await waitUntil { finished }
+        XCTAssertEqual(fixes, 0)
         XCTAssertTrue(finished, "Optional location held the capture task open")
         XCTAssertTrue(posted, "Optional location blocked notification delivery")
         let token = try await db.reader.read { try $0.value(for: .contactsHistoryToken) }
         let person = try await db.reader.read { try Person.fetchOne($0, key: "a") }
         XCTAssertEqual(token, Data([2]))
         XCTAssertNotNil(person)
-        fix?.resume(returning: nil)
+
         await work.value
     }
 

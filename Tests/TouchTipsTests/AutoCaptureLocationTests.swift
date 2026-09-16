@@ -5,14 +5,15 @@ import XCTest
 
 @MainActor
 final class AutoCaptureLocationTests: XCTestCase {
-    func testDisablingDiscardsPendingFixEvenAfterTurningBackOn() async throws {
+    func testLegacyEnabledPreferenceAndWitnessNeverRequestFix() async throws {
         let name = "AutoCaptureLocationTests.\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
         let db = try AppDatabase.inMemory()
         try Ingest.apply(ContactChangeSet(token: Data([1])), now: .now, to: db)
-        var pending: CheckedContinuation<CLLocation?, Never>?
-        var finished = false
+        defaults.set(true, forKey: CaptureCoordinator.autoCaptureLocationKey)
+        defaults.set(PresencePolicy.always.rawValue, forKey: PresencePolicy.key)
+        var fixes = 0
         let notifier = Notifier(database: db, delivery: NotificationDelivery(
             authorization: { .denied }, submittedIDs: { [] }, submit: { _ in }
         ))
@@ -22,33 +23,22 @@ final class AutoCaptureLocationTests: XCTestCase {
                 ContactChangeSet(added: [.init(contactID: "new", name: "New")], token: Data([2]))
             }),
             location: CaptureLocation(authorized: { true }, fix: { _ in
-                let result = await withCheckedContinuation { pending = $0 }
-                finished = true
-                return result
+                fixes += 1
+                return CLLocation(latitude: 37, longitude: -122)
             }),
             defaults: defaults
         )
         await capture.tick(.contacts)
-        for _ in 0 ..< 200 {
-            if pending != nil {
-                break
-            }
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        XCTAssertNotNil(pending)
+        XCTAssertFalse(capture.autoCaptureLocation)
+        XCTAssertEqual(capture.presencePolicy, .off)
         capture.autoCaptureLocation = false
         capture.autoCaptureLocation = true
-        pending?.resume(returning: CLLocation(
-            coordinate: CLLocationCoordinate2D(latitude: 37, longitude: -122),
-            altitude: 0, horizontalAccuracy: 10, verticalAccuracy: -1, timestamp: .now
-        ))
-        for _ in 0 ..< 200 {
-            if finished {
-                break
-            }
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        XCTAssertTrue(finished)
+        capture.presencePolicy = .always
+        let witnessed = await capture.witness()
+        XCTAssertFalse(witnessed)
+        XCTAssertFalse(capture.autoCaptureLocation)
+        XCTAssertEqual(capture.presencePolicy, .off)
+        XCTAssertEqual(fixes, 0)
         let visits = try await db.reader.read { try Visit.fetchCount($0) }
         XCTAssertEqual(visits, 0)
     }
@@ -82,7 +72,7 @@ final class AutoCaptureLocationTests: XCTestCase {
             )
         }
         let capture = makeCapture()
-        XCTAssertTrue(capture.autoCaptureLocation)
+        XCTAssertFalse(capture.autoCaptureLocation)
         capture.autoCaptureLocation = false
         let relaunched = makeCapture()
         XCTAssertFalse(relaunched.autoCaptureLocation)
@@ -99,6 +89,6 @@ final class AutoCaptureLocationTests: XCTestCase {
         let visits = try await db.reader.read { try Visit.fetchCount($0) }
         XCTAssertEqual(visits, 0)
         relaunched.autoCaptureLocation = true
-        XCTAssertTrue(makeCapture().autoCaptureLocation)
+        XCTAssertFalse(makeCapture().autoCaptureLocation)
     }
 }
