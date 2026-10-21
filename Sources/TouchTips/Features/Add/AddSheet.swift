@@ -1,10 +1,9 @@
 import Contacts
-import CoreLocation
 import PhoneNumberKit
 import SwiftUI
 import TouchTipsCore
 
-/// The one write. Creates a real contact and an exact meeting where you are standing.
+/// The one write. Creates a real contact and an exact meeting, at a place you choose.
 struct AddSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -22,9 +21,7 @@ struct AddSheet: View {
     }()
 
     @State private var choices: [PlaceChoice] = []
-    @State private var placeSelection = AddPlaceSelection()
-    @State private var origin: CLLocationCoordinate2D?
-    @State private var note: PlaceChooser.Note? = .locating
+    @State private var place: PlaceChoice?
     @State private var problem: String?
     @State private var creation = ContactCreation()
     @FocusState private var focus: Field?
@@ -42,14 +39,7 @@ struct AddSheet: View {
                     fields
                     VStack(alignment: .leading, spacing: 12) {
                         SectionLabel(text: "Where").padding(.leading, 6)
-                        PlaceChooser(
-                            candidates: choices,
-                            selection: Binding(
-                                get: { placeSelection.chosen },
-                                set: { placeSelection.choose($0) }
-                            ),
-                            origin: origin, note: note
-                        )
+                        PlaceChooser(candidates: choices, selection: $place, origin: choices.first?.coordinate)
                     }
                     if let problem {
                         Text(problem)
@@ -89,7 +79,7 @@ struct AddSheet: View {
             }
             .task {
                 focus = .name
-                await locate()
+                await loadRecent()
             }
         }
         // Full height, so the keyboard never covers Where.
@@ -128,82 +118,22 @@ struct AddSheet: View {
         .glassEffect(.clear, in: .rect(cornerRadius: 22))
     }
 
-    // MARK: - Location
+    // MARK: - Where
 
-    private func locate() async {
-        defer {
-            if note == .locating {
-                note = nil
-            }
-        }
-
-        var list: [PlaceChoice] = []
-        if let visit = app.capture.currentVisit,
-           let place = try? await app.database.reader.read({ db in try Place.fetchOne(db, key: visit.placeID) }) {
-            origin = CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude)
-            var title = place.name
-            if title == nil {
-                title = await (try? Geocoder.reverseGeocode(latitude: place.latitude, longitude: place.longitude))?
-                    .title
-            }
-            list.append(PlaceChoice(
-                place: place,
-                name: title ?? Format.coordinates(place.latitude, place.longitude),
-                detail: "You are here · since \(Format.time(visit.start))"
-            ))
-        } else {
-            guard let found = await liveLocation() else { return }
-            origin = found
-        }
-        guard let origin else { return }
-
-        let nearby = await (try? NearbyPlaces.around(origin)) ?? []
-        for choice in nearby where !list.contains(where: { $0.key == choice.key }) && list.count < 5 {
-            list.append(choice)
-        }
-        if list.isEmpty {
-            let named = try? await Geocoder.reverseGeocode(latitude: origin.latitude, longitude: origin.longitude)
-            list.append(PlaceChoice(
-                key: PlaceKey.cell(latitude: origin.latitude, longitude: origin.longitude),
-                name: named?.title ?? Format.coordinates(origin.latitude, origin.longitude),
-                latitude: origin.latitude, longitude: origin.longitude,
-                detail: named?.detail ?? "You are here"
-            ))
-        }
-        choices = list
-        placeSelection.suggest(list.first)
-    }
-
-    private func liveLocation() async -> CLLocationCoordinate2D? {
-        let status = app.capture.locationStatus
-        guard status != .denied, status != .restricted else {
-            note = .locationOff
-            return nil
-        }
+    private func loadRecent() async {
         do {
-            for try await update in CLLocationUpdate.liveUpdates() {
-                if let location = update.location {
-                    return location.coordinate
-                }
-                if update.authorizationDenied {
-                    note = .locationOff
-                    return nil
-                }
-                if update.locationUnavailable {
-                    return nil
-                }
-            }
+            let recent = try await app.database.reader.read { db in try Place.recentlyMet(limit: 5).fetchAll(db) }
+            choices = recent.map { PlaceChoice(place: $0, detail: nil) }
         } catch {
-            Log.ui.notice("location for add failed: \(error.localizedDescription)")
+            Log.ui.error("recent places failed: \(error.localizedDescription)")
         }
-        return nil
     }
 
     // MARK: - Save
 
     private func save() {
         do {
-            let place = placeSelection.chosen.map {
+            let place = place.map {
                 Place(key: $0.key, latitude: $0.latitude, longitude: $0.longitude, name: $0.name)
             }
             try creation.save(

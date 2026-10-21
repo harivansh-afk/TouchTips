@@ -123,17 +123,17 @@ public final class AppDatabase: Sendable {
             WHERE userSet = 1 AND precision = 'exact'
               AND start = end AND start = addSeenStart AND end = addSeenEnd
             """)
-            // Repair automatic answers whose interval was previously narrowed to a visit or fix.
-            for meet in try Meet.filter(Meet.Columns.userSet == false).fetchAll(db) {
-                guard let start = meet.addSeenStart, let end = meet.addSeenEnd else { continue }
-                let visits = try Visit.overlapping(
-                    start.addingTimeInterval(-Resolver.window), end.addingTimeInterval(Resolver.window)
-                ).fetchAll(db)
-                let answer = Resolver.meet(
-                    for: ContactAdd(contactID: meet.contactID, seenStart: start, seenEnd: end),
-                    visits: visits, now: meet.computedAt
-                )
-                try answer.update(db)
+            // Automatic answers narrowed to a visit or fix get their discovery interval back, without
+            // the place that narrowed them.
+            for var meet in try Meet.filter(Meet.Columns.userSet == false).fetchAll(db) {
+                guard let start = meet.addSeenStart, let end = meet.addSeenEnd,
+                      meet.start != start || meet.end != end else { continue }
+                meet.start = start
+                meet.end = end
+                meet.precision = .spanning(start, end)
+                meet.placeID = nil
+                meet.tier = .dateOnly
+                try meet.update(db)
             }
         }
 

@@ -27,73 +27,9 @@ struct IngestTests {
         #expect(try db.reader.read { try $0.value(for: .contactsHistoryToken) } == Data([1]))
     }
 
-    @Test func aLaterAddIsResolvedAgainstVisits() throws {
-        try Ingest.apply(
-            ContactChangeSet(added: [snapshot("old")], token: Data([1])),
-            now: t("2026-09-02T09:38"),
-            to: db
-        )
-        try Ingest.recordLiveVisit(
-            LiveVisit(
-                latitude: 37.7764,
-                longitude: -122.4231,
-                accuracyMeters: 30,
-                arrival: t("2026-09-02T10:12"),
-                departure: t("2026-09-02T11:40")
-            ),
-            now: t("2026-09-02T11:40"), to: db
-        )
-
-        let summary = try Ingest.apply(
-            ContactChangeSet(added: [snapshot("new", "Dev Patel")], token: Data([2])),
-            now: t("2026-09-02T11:41"),
-            to: db
-        )
-        #expect(summary.newPeople == 1)
-
-        let row = try db.reader.read { try Person.row(contactID: "new").fetchOne($0) }
-        let meet = try #require(row?.meet)
-        #expect(meet.tier == .witnessed)
-        #expect(meet.addSeenStart == t("2026-09-02T09:38"))
-        #expect(meet.addSeenEnd == t("2026-09-02T11:41"))
-        #expect(meet.start == t("2026-09-02T09:38"))
-        #expect(meet.end == t("2026-09-02T11:41"))
-        #expect(row?.place?.key == PlaceKey.cell(latitude: 37.7764, longitude: -122.4231))
-        #expect(row?.person.beforeInstall == false)
-    }
-
-    @Test func aVisitArrivingAfterTheAddUpgradesTheMeet() throws {
-        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:38"), to: db)
-        try Ingest.apply(
-            ContactChangeSet(added: [snapshot("new")], token: Data([2])),
-            now: t("2026-09-02T11:41"),
-            to: db
-        )
-        #expect(try db.reader.read { try Meet.fetchOne($0, key: "new")?.tier } == .dateOnly)
-
-        try Ingest.recordLiveVisit(
-            LiveVisit(
-                latitude: 37.7764,
-                longitude: -122.4231,
-                accuracyMeters: 30,
-                arrival: t("2026-09-02T10:12"),
-                departure: t("2026-09-02T11:40")
-            ),
-            now: t("2026-09-02T11:42"), to: db
-        )
-        let meet = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
-        #expect(meet.tier == .witnessed)
-        #expect(meet.placeID != nil)
-    }
-
-    @Test func aFixOnDelayedDiscoveryDoesNotInventAMeeting() throws {
+    @Test func aLaterAddIsADateOnlySuggestion() throws {
         try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:38"), to: db)
         let now = t("2026-09-02T14:14")
-        try Ingest.recordFix(
-            LiveFix(latitude: 37.7764, longitude: -122.4231, accuracyMeters: 12, at: now),
-            now: now,
-            to: db
-        )
         let summary = try Ingest.apply(
             ContactChangeSet(added: [snapshot("new", "Alice Chen")], token: Data([2])),
             now: now,
@@ -109,6 +45,7 @@ struct IngestTests {
         #expect(meet.end == now)
         #expect(!meet.isConfirmed)
         #expect(row.place == nil)
+        #expect(row.person.beforeInstall == false)
     }
 
     @Test func delayedDiscoveryRetainsTheLastSuccessfulReadAsLowerBound() throws {
@@ -135,16 +72,6 @@ struct IngestTests {
 
     @Test func confirmingKeepsTheAnswerAndMakesItTheUsers() throws {
         try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:38"), to: db)
-        try Ingest.recordLiveVisit(
-            LiveVisit(
-                latitude: 1,
-                longitude: 2,
-                accuracyMeters: 10,
-                arrival: t("2026-09-02T10:00"),
-                departure: t("2026-09-02T12:00")
-            ),
-            now: t("2026-09-02T12:00"), to: db
-        )
         try Ingest.apply(
             ContactChangeSet(added: [snapshot("new")], token: Data([2])),
             now: t("2026-09-02T11:00"),
@@ -157,91 +84,6 @@ struct IngestTests {
         #expect(after.tier == .exact)
         #expect(after.placeID == before.placeID)
         #expect(after.start == before.start)
-    }
-
-    @Test func anOngoingVisitIsExtendedNotDuplicated() throws {
-        let arrival = t("2026-09-02T10:12")
-        let first = try Ingest.recordLiveVisit(
-            LiveVisit(latitude: 1, longitude: 2, accuracyMeters: 10, arrival: arrival, departure: nil), now: arrival,
-            to: db
-        )
-        #expect(first.isOngoing)
-        let second = try Ingest.recordLiveVisit(
-            LiveVisit(
-                latitude: 1,
-                longitude: 2,
-                accuracyMeters: 10,
-                arrival: arrival,
-                departure: t("2026-09-02T11:00")
-            ),
-            now: t("2026-09-02T11:00"), to: db
-        )
-        #expect(second.id == first.id)
-        #expect(try db.reader.read { try Visit.fetchCount($0) } == 1)
-        #expect(second.end == t("2026-09-02T11:00"))
-    }
-
-    @Test(arguments: [nil, t("2026-09-02T15:00")])
-    func shorteningAVisitRemovesStaleWitnessedMeetings(previousDeparture: Date?) throws {
-        let arrival = t("2026-09-02T10:00")
-        let addedAt = t("2026-09-02T15:00")
-        let receivedAt = t("2026-09-02T16:00")
-        try Ingest.apply(ContactChangeSet(token: Data([1])), now: addedAt, to: db)
-        let visit = try Ingest.recordLiveVisit(
-            LiveVisit(
-                latitude: 1, longitude: 2, accuracyMeters: 10, arrival: arrival, departure: previousDeparture
-            ),
-            now: addedAt, to: db
-        )
-        try Ingest.apply(
-            ContactChangeSet(added: [snapshot("new")], token: Data([2])),
-            now: addedAt, to: db
-        )
-        let before = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
-        #expect(before.tier == .witnessed)
-        #expect(before.placeID == visit.placeID)
-
-        try Ingest.recordLiveVisit(
-            LiveVisit(
-                latitude: 1, longitude: 2, accuracyMeters: 10, arrival: arrival,
-                departure: t("2026-09-02T11:00")
-            ),
-            now: receivedAt, to: db
-        )
-        let after = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
-        #expect(after.tier == .dateOnly)
-        #expect(after.placeID == nil)
-        #expect(after.start == addedAt)
-        #expect(after.end == addedAt)
-        #expect(after.computedAt == receivedAt)
-    }
-
-    @Test func userAnswersAreNeverRecomputed() throws {
-        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:38"), to: db)
-        try Ingest.apply(
-            ContactChangeSet(added: [snapshot("new")], token: Data([2])),
-            now: t("2026-09-02T11:41"),
-            to: db
-        )
-        try Ingest.setUserMeet(
-            contactID: "new", start: t("2025-03-01T00:00"), end: t("2025-03-31T23:59"), precision: .month, placeID: nil,
-            now: t("2026-09-02T12:00"), to: db
-        )
-        try Ingest.recordLiveVisit(
-            LiveVisit(
-                latitude: 1,
-                longitude: 2,
-                accuracyMeters: 10,
-                arrival: t("2026-09-02T10:12"),
-                departure: t("2026-09-02T11:40")
-            ),
-            now: t("2026-09-02T12:01"), to: db
-        )
-        let meet = try #require(try db.reader.read { try Meet.fetchOne($0, key: "new") })
-        #expect(meet.userSet)
-        #expect(meet.tier == .exact)
-        #expect(meet.precision == .month)
-        #expect(meet.addSeenStart == t("2026-09-02T09:38"))
     }
 
     @Test(arguments: [Precision.exact, .day, .month, .year])
@@ -342,22 +184,10 @@ struct IngestTests {
     }
 
     @Test func placeSummaryCountsPeoplePerPlace() throws {
-        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:38"), to: db)
-        try Ingest.recordLiveVisit(
-            LiveVisit(
-                latitude: 1,
-                longitude: 2,
-                accuracyMeters: 10,
-                arrival: t("2026-09-02T10:00"),
-                departure: t("2026-09-02T12:00")
-            ),
-            now: t("2026-09-02T12:00"), to: db
-        )
-        try Ingest.apply(
-            ContactChangeSet(added: [snapshot("x"), snapshot("y")], token: Data([2])),
-            now: t("2026-09-02T11:00"),
-            to: db
-        )
+        let cafe = Place(key: "cafe", latitude: 1, longitude: 2, name: "Cafe")
+        try Ingest.addExact(contactID: "x", name: "X", at: t("2026-09-02T11:00"), place: cafe, to: db)
+        try Ingest.addExact(contactID: "y", name: "Y", at: t("2026-09-02T11:00"), place: cafe, to: db)
+        try db.writer.write { try Meet.updateAll($0, Meet.Columns.placeConfirmed.set(to: false)) }
         let summaries = try db.reader.read { try PlaceSummary.all().fetchAll($0) }
         #expect(summaries.count == 1)
         #expect(summaries.first?.people == 2)
@@ -366,19 +196,8 @@ struct IngestTests {
     }
 
     @Test func placeSummaryNamesTheOnlyPersonMetThere() throws {
-        try Ingest.apply(ContactChangeSet(added: [], token: Data([1])), now: t("2026-09-02T09:38"), to: db)
-        try Ingest.recordLiveVisit(
-            LiveVisit(
-                latitude: 1,
-                longitude: 2,
-                accuracyMeters: 10,
-                arrival: t("2026-09-02T10:00"),
-                departure: t("2026-09-02T12:00")
-            ),
-            now: t("2026-09-02T12:00"), to: db
-        )
-        let dev = snapshot("x", "Dev Patel")
-        try Ingest.apply(ContactChangeSet(added: [dev], token: Data([2])), now: t("2026-09-02T11:00"), to: db)
+        let cafe = Place(key: "cafe", latitude: 1, longitude: 2, name: "Cafe")
+        try Ingest.addExact(contactID: "x", name: "Dev Patel", at: t("2026-09-02T11:00"), place: cafe, to: db)
         let summary = try db.reader.read { try PlaceSummary.all().fetchOne($0) }
         #expect(summary?.people == 1)
         #expect(summary?.soleContactID == "x")
@@ -417,5 +236,20 @@ struct NoteTests {
         )
         #expect(try note() == "sailing")
         #expect(try db.reader.read { try Person.fetchOne($0, key: "a")?.name } == "Alice Chen")
+    }
+}
+
+struct RecentPlaceTests {
+    @Test func recentlyMetPlacesAreOrderedByLatestMeetingAndDeduplicated() throws {
+        let db = try AppDatabase.inMemory()
+        let cafe = Place(key: "cafe", latitude: 1, longitude: 2, name: "Cafe")
+        let park = Place(key: "park", latitude: 3, longitude: 4, name: "Park")
+        try Ingest.addExact(contactID: "a", name: "A", at: t("2026-09-01T09:00"), place: cafe, to: db)
+        try Ingest.addExact(contactID: "b", name: "B", at: t("2026-09-02T09:00"), place: park, to: db)
+        try Ingest.addExact(contactID: "c", name: "C", at: t("2026-09-03T09:00"), place: cafe, to: db)
+        try Ingest.addExact(contactID: "d", name: "D", at: t("2026-09-04T09:00"), place: nil, to: db)
+        let recent = try db.reader.read { try Place.recentlyMet(limit: 5).fetchAll($0) }
+        #expect(recent.map(\.key) == ["cafe", "park"])
+        #expect(try db.reader.read { try Place.recentlyMet(limit: 1).fetchAll($0) }.map(\.key) == ["cafe"])
     }
 }

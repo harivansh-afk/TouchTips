@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 /// The first-run screen, in two parts on one black. First the three questions type themselves
-/// and Contacts and Location rise in under them. Then, once those have left, one line says what
+/// and Contacts rises in under them. Then, once those have left, one line says what
 /// happens when you meet someone, the notice the phone will send drops in where a real one
 /// would, and Notifications is asked for right there. Continue sends it all away in the order it came.
 ///
@@ -125,17 +125,16 @@ private struct ContinueButton: View {
         }
         .buttonStyle(.glass)
         .controlSize(.large)
+        .accessibilityIdentifier("onboarding.continue")
     }
 }
 
-/// The three questions, then Contacts and Location under them.
+/// The three questions, then Contacts under them.
 private struct QuestionsPart: View {
     @Environment(\.splashShowing) private var splashShowing
     let access: OnboardingAccess
     /// Called once the headline has swept out, so the next part starts on an empty screen.
     let done: () -> Void
-
-    private static let permissions: [Permission] = [.contacts, .location]
 
     /// Flips once the headline has finished typing; everything under it rises in after.
     @State private var revealed = false
@@ -153,10 +152,8 @@ private struct QuestionsPart: View {
         }
         .task(id: revealed) {
             guard revealed, OnboardingAccess.autoplay else { return }
-            for permission in Self.permissions {
-                try? await Task.sleep(for: .seconds(1.2))
-                access.request(permission)
-            }
+            try? await Task.sleep(for: .seconds(1.2))
+            access.request(.contacts)
             try? await Task.sleep(for: .seconds(1.6))
             leave()
         }
@@ -190,16 +187,14 @@ private struct QuestionsPart: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 8)
-                .staged(revealed, leaving: leaving, order: 0, last: 3)
+                .staged(revealed, leaving: leaving, order: 0, last: 2)
 
-            ForEach(Array(Self.permissions.enumerated()), id: \.element) { index, permission in
-                PermissionRow(permission: permission, access: access)
-                    .staged(revealed, leaving: leaving, order: index + 1, last: 3)
-            }
+            PermissionRow(permission: .contacts, access: access)
+                .staged(revealed, leaving: leaving, order: 1, last: 2)
 
             Spacer()
             ContinueButton(action: leave)
-                .staged(revealed, leaving: leaving, order: 3, last: 3)
+                .staged(revealed, leaving: leaving, order: 2, last: 2)
         }
     }
 }

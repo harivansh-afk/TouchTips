@@ -12,7 +12,7 @@ UNUserNotificationCenter → delegate → People navigation. No server participa
 - A real simulator notification response crashed in UIKit state restoration with `NSInternalInconsistencyException: Call must be made on main thread`. The async delegate's generated completion ran on a background thread after `MainActor.run` returned. The delegate now uses an explicit completion handler and calls it on the main actor with the action handler.
 - Contact discovery previously advanced its history token before trying a notification once. Submission errors, missing permission, or termination during place lookup lost the alert permanently. Pending notices now survive in SQLite and retry on wakes and authorization.
 - In-app Add created the person before the listener saw it; the listener skipped that known ID, so no notification was posted. Add now queues in its own database transaction.
-- Debouncing cancelled the task even after scanning had begun. Debounce now owns only the delay; one active task serializes scans and drains any wake received during a scan. Background expiration cancels the active work, and the location request cooperates with cancellation.
+- Debouncing cancelled the task even after scanning had begun. Debounce now owns only the delay; one active task serializes scans and drains any wake received during a scan. Background expiration cancels the active work.
 - Place lookup required network responses before posting. It now runs separately; a notification uses the place name already available at submission.
 - History reset events were ignored, retaining deleted contacts and outdated names. Snapshot reconciliation now removes absent contacts and their pending notices, updates names, and preserves surviving IDs' notes and meetings.
 - Notification destinations could render no content for a missing row. Person screens now show explicit loading, unavailable, and failure states. Notification navigation waits for readiness, uses no row zoom, dismisses relevant sheets, and consumes pending routes after onboarding.
@@ -66,17 +66,17 @@ Result bundles from this run are under the main checkout's `build/notification-t
 `Test-TouchTips-2026.09.05_11-13-46--0400.xcresult` (six app tests, cold, deleted), and
 `Test-TouchTips-2026.09.05_11-15-28--0400.xcresult` (external Contacts app).
 
-Simulator tests do not reproduce suspension, Core Location relaunch, NameDrop, battery policy,
+Simulator tests do not reproduce suspension, NameDrop, battery policy,
 Focus, Scheduled Summary, or real lock-screen delivery. Before release, install a device build and
 disconnect the debugger; a debugger can keep a process running that would normally suspend.
 
 1. Grant full Contacts and notifications; launch once and wait for the initial snapshot. Existing contacts must remain silent.
 2. Add a uniquely named contact in Apple's Contacts app. Confirm one record, one notification, its tap destination, and Back. Repeat with in-app Add and NameDrop.
-3. Repeat while TouchTips is foregrounded, backgrounded, and the phone is locked. Record the save, discovery, and submission times separately. With no location permission or network, capture and notification must still work when the app runs; the place may be unknown.
+3. Repeat while TouchTips is foregrounded, backgrounded, and the phone is locked. Record the save, discovery, and submission times separately. With no network, capture and notification must still work when the app runs.
 4. Disable notifications, create a contact, and open TouchTips to capture it. Re-enable notifications and reopen TouchTips: the queued notice should submit once. Repeat with Contacts denied/limited then restored to full access.
 5. Keep a delivered notification, terminate TouchTips, and tap it. Repeat from Map, Search, Settings, an existing person, and after deleting the referenced contact. Each must open the correct person or a visible unavailable screen, with working Back.
 6. Test That's right, Fix, Not a meeting, and dismissal. Confirm only tap/Fix navigate and the other actions persist the expected meeting state.
-7. Leave the device idle and exercise movement/visit wakes. Separately force-quit it, create a contact, and reopen it: catch-up should occur. Immediate background detection after force-quit is not a supported promise.
+7. Leave the device idle and let background refresh run. Separately force-quit it, create a contact, and reopen it: catch-up should occur. Immediate background detection after force-quit is not a supported promise.
 
 Both known iPhones were unavailable to this Mac during validation on September 5, 2026. These checks remain a
 release gate; simulator success alone is insufficient to sign off background behavior.
@@ -84,9 +84,8 @@ release gate; simulator success alone is insufficient to sign off background beh
 ## Limits
 
 Apple queues process notifications while an app is suspended; contact changes are not a guaranteed
-wake mechanism. Location and background refresh execution are discretionary. See Apple's
+wake mechanism. Background refresh execution is discretionary. See Apple's
 [queued notification lifecycle](https://developer.apple.com/documentation/uikit/processing-queued-notifications),
-[background location guidance](https://developer.apple.com/documentation/corelocation/handling-location-updates-in-the-background),
 and [Contacts history reset semantics](https://developer.apple.com/documentation/contacts/cnchangehistorydropeverythingevent).
 
 Successful notification submission does not establish banner display. User notification settings,

@@ -44,43 +44,41 @@ struct MapScreen: View {
 
     private var map: some View {
         MapReader { proxy in
-            Map(position: $camera) {
-                UserAnnotation()
-            }
-            .simultaneousGesture(TapGesture().onEnded {
-                guard selection != nil else { return }
-                selection = nil
-            })
-            .mapStyle(styleChoice.style)
-            .mapControls {
-                MapCompass()
-            }
-            .grayscale(styleChoice.grayscale)
-            .onMapCameraChange(frequency: .continuous) { _ in cameraTick += 1 }
-            .onChange(of: camera.positionedByUser) { _, positionedByUser in
-                if positionedByUser {
-                    initialFraming.cancel()
+            Map(position: $camera)
+                .simultaneousGesture(TapGesture().onEnded {
+                    guard selection != nil else { return }
+                    selection = nil
+                })
+                .mapStyle(styleChoice.style)
+                .mapControls {
+                    MapCompass()
                 }
-            }
-            .overlay { pins(in: proxy) }
+                .grayscale(styleChoice.grayscale)
+                .onMapCameraChange(frequency: .continuous) { _ in cameraTick += 1 }
+                .onChange(of: camera.positionedByUser) { _, positionedByUser in
+                    if positionedByUser {
+                        initialFraming.cancel()
+                    }
+                }
+                .overlay { pins(in: proxy) }
         }
         .aboveTabBar()
         .overlay(alignment: .topLeading) {
-            Icon(.navigationArrow)
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .glassEffect(.clear.interactive(), in: .circle)
-                .contentShape(.circle)
-                .tapOverMap {
-                    HapticManager.light()
-                    initialFraming.cancel()
-                    withAnimation(.appleMusic) {
-                        camera = .userLocation(fallback: .automatic)
+            if let region = InitialMapFraming.region(containing: places.map(\.coordinate)) {
+                Icon(.mapPin)
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .glassEffect(.clear.interactive(), in: .circle)
+                    .contentShape(.circle)
+                    .tapOverMap {
+                        HapticManager.light()
+                        initialFraming.cancel()
+                        withAnimation(.appleMusic) { camera = .region(region) }
                     }
-                }
-                .accessibilityLabel("Recentre on me")
-                .padding(.horizontal, 16)
-                .padding(.top, 2)
+                    .accessibilityLabel("Show all places")
+                    .padding(.horizontal, 16)
+                    .padding(.top, 2)
+            }
         }
         .overlay {
             if places.isEmpty {

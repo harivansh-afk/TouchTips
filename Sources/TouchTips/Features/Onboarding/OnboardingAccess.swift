@@ -2,16 +2,15 @@ import Contacts
 import SwiftUI
 import UserNotifications
 
-/// The three things the first-run screen asks for, in the order it asks.
+/// The two things the first-run screen asks for, in the order it asks.
 enum Permission: CaseIterable, Identifiable {
-    case contacts, location, notifications
+    case contacts, notifications
 
     var id: Self { self }
 
     var title: String {
         switch self {
         case .contacts: "Contacts"
-        case .location: "Location, Always"
         case .notifications: "Notifications"
         }
     }
@@ -49,12 +48,6 @@ struct OnboardingAccess {
             case .denied, .restricted, .limited: .denied
             default: .pending
             }
-        case .location:
-            return switch app.capture.locationPermissionAction {
-            case .allowed: .granted
-            case .openSettings: .denied
-            case .request: .pending
-            }
         case .notifications:
             return switch app.notifier.status {
             case .authorized, .provisional, .ephemeral: .granted
@@ -62,10 +55,6 @@ struct OnboardingAccess {
             default: .pending
             }
         }
-    }
-
-    var allGranted: Bool {
-        Permission.allCases.allSatisfy { state($0) == .granted }
     }
 
     /// Simulator only: the screen answers itself, one permission a beat, then continues. So the
@@ -77,14 +66,6 @@ struct OnboardingAccess {
             return false
         #endif
     }()
-
-    /// The line under a refused row, only where there is something to say: When In Use is not enough.
-    func note(_ permission: Permission) -> String? {
-        guard !pretend, permission == .location, app.capture.locationStatus == .authorizedWhenInUse else {
-            return nil
-        }
-        return LocationPermissionAction.backgroundExplanation
-    }
 
     func request(_ permission: Permission) {
         if pretend {
@@ -100,8 +81,6 @@ struct OnboardingAccess {
                 await app.contactsAccess.request()
                 app.capture.scheduleTick(.user)
             }
-        case .location:
-            app.capture.requestLocation()
         case .notifications:
             Task { await app.notifier.request() }
         }
@@ -123,7 +102,7 @@ extension View {
     }
 }
 
-/// One permission as a glass row: its name, a note once it was refused, and the one verb.
+/// One permission as a glass row: its name and the one verb.
 struct PermissionRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.openURL) private var openURL
@@ -141,13 +120,9 @@ struct PermissionRow: View {
 
     var body: some View {
         layout {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(permission.title).font(.headline)
-                if state == .denied, let note = access.note(permission) {
-                    Text(note).font(.footnote).foregroundStyle(.secondary)
-                }
-            }
-            .fixedSize(horizontal: false, vertical: true)
+            Text(permission.title)
+                .font(.headline)
+                .fixedSize(horizontal: false, vertical: true)
             if !dynamicTypeSize.isAccessibilitySize {
                 Spacer(minLength: 8)
             }

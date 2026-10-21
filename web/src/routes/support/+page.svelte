@@ -11,7 +11,7 @@
 <p>Check that TouchTips has full Contacts access in iPhone Settings. Return to the app after saving a new contact.</p>
 
 <h2>Dates and places</h2>
-<p>TouchTips can miss when or where a contact was added. Open a person to correct their meeting details or add a note. Location access helps with place suggestions.</p>
+<p>TouchTips can miss when or where a contact was added. Open a person to correct their meeting details or add a note. Search for a place to record where you met.</p>
 
 <h2>Delete data</h2>
 <p>Swipe left on a person to remove their meeting details and note. To clear everything, choose “Delete all data” in TouchTips settings. Your iPhone contacts are not deleted.</p>

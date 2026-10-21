@@ -5,8 +5,6 @@ import GRDB
 
 extension Tier: DatabaseValueConvertible {}
 extension Precision: DatabaseValueConvertible {}
-extension VisitSource: DatabaseValueConvertible {}
-extension WakeSource: DatabaseValueConvertible {}
 
 extension Person: FetchableRecord, PersistableRecord {
     public static let databaseTableName = "person"
@@ -26,7 +24,6 @@ extension Place: FetchableRecord, MutablePersistableRecord {
         case id, key, latitude, longitude, name, namedAt
     }
 
-    public static let visits = hasMany(Visit.self)
     public static let meets = hasMany(Meet.self)
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {
@@ -57,20 +54,6 @@ extension Place: FetchableRecord, MutablePersistableRecord {
     }
 }
 
-extension Visit: FetchableRecord, MutablePersistableRecord {
-    public static let databaseTableName = "visit"
-
-    public enum Columns: String, ColumnExpression {
-        case id, placeID, start, end, source, accuracyMeters
-    }
-
-    public static let place = belongsTo(Place.self)
-
-    public mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
-}
-
 extension Meet: FetchableRecord, PersistableRecord {
     public static let databaseTableName = "meet"
 
@@ -85,23 +68,6 @@ extension Meet: FetchableRecord, PersistableRecord {
 
 extension KeyValue: FetchableRecord, PersistableRecord {
     public static let databaseTableName = "kv"
-}
-
-extension Heartbeat: FetchableRecord, MutablePersistableRecord {
-    public static let databaseTableName = "heartbeat"
-
-    public enum Columns: String, ColumnExpression {
-        case id, source, at, batteryLevel
-    }
-
-    public mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID
-    }
-
-    /// Heartbeats at or after `start`, oldest first.
-    public static func since(_ start: Date) -> QueryInterfaceRequest<Heartbeat> {
-        Heartbeat.filter(Columns.at >= start).order(Columns.at)
-    }
 }
 
 public extension Database {

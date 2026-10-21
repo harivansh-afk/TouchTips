@@ -1,4 +1,4 @@
-// The six things TouchTips stores. Plain values, no framework types.
+// The things TouchTips stores. Plain values, no framework types.
 // GRDB conformances live in Records+GRDB.swift so this file stays framework-free.
 
 import Foundation
@@ -7,9 +7,9 @@ import Foundation
 public enum Tier: Int, Codable, Hashable, Sendable, Comparable {
     /// Added from the app, or set by the user.
     case exact = 0
-    /// A visit contained the moment the contact appeared.
+    /// Legacy: a location visit contained the moment the contact appeared.
     case witnessed = 1
-    /// The nearest visit was within `Resolver.window`.
+    /// Legacy: a location visit was near the moment the contact appeared.
     case inferred = 2
     /// We know roughly when, not where.
     case dateOnly = 3
@@ -34,13 +34,6 @@ public enum Precision: String, Codable, Hashable, Sendable {
         }
         return .year
     }
-}
-
-public enum VisitSource: String, Codable, Hashable, Sendable {
-    case timeline
-    case live
-    /// A precise one-shot location taken the instant a contact appeared. Zero length; it witnesses that add only.
-    case fix
 }
 
 /// One contact, keyed by `CNContact.identifier`.
@@ -77,7 +70,7 @@ public struct Person: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
-/// A distinct location. `key` dedupes: a Google place ID when we have one, else a ~110 m cell.
+/// A distinct location. `key` dedupes: an Apple Maps identifier when we have one, else a ~110 m cell.
 public struct Place: Codable, Hashable, Identifiable, Sendable {
     public var id: Int64?
     public var key: String
@@ -105,10 +98,6 @@ public struct Place: Codable, Hashable, Identifiable, Sendable {
 }
 
 public enum PlaceKey {
-    public static func google(_ placeID: String) -> String {
-        "g:" + placeID
-    }
-
     /// An Apple Maps place, from `MKMapItem.identifier`. Picked by hand in the Add sheet.
     public static func apple(_ identifier: String) -> String {
         "a:" + identifier
@@ -117,36 +106,6 @@ public enum PlaceKey {
     /// Three decimals is about 110 m. Two visits to one café share a cell; two cafés a block apart usually do not.
     public static func cell(latitude: Double, longitude: Double) -> String {
         "c:" + String(format: "%.3f,%.3f", latitude, longitude)
-    }
-}
-
-/// A stay at a place. `end == .distantFuture` means still there.
-public struct Visit: Codable, Hashable, Identifiable, Sendable {
-    public var id: Int64?
-    public var placeID: Int64
-    public var start: Date
-    public var end: Date
-    public var source: VisitSource
-    public var accuracyMeters: Double?
-
-    public init(
-        id: Int64? = nil,
-        placeID: Int64,
-        start: Date,
-        end: Date,
-        source: VisitSource,
-        accuracyMeters: Double? = nil
-    ) {
-        self.id = id
-        self.placeID = placeID
-        self.start = start
-        self.end = end
-        self.source = source
-        self.accuracyMeters = accuracyMeters
-    }
-
-    public var isOngoing: Bool {
-        end == .distantFuture
     }
 }
 
@@ -167,7 +126,7 @@ public struct Meet: Codable, Hashable, Identifiable, Sendable {
         dateConfirmed && placeConfirmed
     }
 
-    /// The window in which the contact appeared, kept so a later visit can upgrade the answer.
+    /// The window in which the contact appeared.
     public var addSeenStart: Date?
     public var addSeenEnd: Date?
     public var computedAt: Date
@@ -216,25 +175,7 @@ public enum StoreKey: String, Sendable {
     case lastNotice
 }
 
-/// What woke the app, or that it was still awake.
-public enum WakeSource: String, Codable, Hashable, Sendable, CaseIterable {
-    case launch, foreground, contacts, visit, fence, movement, refresh, intent, user
-    /// The resident process checking in on a timer. Proves uptime; is not a wake.
-    case presence
-}
-
-/// One proof the process was running. Every tick writes one; the resident process writes one on a timer.
-public struct Heartbeat: Codable, Hashable, Identifiable, Sendable {
-    public var id: Int64?
-    public var source: WakeSource
-    public var at: Date
-    /// 0 to 1, nil when the device would not say.
-    public var batteryLevel: Double?
-
-    public init(id: Int64? = nil, source: WakeSource, at: Date, batteryLevel: Double? = nil) {
-        self.id = id
-        self.source = source
-        self.at = at
-        self.batteryLevel = batteryLevel
-    }
+/// What woke the app.
+public enum WakeSource: String, Hashable, Sendable, CaseIterable {
+    case launch, foreground, contacts, refresh, user
 }
