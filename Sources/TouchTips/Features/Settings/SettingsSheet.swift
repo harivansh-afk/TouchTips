@@ -12,8 +12,6 @@ struct SettingsSheet: View {
     @AppStorage("mapStyle") private var mapStyle = MapStyleChoice.muted
     @AppStorage("onboardingDone") private var onboardingDone = false
     @AppStorage(OnboardingAccess.pretendKey) private var pretendPending = false
-    @AppStorage(PresencePolicy.key) private var presence = PresencePolicy.always
-    @State private var stats: CaptureStats?
     @State private var lastNotice: NoticeTiming?
     @State private var problem: String?
     @State private var confirmDelete = false
@@ -22,48 +20,12 @@ struct SettingsSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("Auto-capture location", isOn: Binding(
-                        get: { app.capture.autoCaptureLocation },
-                        set: {
-                            app.capture.autoCaptureLocation = $0
-                            HapticManager.selection()
-                            if $0 {
-                                app.capture.requestLocation()
-                            }
-                        }
-                    ))
-                    .tint(.blue)
-                    if app.capture.autoCaptureLocation, !app.capture.locationGranted {
-                        Button("Allow background location") {
-                            switch app.capture.locationPermissionAction {
-                            case .request: app.capture.requestLocation()
-                            case .openSettings: openSettings()
-                            case .allowed: break
-                            }
-                        }
-                    }
-                } header: {
-                    Text("Preferences")
-                } footer: {
-                    Text(app.capture.autoCaptureLocation && !app.capture.locationGranted
-                        ? "Choose Always in Settings to automatically capture location in the background."
-                        : "Automatically remember where you meet people, even when TouchTips is in the background.")
-                }
-
-                Section {
                     accessRow("Contacts", status: contactsStatus) {
                         if app.contactsAccess.status == .notDetermined {
                             Task {
                                 await app.contactsAccess.request()
                                 app.capture.scheduleTick(.user)
                             }
-                        } else {
-                            openSettings()
-                        }
-                    }
-                    accessRow("Location", status: locationStatus) {
-                        if app.capture.locationPermissionAction == .request {
-                            app.capture.requestLocation()
                         } else {
                             openSettings()
                         }
@@ -120,33 +82,14 @@ struct SettingsSheet: View {
                 }
 
                 if BuildEnvironment.isDev {
-                    Section {
-                        // These diagnostics describe sampled execution, not continuous background availability.
-                        Picker("Background location", selection: $presence) {
-                            ForEach(PresencePolicy.allCases) { policy in
-                                Text(policy.title).tag(policy)
-                            }
-                        }
-                        .onChange(of: presence) { _, policy in app.capture.presencePolicy = policy }
-                        if let stats {
-                            LabeledContent("Scan coverage", value: Format.percent(stats.uptime))
-                            LabeledContent("Wakes", value: wakesText(stats))
-                            if let drain = stats.batteryPerHour {
-                                LabeledContent(
-                                    "Device battery",
-                                    value: "\(drain.formatted(.number.precision(.fractionLength(1))))% per hour"
-                                )
-                            }
-                        }
-                        if let lastNotice {
+                    if let lastNotice {
+                        Section {
                             LabeledContent("Detection to submission", value: CaptureCoordinator.describe(lastNotice))
+                        } header: {
+                            Text("Dev")
+                        } footer: {
+                            Text("Notification timing starts at detection, not contact save.")
                         }
-                    } header: {
-                        Text("Dev")
-                    } footer: {
-                        Text(
-                            "Last 24 hours. Coverage samples app execution; battery measures the whole device. Notification timing starts at detection, not contact save."
-                        )
                     }
 
                     Section("Onboarding") {
@@ -184,14 +127,14 @@ struct SettingsSheet: View {
                     Task { await deleteAll() }
                 }
             } message: {
-                Text("Contacts themselves are untouched. Meetings, visits and places are removed.")
+                Text("Contacts themselves are untouched. Meetings, notes and places are removed.")
             }
             .onChange(of: peopleLayout) { _, _ in HapticManager.selection() }
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
                 app.contactsAccess.refresh()
                 await app.notifier.refresh()
-                await loadStats()
+                await loadLastNotice()
             }
         }
     }
@@ -200,17 +143,6 @@ struct SettingsSheet: View {
         switch app.contactsAccess.status {
         case .authorized: "Full"
         case .limited: "Limited"
-        case .denied: "Off"
-        case .restricted: "Restricted"
-        case .notDetermined: "Allow"
-        @unknown default: "Manage"
-        }
-    }
-
-    private var locationStatus: String {
-        switch app.capture.locationStatus {
-        case .authorizedAlways: "Always"
-        case .authorizedWhenInUse: "While Using"
         case .denied: "Off"
         case .restricted: "Restricted"
         case .notDetermined: "Allow"
@@ -245,30 +177,20 @@ struct SettingsSheet: View {
         .accessibilityHint(status == "Allow" ? "Request permission" : "Change access in iOS Settings")
     }
 
-    private func wakesText(_ stats: CaptureStats) -> String {
-        stats.wakes.isEmpty ? "None" : stats.wakes.map { "\($0.source.rawValue) \($0.count)" }.joined(separator: ", ")
-    }
-
     private func openSettings() {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             openURL(url)
         }
     }
 
-    private func loadStats() async {
+    private func loadLastNotice() async {
         guard BuildEnvironment.isDev else { return }
-        let now = Date()
         do {
-            let (beats, latency) = try await app.database.reader.read { db in
-                try (
-                    Heartbeat.since(now.addingTimeInterval(-CaptureStats.span)).fetchAll(db),
-                    db.value(for: .lastNotice).flatMap { try? NoticeTiming.decode($0) }
-                )
+            lastNotice = try await app.database.reader.read { db in
+                try db.value(for: .lastNotice).flatMap { try? NoticeTiming.decode($0) }
             }
-            stats = CaptureStats.make(from: beats, now: now)
-            lastNotice = latency
         } catch {
-            Log.ui.error("stats failed: \(error.localizedDescription)")
+            Log.ui.error("last notice failed: \(error.localizedDescription)")
         }
     }
 

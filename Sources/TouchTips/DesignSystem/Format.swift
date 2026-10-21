@@ -26,12 +26,6 @@ enum Format {
         date.formatted(.dateTime.hour().minute())
     }
 
-    /// "40 m" or "1.2 km"
-    static func distance(_ meters: Double) -> String {
-        Measurement(value: meters, unit: UnitLength.meters)
-            .formatted(.measurement(width: .abbreviated, usage: .road))
-    }
-
     static func coordinates(_ latitude: Double, _ longitude: Double) -> String {
         String(format: "%.3f, %.3f", latitude, longitude)
     }
@@ -89,11 +83,6 @@ enum Format {
     /// Notification body: "Blue Bottle @ 2:14 pm", or whichever half is known.
     static func notice(placeName: String?, at date: Date?) -> String {
         [placeName, date.map(time)].compactMap(\.self).joined(separator: " @ ")
-    }
-
-    /// "92%"
-    static func percent(_ fraction: Double) -> String {
-        fraction.formatted(.percent.precision(.fractionLength(0)))
     }
 
     /// "2024 to 2026" or "2026"

@@ -14,14 +14,13 @@ struct MeetingConfirmationTests {
         return try db.reader.read { try #require(try Meet.fetchOne($0, key: "a")) }
     }
 
-    @Test func editingOneFieldDoesNotConfirmTheOtherAndSurvivesReresolution() throws {
+    @Test func editingOneFieldDoesNotConfirmTheOther() throws {
         let db = try AppDatabase.inMemory()
         let before = try suggestion(in: db)
         let place = try db.writer.write {
             try Place.findOrCreate($0, key: "cafe", latitude: 1, longitude: 2)
         }
         try Ingest.setUserMeetPlace(contactID: "a", placeID: place.id, now: before.end, to: db)
-        try Ingest.reresolveAll(now: before.end, to: db)
         let editedPlace = try db.reader.read { try #require(try Meet.fetchOne($0, key: "a")) }
         #expect(editedPlace.placeConfirmed)
         #expect(!editedPlace.dateConfirmed)
@@ -47,7 +46,7 @@ struct MeetingConfirmationTests {
         #expect(!edited.isConfirmed)
     }
 
-    @Test func forgetPreservesContactAndCannotBeRecreatedByRescanOrVisits() throws {
+    @Test func forgetPreservesContactAndCannotBeRecreatedByRescan() throws {
         let db = try AppDatabase.inMemory()
         let before = try suggestion(in: db)
         try Ingest.setNote(contactID: "a", note: "A note", to: db)
@@ -64,11 +63,6 @@ struct MeetingConfirmationTests {
             ),
             now: before.end, to: db
         )
-        try Ingest.recordLiveVisit(
-            LiveVisit(latitude: 1, longitude: 2, accuracyMeters: 10, arrival: before.start, departure: before.end),
-            now: before.end, to: db
-        )
-        try Ingest.reresolveAll(now: before.end, to: db)
         let row = try db.reader.read { try #require(try Person.row(contactID: "a").fetchOne($0)) }
         #expect(row.person.name == "Alice")
         #expect(row.person.note == nil && row.meet == nil)

@@ -6,22 +6,14 @@ import TouchTipsCore
 /// Typing swaps the map for live results; picking one puts it on the map and clears the field.
 /// Both sheets that ask for a place draw this, so they answer the same way.
 struct PlaceChooser: View {
-    /// One-tap places: the visit you are in, businesses nearby, or your visits around the date.
+    /// One-tap places: the one on record and where you have met people recently.
     var candidates: [PlaceChoice]
     @Binding var selection: PlaceChoice?
     /// Where search is biased and where the map looks when nothing is chosen.
     var origin: CLLocationCoordinate2D?
-    /// What is going on under the map while there are no candidates yet.
-    var note: Note?
     /// Opens the saved meeting location from the contact page.
     var onOpenMap: (() -> Void)?
 
-    enum Note: Equatable {
-        case locating
-        case locationOff
-    }
-
-    @Environment(\.openURL) private var openURL
     @AppStorage("mapStyle") private var styleChoice = MapStyleChoice.muted
     @State private var query = ""
     @State private var results: [PlaceChoice] = []
@@ -35,7 +27,7 @@ struct PlaceChooser: View {
         PlaceChoice.suggestions(picked: picked, candidates: candidates, selection: selection)
     }
 
-    @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
+    @State private var camera: MapCameraPosition = .automatic
     /// Bumped as the camera moves, so the dot is placed again from the map's current frame.
     @State private var cameraTick = 0
     @FocusState private var focused: Bool
@@ -102,24 +94,22 @@ struct PlaceChooser: View {
     /// The dot sits over the map, not in it, so Muted's filter greys the map and not the dot.
     private var mapView: some View {
         MapReader { proxy in
-            Map(position: $camera, interactionModes: MapInteractionModes()) {
-                UserAnnotation()
-            }
-            .mapStyle(styleChoice.style)
-            .mapControlVisibility(.hidden)
-            .grayscale(styleChoice.grayscale)
-            .onMapCameraChange(frequency: .continuous) { _ in cameraTick += 1 }
-            .overlay {
-                let _ = cameraTick
-                GeometryReader { layer in
-                    let origin = layer.frame(in: .global).origin
-                    if let selection, let point = proxy.convert(selection.coordinate, to: .global) {
-                        PinDot(tint: styleChoice.placeTint)
-                            .position(x: point.x - origin.x, y: point.y - origin.y)
+            Map(position: $camera, interactionModes: MapInteractionModes())
+                .mapStyle(styleChoice.style)
+                .mapControlVisibility(.hidden)
+                .grayscale(styleChoice.grayscale)
+                .onMapCameraChange(frequency: .continuous) { _ in cameraTick += 1 }
+                .overlay {
+                    let _ = cameraTick
+                    GeometryReader { layer in
+                        let origin = layer.frame(in: .global).origin
+                        if let selection, let point = proxy.convert(selection.coordinate, to: .global) {
+                            PinDot(tint: styleChoice.placeTint)
+                                .position(x: point.x - origin.x, y: point.y - origin.y)
+                        }
                     }
+                    .ignoresSafeArea()
                 }
-                .ignoresSafeArea()
-            }
         }
     }
 
@@ -145,7 +135,7 @@ struct PlaceChooser: View {
     private func aim(at coordinate: CLLocationCoordinate2D?, animated: Bool) {
         let position: MapCameraPosition = coordinate.map {
             .region(MKCoordinateRegion(center: $0, latitudinalMeters: 500, longitudinalMeters: 500))
-        } ?? .userLocation(fallback: .automatic)
+        } ?? .automatic
         if animated {
             withAnimation(.appleMusic) { camera = position }
         } else {
@@ -155,41 +145,17 @@ struct PlaceChooser: View {
 
     // MARK: - Chips
 
-    @ViewBuilder
     private var footer: some View {
-        switch note {
-        case .locating where candidates.isEmpty:
-            HStack(spacing: 12) {
-                ProgressView()
-                Text("Finding where you are").foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
-        case .locationOff where candidates.isEmpty:
-            HStack(spacing: 12) {
-                Text("Location is off").foregroundStyle(.secondary)
-                Spacer()
-                Button("Open Settings") {
-                    HapticManager.light()
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        openURL(url)
-                    }
-                }
-                .buttonStyle(.glass)
-            }
-            .padding(.horizontal, 6)
-        default:
-            ScrollView(.horizontal, showsIndicators: false) {
-                GlassEffectContainer(spacing: 8) {
-                    HStack(spacing: 8) {
-                        ForEach(chips) { choice in
-                            chip(choice.name, selected: selection?.key == choice.key, id: choice.key) {
-                                selection = choice
-                            }
+        ScrollView(.horizontal, showsIndicators: false) {
+            GlassEffectContainer(spacing: 8) {
+                HStack(spacing: 8) {
+                    ForEach(chips) { choice in
+                        chip(choice.name, selected: selection?.key == choice.key, id: choice.key) {
+                            selection = choice
                         }
                     }
-                    .padding(.vertical, 4)
                 }
+                .padding(.vertical, 4)
             }
         }
     }
@@ -273,7 +239,7 @@ struct PlaceChooser: View {
         searchTask = Task {
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
-            let found = await (try? NearbyPlaces.search(text, near: near)) ?? []
+            let found = await (try? PlaceSearch.search(text, near: near)) ?? []
             guard !Task.isCancelled else { return }
             results = found
             searching = false

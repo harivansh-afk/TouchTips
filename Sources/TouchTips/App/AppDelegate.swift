@@ -1,7 +1,7 @@
 import BackgroundTasks
 import UIKit
 
-/// Exists so capture starts at launch, including background relaunches CoreLocation triggers for a visit.
+/// Exists so capture starts at launch, including background refresh launches.
 /// SwiftUI's scene phase arrives too late for that.
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
@@ -44,6 +44,5 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func applicationProtectedDataDidBecomeAvailable(_ application: UIApplication) {
         // A background launch before first unlock can also fail to open the database.
         session.retry()
-        session.app?.capture.restoreFence()
     }
 }

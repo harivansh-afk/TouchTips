@@ -36,39 +36,6 @@ public struct ContactChangeSet: Sendable {
     }
 }
 
-/// A `CLVisit`, flattened.
-public struct LiveVisit: Hashable, Sendable {
-    public var latitude: Double
-    public var longitude: Double
-    public var accuracyMeters: Double
-    public var arrival: Date
-    /// nil while the visit is ongoing.
-    public var departure: Date?
-
-    public init(latitude: Double, longitude: Double, accuracyMeters: Double, arrival: Date, departure: Date?) {
-        self.latitude = latitude
-        self.longitude = longitude
-        self.accuracyMeters = accuracyMeters
-        self.arrival = arrival
-        self.departure = departure
-    }
-}
-
-/// A precise one-shot location, flattened.
-public struct LiveFix: Hashable, Sendable {
-    public var latitude: Double
-    public var longitude: Double
-    public var accuracyMeters: Double
-    public var at: Date
-
-    public init(latitude: Double, longitude: Double, accuracyMeters: Double, at: Date) {
-        self.latitude = latitude
-        self.longitude = longitude
-        self.accuracyMeters = accuracyMeters
-        self.at = at
-    }
-}
-
 public struct IngestSummary: Hashable, Sendable {
     public var newPeople = 0
     public var snapshotted = 0
@@ -120,8 +87,11 @@ public enum Ingest {
                 if firstRun {
                     summary.snapshotted += 1
                 } else {
-                    let add = ContactAdd(contactID: snapshot.contactID, seenStart: seenStart, seenEnd: now)
-                    try resolve(add, in: db, now: now).insert(db)
+                    try Meet(
+                        contactID: snapshot.contactID, start: seenStart, end: now,
+                        precision: .spanning(seenStart, now), placeID: nil, tier: .dateOnly, userSet: false,
+                        addSeenStart: seenStart, addSeenEnd: now, computedAt: now
+                    ).insert(db)
                     try PendingNotice(contactID: snapshot.contactID, createdAt: now).insert(db)
                     summary.newPeople += 1
                     summary.added.append(snapshot.contactID)
@@ -142,93 +112,6 @@ public enum Ingest {
             try db.setValue(change.token, for: .contactsHistoryToken)
             try db.setDate(now, for: .lastTick)
             return summary
-        }
-    }
-
-    /// Store or update a visit, then re-resolve any inferred meeting it could change.
-    @discardableResult
-    public static func recordLiveVisit(_ live: LiveVisit, now: Date, to database: AppDatabase) throws -> Visit {
-        try database.writer.write { db in
-            let place = try Place.findOrCreate(
-                db, key: PlaceKey.cell(latitude: live.latitude, longitude: live.longitude),
-                latitude: live.latitude, longitude: live.longitude
-            )
-            let placeID = place.id!
-            // CoreLocation reports distantPast when the arrival predates monitoring. Use what we have.
-            let start = live.arrival == .distantPast ? (live.departure ?? now) : live.arrival
-            let end = live.departure ?? .distantFuture
-            var affectedEnd = end
-
-            var visit: Visit
-            if var existing = try Visit
-                .filter(Visit.Columns.placeID == placeID && Visit.Columns.start == start && Visit.Columns
-                    .source == VisitSource.live)
-                .fetchOne(db) {
-                // A delayed departure can invalidate meetings anywhere in the previous interval.
-                affectedEnd = max(existing.end, end)
-                existing.end = end
-                existing.accuracyMeters = live.accuracyMeters
-                try existing.update(db)
-                visit = existing
-            } else {
-                visit = Visit(
-                    placeID: placeID,
-                    start: start,
-                    end: end,
-                    source: .live,
-                    accuracyMeters: live.accuracyMeters
-                )
-                try visit.insert(db)
-            }
-
-            try reresolve(around: start, affectedEnd, in: db, now: now)
-            return visit
-        }
-    }
-
-    /// Store a fix as a zero-length visit. Any add whose interval contains the instant is witnessed by it.
-    @discardableResult
-    public static func recordFix(_ fix: LiveFix, now: Date, to database: AppDatabase) throws -> Visit {
-        try database.writer.write { db in
-            let place = try Place.findOrCreate(
-                db, key: PlaceKey.cell(latitude: fix.latitude, longitude: fix.longitude),
-                latitude: fix.latitude, longitude: fix.longitude
-            )
-            var visit = Visit(
-                placeID: place.id!,
-                start: fix.at,
-                end: fix.at,
-                source: .fix,
-                accuracyMeters: fix.accuracyMeters
-            )
-            try visit.save(db)
-            try reresolve(around: fix.at, fix.at, in: db, now: now)
-            return visit
-        }
-    }
-
-    /// One proof of life. Cheap; the app writes one on every wake and every few minutes while resident.
-    @discardableResult
-    public static func recordHeartbeat(
-        _ source: WakeSource,
-        at: Date,
-        batteryLevel: Double?,
-        to database: AppDatabase
-    ) throws -> Heartbeat {
-        try database.writer.write { db in
-            // Diagnostic history is bounded; meetings and visits are never aged out here.
-            _ = try Heartbeat.filter(Heartbeat.Columns.at < at.addingTimeInterval(-7 * 86400)).deleteAll(db)
-            var beat = Heartbeat(source: source, at: at, batteryLevel: batteryLevel)
-            try beat.insert(db)
-            return beat
-        }
-    }
-
-    /// Recompute every inferred meeting. Used after a history import.
-    public static func reresolveAll(now: Date, to database: AppDatabase) throws {
-        try database.writer.write { db in
-            let meets = try Meet.filter(Meet.Columns.userSet == false).fetchAll(db)
-            try reresolve(meets, in: db, now: now)
         }
     }
 
@@ -374,42 +257,11 @@ public enum Ingest {
     public static func deleteAll(_ database: AppDatabase) throws {
         try database.writer.write { db in
             _ = try Meet.deleteAll(db)
-            _ = try Visit.deleteAll(db)
             _ = try Place.deleteAll(db)
             _ = try Person.deleteAll(db)
-            _ = try Heartbeat.deleteAll(db)
             _ = try KeyValue.deleteAll(db)
-        }
-    }
-
-    // MARK: - Internals
-
-    private static func resolve(_ add: ContactAdd, in db: Database, now: Date) throws -> Meet {
-        let visits = try Visit.overlapping(
-            add.seenStart.addingTimeInterval(-Resolver.window),
-            add.seenEnd.addingTimeInterval(Resolver.window)
-        ).fetchAll(db)
-        return Resolver.meet(for: add, visits: visits, now: now)
-    }
-
-    private static func reresolve(around start: Date, _ end: Date, in db: Database, now: Date) throws {
-        let meets = try Meet
-            .filter(Meet.Columns.userSet == false)
-            .filter(Meet.Columns.addSeenEnd >= start.addingTimeInterval(-Resolver.window))
-            .filter(Meet.Columns.addSeenStart <= end.addingTimeInterval(Resolver.window))
-            .fetchAll(db)
-        try reresolve(meets, in: db, now: now)
-    }
-
-    private static func reresolve(_ meets: [Meet], in db: Database, now: Date) throws {
-        for meet in meets {
-            guard let seenStart = meet.addSeenStart, let seenEnd = meet.addSeenEnd else { continue }
-            let add = ContactAdd(contactID: meet.contactID, seenStart: seenStart, seenEnd: seenEnd)
-            let fresh = try resolve(add, in: db, now: now)
-            if fresh.tier != meet.tier || fresh.placeID != meet.placeID || fresh.start != meet.start || fresh
-                .end != meet.end {
-                try fresh.update(db)
-            }
+            // Written by earlier builds that captured location. Nothing reads them now.
+            try db.execute(sql: "DELETE FROM visit; DELETE FROM heartbeat")
         }
     }
 }

@@ -5,11 +5,11 @@
 </svelte:head>
 
 <h1>Privacy</h1>
-<p class="date">Effective September 6, 2026</p>
+<p class="date">Effective October 21, 2026</p>
 <p>TouchTips is developed by <a href="https://harivan.sh">Harivansh Rathi</a>. It stores meeting details and notes on your iPhone. No account is required.</p>
 
-<h2>Contacts and location</h2>
-<p>With your permission, the app reads your contacts and uses location information to suggest meeting places. It does not send your contacts, meeting history, or notes to the developer. There are no ads or analytics SDKs.</p>
+<h2>Contacts</h2>
+<p>With your permission, the app reads your contacts to notice new ones. It does not access your location; meeting places are ones you choose. It does not send your contacts, meeting history, or notes to the developer. There are no ads or analytics SDKs.</p>
 
 <h2>Apple services</h2>
 <p>Maps and place searches use Apple services and may send requests to Apple. They are covered by <a href="https://www.apple.com/legal/privacy/">Apple’s privacy policy</a>. Contact syncing and device backups follow your iPhone settings.</p>

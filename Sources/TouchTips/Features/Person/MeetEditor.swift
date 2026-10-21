@@ -4,7 +4,7 @@ import TouchTipsCore
 
 /// When and where, edited on the person screen itself. Every change is saved as the user's answer
 /// the moment it is made; there is no button and no sound for it, since the tap that made the
-/// change already had one. Suggestions are your own visits around that day.
+/// change already had one. Suggestions are places you have met people recently.
 struct MeetEditor: View {
     let row: PersonRow
 
@@ -79,7 +79,7 @@ struct MeetEditor: View {
         .onChange(of: row.place) { _, updated in
             place = updated.map { PlaceChoice(place: $0, detail: "Current") }
         }
-        .task(id: window) { await loadSuggestions() }
+        .task { await loadSuggestions() }
     }
 
     // MARK: - When
@@ -123,7 +123,7 @@ struct MeetEditor: View {
 
     // MARK: - Where
 
-    /// The place already on record leads; visits around the day follow.
+    /// The place already on record leads; recent meeting places follow.
     private var candidates: [PlaceChoice] {
         var list: [PlaceChoice] = []
         if let existing = row.place {
@@ -140,15 +140,10 @@ struct MeetEditor: View {
     }
 
     private func loadSuggestions() async {
-        let padding = 3 * 3600.0
-        let start = window.start.addingTimeInterval(-padding)
-        let end = window.end.addingTimeInterval(padding)
         do {
-            let visited = try await app.database.reader.read { db in
-                try Place.visited(between: start, and: end).limit(8).fetchAll(db)
-            }
+            let recent = try await app.database.reader.read { db in try Place.recentlyMet(limit: 8).fetchAll(db) }
             guard !Task.isCancelled else { return }
-            suggestions = visited.map { PlaceChoice(place: $0, detail: "You were here") }
+            suggestions = recent.map { PlaceChoice(place: $0, detail: nil) }
         } catch {
             Log.ui.error("suggestions failed: \(error.localizedDescription)")
         }

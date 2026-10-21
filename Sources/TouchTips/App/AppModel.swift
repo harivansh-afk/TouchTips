@@ -8,7 +8,6 @@ import TouchTipsCore
 final class AppModel {
     let database: AppDatabase
     let capture: CaptureCoordinator
-    let geocoder: Geocoder
     let notifier: Notifier
     let photos: ContactPhotos
     let contactsAccess = ContactsAccess()
@@ -24,17 +23,12 @@ final class AppModel {
         self.photos = photos
         notifier = Notifier(database: database)
         capture = CaptureCoordinator(database: database, notifier: notifier)
-        geocoder = Geocoder(database: database)
-        capture.didIngest = { [geocoder, photos] in
-            geocoder.kick()
-            photos.reset()
-        }
+        capture.didIngest = { [photos] in photos.reset() }
     }
 
     func start() {
         notifier.activate()
         capture.start()
-        geocoder.kick()
     }
 
     static func openDatabase() throws -> AppDatabase {

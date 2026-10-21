@@ -10,11 +10,3 @@ func t(_ text: String) -> Date {
     guard let date = formatter.date(from: text) else { fatalError("bad test date \(text)") }
     return date
 }
-
-func visit(_ placeID: Int64, _ start: String, _ end: String, source: VisitSource = .live) -> Visit {
-    Visit(placeID: placeID, start: t(start), end: t(end), source: source)
-}
-
-func add(_ start: String, _ end: String, id: String = "c1") -> ContactAdd {
-    ContactAdd(contactID: id, seenStart: t(start), seenEnd: t(end))
-}

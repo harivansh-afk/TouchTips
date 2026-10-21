@@ -47,7 +47,7 @@ final class RegularUseUITests: XCTestCase {
         XCTAssertTrue(alert.waitForExistence(timeout: 5), "Deletion should use a standard alert")
         XCTAssertTrue(alert.buttons["Cancel"].isHittable)
         XCTAssertTrue(alert.buttons["Delete all data"].isHittable)
-        XCTAssertTrue(alert.staticTexts["Contacts themselves are untouched. Meetings, visits and places are removed."]
+        XCTAssertTrue(alert.staticTexts["Contacts themselves are untouched. Meetings, notes and places are removed."]
             .exists)
         return alert
     }
@@ -151,23 +151,25 @@ final class RegularUseUITests: XCTestCase {
 
     func testOnboardingContentReachable() {
         let app = launch(data: "empty", onboarding: false)
-        XCTAssertTrue(app.buttons["Start"].waitForExistence(timeout: 15))
-        // Permission rows are staged after the headline animation, but exist before they are visible.
-        Thread.sleep(forTimeInterval: 6)
-        capture(app, "onboarding-current-text-size")
-        for title in ["Contacts", "Location, Always", "Notifications"] {
+        let next = app.buttons["onboarding.continue"]
+        XCTAssertTrue(next.waitForExistence(timeout: 15))
+        // Each part's rows are staged after its headline, but exist before they are visible.
+        for title in ["Contacts", "Notifications"] {
+            Thread.sleep(forTimeInterval: 6)
             let label = app.staticTexts[title]
+            XCTAssertTrue(label.waitForExistence(timeout: 5))
             for _ in 0 ..< 8 where !label.isHittable {
                 app.swipeUp()
             }
             XCTAssertTrue(label.isHittable, "Unreachable onboarding permission: \(title)")
             capture(app, "onboarding-\(title)")
+            for _ in 0 ..< 4 where !next.isHittable {
+                app.swipeUp()
+            }
+            XCTAssertTrue(next.isHittable)
+            next.tap()
         }
-        if !app.buttons["Start"].isHittable {
-            app.swipeUp()
-        }
-        XCTAssertTrue(app.buttons["Start"].isHittable)
-        app.buttons["Start"].tap()
+        XCTAssertFalse(app.staticTexts["Location, Always"].exists)
         XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 5))
     }
 
@@ -246,22 +248,6 @@ final class RegularUseUITests: XCTestCase {
             capture(app, "map-style-\(title)")
             app.buttons["People"].tap()
         }
-    }
-
-    func testWhileUsingLocationOffersSettingsRecovery() {
-        // The test runner grants When In Use through simctl before this test.
-        let app = launch()
-        app.buttons["Settings"].tap()
-        capture(app, "location-permission-recovery")
-        let recovery = app.buttons["settings-access-location"]
-        XCTAssertTrue(recovery.waitForExistence(timeout: 5))
-        recovery.tap()
-        XCTAssertTrue(XCUIApplication(bundleIdentifier: "com.apple.Preferences").wait(
-            for: .runningForeground,
-            timeout: 5
-        ))
-        app.activate()
-        XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
     }
 
     func testStorageFailureBlocksEditingAndRetryRecovers() {

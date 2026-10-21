@@ -78,46 +78,15 @@ public struct PlaceSummary: Decodable, FetchableRecord, Hashable, Identifiable, 
     }
 }
 
-public extension Visit {
-    /// Visits touching `[start, end]`.
-    static func overlapping(_ start: Date, _ end: Date) -> QueryInterfaceRequest<Visit> {
-        Visit.filter(Columns.start <= end && Columns.end >= start)
-    }
-
-    /// The visit that produced a witnessed or inferred meeting, for the evidence list.
-    static func evidence(for meet: Meet) -> QueryInterfaceRequest<Visit>? {
-        guard let placeID = meet.placeID, let seenStart = meet.addSeenStart,
-              let seenEnd = meet.addSeenEnd else { return nil }
-        let start = seenStart.addingTimeInterval(-Resolver.window)
-        let end = seenEnd.addingTimeInterval(Resolver.window)
-        return Visit
-            .filter(Columns.placeID == placeID)
-            .filter(Columns.start <= end && Columns.end >= start)
-            .order(Columns.start)
-            .limit(1)
-    }
-}
-
 public extension Place {
-    /// Places with at least one visit touching `[start, end]`. Suggestions for the Fix sheet.
-    static func visited(between start: Date, and end: Date) -> QueryInterfaceRequest<Place> {
-        Place
-            .joining(required: Place.visits.filter(Visit.Columns.start <= end && Visit.Columns.end >= start))
-            .distinct()
-    }
-
-    /// Places someone was met at that have not been geocoded yet.
-    static func awaitingName(limit: Int) -> QueryInterfaceRequest<Place> {
-        Place
-            .filter(Columns.name == nil && Columns.namedAt == nil)
-            .joining(required: Place.meets)
-            .distinct()
-            .order(Columns.id.desc)
-            .limit(limit)
-    }
-
-    /// Places that appear on the map.
-    static func withMeets() -> QueryInterfaceRequest<Place> {
-        Place.joining(required: Place.meets).distinct()
+    /// Places people were met at, most recent meeting first. One-tap suggestions when choosing a place.
+    static func recentlyMet(limit: Int) -> SQLRequest<Place> {
+        """
+        SELECT place.* FROM place
+        JOIN meet ON meet.placeID = place.id
+        GROUP BY place.id
+        ORDER BY MAX(meet.start) DESC
+        LIMIT \(limit)
+        """
     }
 }

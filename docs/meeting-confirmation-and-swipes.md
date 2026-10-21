@@ -8,11 +8,9 @@ Date and place confirmation are stored separately. Changing a field accepts that
 explicit **Confirm meeting** action accepts the whole record. Manually edited records retain their
 existing protection against automatic replacement. Add through TouchTips records a confirmed meeting.
 
-Automatic resolution retains the contact discovery interval rather than narrowing it to a visit or
-current location. Point fixes are considered only within intervals of at most 60 seconds; this is a
-conservative matching policy, not a guarantee of when people met. Current fixes are requested only
-for live contact changes, with invalid or stale samples rejected. Notifications distinguish new
-contacts from recorded meetings.
+An automatically discovered contact gets a date-only suggestion spanning its discovery interval: the
+last successful Contacts read to the one that found it. TouchTips does not use location, so places
+are only ever chosen by the user. Notifications distinguish new contacts from recorded meetings.
 
 The additive v5 migration preserves manual edits. Older records did not distinguish field edits from
 whole-meeting confirmation, so only records with the unambiguous in-app Add signature migrate as
@@ -37,7 +35,7 @@ Liquid Glass presentation visible. See [Apple's sheet guidance](https://develope
 - Full swipe opens the action; Forget still requires confirmation. Cancel changes nothing.
 
 Forget removes the meeting, note and pending notification atomically. It retains the person record,
-so a repeated Contacts addition, history reset or visit re-resolution cannot recreate the meeting
+so a repeated Contacts addition or history reset cannot recreate the meeting
 for that existing contact.
 
 ## Validation
