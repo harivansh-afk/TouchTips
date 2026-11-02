@@ -4,10 +4,6 @@ import TouchTipsCore
 struct PeopleSection: Identifiable, Hashable {
     let id: String
     let title: String
-    /// Under the title, when the section is a place: how many people, over which years.
-    var subtitle: String?
-    /// The place this section is, so the heading can show it on the map.
-    var placeID: Int64?
     var rows: [PersonRow]
 }
 
@@ -59,47 +55,6 @@ enum PeopleSections {
             }
         }
         return PeopleGroups(sections: sections, undocumented: undated)
-    }
-
-    /// Dated people by place, the place with the newest meeting first and newest first within it,
-    /// then everyone with a date and no place. Undocumented people are not here; `make` has them.
-    static func byPlace(from rows: [PersonRow]) -> [PeopleSection] {
-        let dated = rows
-            .compactMap { row in row.meet.map { (row: row, start: $0.start) } }
-            .sorted { $0.start > $1.start }
-
-        var sections: [PeopleSection] = []
-        var index: [Int64: Int] = [:]
-        var dateOnly: [PersonRow] = []
-        for entry in dated {
-            guard let place = entry.row.place, let placeID = place.id else {
-                dateOnly.append(entry.row)
-                continue
-            }
-            if let at = index[placeID] {
-                sections[at].rows.append(entry.row)
-            } else {
-                index[placeID] = sections.count
-                sections.append(PeopleSection(
-                    id: "place-\(placeID)",
-                    title: place.name ?? Format.coordinates(place.latitude, place.longitude),
-                    placeID: placeID,
-                    rows: [entry.row]
-                ))
-            }
-        }
-        for at in sections.indices {
-            let starts = sections[at].rows.compactMap { $0.meet?.start }
-            if let first = starts.min(), let last = starts.max() {
-                sections[at].subtitle = "\(Format.peopleCount(starts.count)) · \(Format.yearSpan(first, last))"
-            }
-        }
-        if !dateOnly.isEmpty {
-            sections.append(PeopleSection(
-                id: "date-only", title: "Date only", subtitle: Format.peopleCount(dateOnly.count), rows: dateOnly
-            ))
-        }
-        return sections
     }
 
     /// A gap is named once it is longer than a week.

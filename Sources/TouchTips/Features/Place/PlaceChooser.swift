@@ -11,7 +11,7 @@ struct PlaceChooser: View {
     @Binding var selection: PlaceChoice?
     /// Where search is biased and where the map looks when nothing is chosen.
     var origin: CLLocationCoordinate2D?
-    /// Opens the saved meeting location from the contact page.
+    /// Opens the saved meeting place from the contact page.
     var onOpenMap: (() -> Void)?
 
     @AppStorage("mapStyle") private var styleChoice = MapStyleChoice.muted
@@ -86,7 +86,7 @@ struct PlaceChooser: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(selectionLabel)
             .accessibilityAddTraits(onOpenMap == nil ? [] : .isButton)
-            .accessibilityHint(onOpenMap == nil ? "" : "Shows this meeting location on the map")
+            .accessibilityHint(onOpenMap == nil ? "" : "Shows this meeting place on the map")
             .accessibilityAction { onOpenMap?() }
             .accessibilityIdentifier("meeting.map")
     }
@@ -117,7 +117,7 @@ struct PlaceChooser: View {
         VStack(alignment: .leading, spacing: 1) {
             Text(selection
                 .map { Format.placeLabel($0.name, latitude: $0.latitude, longitude: $0.longitude) } ??
-                "Meeting location")
+                "Meeting place")
                 .font(.subheadline.weight(.medium))
                 .lineLimit(1)
             if let detail = selection?.detail {

@@ -225,7 +225,7 @@ final class RegularUseUITests: XCTestCase {
 
     func testSettingsLayoutsAndMapStyles() {
         let app = launch()
-        for title in ["Timeline", "Location", "Default"] {
+        for title in ["Timeline", "Default"] {
             app.buttons["Settings"].tap()
             let option = app.buttons[title].firstMatch
             XCTAssertTrue(option.waitForExistence(timeout: 5))
