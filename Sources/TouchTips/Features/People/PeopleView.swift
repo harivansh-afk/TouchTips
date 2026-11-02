@@ -71,7 +71,6 @@ struct PeopleView: View {
         switch layout {
         case .byDate: people.sections.first?.id
         case .timeline: people.timeline.first?.id
-        case .byPlace: people.placeSections.first?.id
         }
     }
 
@@ -83,8 +82,6 @@ struct PeopleView: View {
             PeopleList(sections: people.sections, undocumented: people.undocumented)
         case .timeline:
             PeopleTimeline(items: people.timeline, undocumented: people.undocumented)
-        case .byPlace:
-            PeopleList(sections: people.placeSections, undocumented: people.undocumented, showsPlace: false)
         }
     }
 

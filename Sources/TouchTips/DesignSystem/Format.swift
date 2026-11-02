@@ -55,7 +55,7 @@ enum Format {
     }
 
     static func placeLabel(_ name: String?, latitude: Double, longitude: Double) -> String {
-        guard let name else { return "Meeting location" }
+        guard let name else { return "Meeting place" }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let components = trimmed.split(separator: ",", omittingEmptySubsequences: false)
         let numbers = components
@@ -63,7 +63,7 @@ enum Format {
         let isCoordinate = components.count == 2 && numbers.count == 2 && (-90 ... 90).contains(numbers[0])
             && (-180 ... 180).contains(numbers[1])
         guard !trimmed.isEmpty, !isCoordinate,
-              trimmed != coordinates(latitude, longitude) else { return "Meeting location" }
+              trimmed != coordinates(latitude, longitude) else { return "Meeting place" }
         return trimmed
     }
 

@@ -23,13 +23,13 @@ final class MeetingPresentationTests: XCTestCase {
 
     func testUnnamedAndCoordinatePlaceLabelsStayReadable() {
         for name in [nil, "", "  \n", "38.029300, -78.476700", " 38.029, -78.477 "] as [String?] {
-            XCTAssertEqual(Format.placeLabel(name, latitude: 38.0293, longitude: -78.4767), "Meeting location")
+            XCTAssertEqual(Format.placeLabel(name, latitude: 38.0293, longitude: -78.4767), "Meeting place")
         }
         XCTAssertEqual(Format.placeLabel("  123 Main Street  ", latitude: 0, longitude: 0), "123 Main Street")
     }
 
     func testSuggestionsHideUnnamedEntriesAndDeduplicateByPlace() {
-        let unnamed = PlaceChoice(key: "a", name: "Meeting location", latitude: 0, longitude: 0)
+        let unnamed = PlaceChoice(key: "a", name: "Meeting place", latitude: 0, longitude: 0)
         let named = PlaceChoice(key: "a", name: "Coffee", latitude: 0, longitude: 0)
         let otherPlace = PlaceChoice(key: "b", name: "Park", latitude: 1, longitude: 1)
         let choices = PlaceChoice.suggestions(picked: [unnamed, unnamed], candidates: [named, named, otherPlace])

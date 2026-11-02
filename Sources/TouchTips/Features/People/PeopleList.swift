@@ -5,13 +5,10 @@ extension EnvironmentValues {
     @Entry var zoomNamespace: Namespace.ID?
 }
 
-/// The bare list of people in sections. Shared by the People tab, in both of its grouped layouts,
-/// and the search tab.
+/// The bare list of people in sections. Shared by the People tab's month layout and the search tab.
 struct PeopleList: View {
     let sections: [PeopleSection]
     var undocumented: [PersonRow] = []
-    /// Off when the sections are places: the heading says where, so the rows say when instead.
-    var showsPlace = true
     /// Search shows matching undocumented people inline; the home tab folds them into one row.
     var expandUndocumented = false
     /// The active search text, only used to pick the empty state.
@@ -48,7 +45,7 @@ struct PeopleList: View {
             } else {
                 let starts = arrivalOrders
                 ForEach(sections) { section in
-                    heading(section.title, subtitle: section.subtitle, placeID: section.placeID)
+                    heading(section.title)
                         .id(section.id)
                         .arrives(order: starts[section.id, default: 1])
                     rows(section.rows, from: starts[section.id, default: 1] + 1)
@@ -73,39 +70,13 @@ struct PeopleList: View {
     }
 
     /// The heading is a row, not a section header, so it scrolls with the list instead of pinning.
-    /// A place's heading opens it on the map, the way the person screen's place line does.
-    private func heading(_ title: String, subtitle: String? = nil, placeID: Int64? = nil) -> some View {
-        Group {
-            if let placeID {
-                Button {
-                    HapticManager.selection()
-                    router.showPlace(placeID)
-                } label: {
-                    headingLabel(title, subtitle: subtitle)
-                }
-                .buttonStyle(.press)
-                .accessibilityHint("Shows this place on the map")
-            } else {
-                headingLabel(title, subtitle: subtitle)
-            }
-        }
-        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
-        .listRowSeparator(.hidden)
-    }
-
-    private func headingLabel(_ title: String, subtitle: String?) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.display(26))
-                .foregroundColor(Color.primary)
-            if let subtitle {
-                Text(subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(.rect)
+    private func heading(_ title: String) -> some View {
+        Text(title)
+            .font(.display(26))
+            .foregroundColor(Color.primary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
+            .listRowSeparator(.hidden)
     }
 
     private func rows(_ people: [PersonRow], from firstOrder: Int) -> some View {
@@ -117,7 +88,7 @@ struct PeopleList: View {
                 HapticManager.selection()
                 router.open(person: row.id)
             } label: {
-                PersonRowView(row: row, showsPlace: showsPlace)
+                PersonRowView(row: row)
             }
             .buttonStyle(.press)
             .personListRow(showSeparator: index < rows.count - 1)

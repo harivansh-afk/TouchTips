@@ -45,13 +45,13 @@ struct PlaceChoice: Identifiable, Hashable, Sendable {
     }
 
     /// One suggestion per visible place name, with the selected record taking priority.
-    /// Older records and map searches can give the same location different storage keys.
+    /// Older records and map searches can give the same place different storage keys.
     static func suggestions(picked: [Self], candidates: [Self], selection: Self? = nil) -> [Self] {
         var seenKeys: Set<String> = []
         var seenNames: Set<String> = []
         return ([selection].compactMap { $0 } + picked + candidates).compactMap { choice in
             let label = Format.placeLabel(choice.name, latitude: choice.latitude, longitude: choice.longitude)
-            guard label != "Meeting location" else { return nil }
+            guard label != "Meeting place" else { return nil }
             let normalizedName = label.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
                 .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
             guard !seenKeys.contains(choice.key), !seenNames.contains(normalizedName) else { return nil }

@@ -70,10 +70,6 @@ final class PeopleScrollUITests: XCTestCase {
         assertRepeatedReselectScrollsToTop(layout: "timeline")
     }
 
-    func testLocationPeopleReselectRepeatedlyScrollsToTop() {
-        assertRepeatedReselectScrollsToTop(layout: "location")
-    }
-
     func testSwitchingBackToPeoplePreservesScrollPosition() {
         let app = launch()
         XCTAssertTrue(alice(in: app).waitForExistence(timeout: 5))

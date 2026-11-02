@@ -20,8 +20,7 @@ final class PeopleObserver {
     private(set) var rows: [PersonRow] = []
     private(set) var sections: [PeopleSection] = []
     private(set) var undocumented: [PersonRow] = []
-    /// The same dated people by place, and as one line, for the layouts Settings can choose.
-    private(set) var placeSections: [PeopleSection] = []
+    /// The same dated people as one line, for the timeline layout Settings can choose.
     private(set) var timeline: [TimelineItem] = []
     private(set) var readiness: Readiness = .reading
 
@@ -36,8 +35,6 @@ final class PeopleObserver {
                     let groups = PeopleSections.make(from: value.rows)
                     if sections != groups.sections { sections = groups.sections }
                     if undocumented != groups.undocumented { undocumented = groups.undocumented }
-                    let places = PeopleSections.byPlace(from: value.rows)
-                    if placeSections != places { placeSections = places }
                     let line = PeopleSections.timeline(from: groups.sections)
                     if timeline != line { timeline = line }
                 }

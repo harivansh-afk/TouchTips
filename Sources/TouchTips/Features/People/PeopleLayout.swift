@@ -7,8 +7,6 @@ enum PeopleLayout: String, CaseIterable, Identifiable {
     case byDate = "default"
     /// One line down the left with a dot per person. Months are ticks on it and a quiet stretch is named.
     case timeline
-    /// Grouped by where, the place with the newest meeting first.
-    case byPlace = "location"
 
     static let key = "peopleLayout"
 
@@ -18,7 +16,6 @@ enum PeopleLayout: String, CaseIterable, Identifiable {
         switch self {
         case .byDate: "Default"
         case .timeline: "Timeline"
-        case .byPlace: "Location"
         }
     }
 
@@ -27,7 +24,6 @@ enum PeopleLayout: String, CaseIterable, Identifiable {
         switch self {
         case .byDate: "Newest first, grouped by month."
         case .timeline: "Meetings along a timeline."
-        case .byPlace: "Grouped by place, newest first."
         }
     }
 }
