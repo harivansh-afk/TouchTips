@@ -43,6 +43,11 @@ struct PeopleView: View {
                     showAdd = false
                     showSettings = false
                 }
+                .onChange(of: router.pairingRequest) { _, request in
+                    guard request != nil else { return }
+                    showAdd = false
+                    showSettings = false
+                }
         }
     }
 
