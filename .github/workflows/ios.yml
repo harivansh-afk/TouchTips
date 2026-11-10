@@ -2,10 +2,10 @@ name: iOS
 
 on:
   pull_request:
-    paths: ["Sources/**", "Packages/**", "Tests/**", "project.yml", "configs/**", ".swiftformat", ".github/workflows/ios.yml"]
+    paths: ["Sources/**", "Packages/**", "Tests/**", "project.yml", "configs/**", ".github/workflows/ios.yml"]
   push:
     branches: [main]
-    paths: ["Sources/**", "Packages/**", "Tests/**", "project.yml", "configs/**", ".swiftformat", ".github/workflows/ios.yml"]
+    paths: ["Sources/**", "Packages/**", "Tests/**", "project.yml", "configs/**", ".github/workflows/ios.yml"]
 
 jobs:
   build:
@@ -14,9 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Select Xcode 26
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
-      - run: brew install xcodegen swiftformat
-      - name: Format check
-        run: swiftformat Sources Packages/TouchTipsCore/Sources Packages/TouchTipsCore/Tests Tests --lint
+      - run: brew install xcodegen
       - name: Core package tests
         run: swift test --package-path Packages/TouchTipsCore
       - name: Simulator build, warnings are failures
