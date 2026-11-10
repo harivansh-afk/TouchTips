@@ -4,7 +4,6 @@ import TouchTipsCore
 struct PeopleView: View {
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
-    @AppStorage(PeopleLayout.key) private var layout = PeopleLayout.byDate
     @State private var people = PeopleObserver()
     @State private var showAdd = false
     @State private var showSettings = false
@@ -68,21 +67,12 @@ struct PeopleView: View {
     }
 
     private var topScrollID: String? {
-        switch layout {
-        case .byDate: people.sections.first?.id
-        case .timeline: people.timeline.first?.id
-        }
+        people.timeline.first?.id
     }
 
-    /// The layout Settings chose. The change happens under the Settings sheet, so nothing animates.
-    @ViewBuilder
+    /// Everyone on one line. The one layout the tab has; search keeps the plain list.
     private var list: some View {
-        switch layout {
-        case .byDate:
-            PeopleList(sections: people.sections, undocumented: people.undocumented)
-        case .timeline:
-            PeopleTimeline(items: people.timeline, undocumented: people.undocumented)
-        }
+        PeopleTimeline(items: people.timeline, undocumented: people.undocumented)
     }
 
     @ViewBuilder

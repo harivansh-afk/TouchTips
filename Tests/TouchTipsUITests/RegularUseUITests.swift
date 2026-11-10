@@ -8,7 +8,7 @@ final class RegularUseUITests: XCTestCase {
 
     private func launch(data: String = "standard", onboarding: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-onboardingDone", onboarding ? "YES" : "NO", "-peopleLayout", "default"]
+        app.launchArguments = ["-onboardingDone", onboarding ? "YES" : "NO"]
         app.launchEnvironment["TOUCHTIPS_QA_SESSION"] = UUID().uuidString
         app.launchEnvironment["TOUCHTIPS_QA_DATA"] = data
         app.launch()
@@ -223,17 +223,8 @@ final class RegularUseUITests: XCTestCase {
         capture(app, "explicit-today")
     }
 
-    func testSettingsLayoutsAndMapStyles() {
+    func testSettingsMapStyles() {
         let app = launch()
-        for title in ["Timeline", "Default"] {
-            app.buttons["Settings"].tap()
-            let option = app.buttons[title].firstMatch
-            XCTAssertTrue(option.waitForExistence(timeout: 5))
-            option.tap()
-            app.buttons["Done"].tap()
-            XCTAssertTrue(person("QA Alice", in: app).waitForExistence(timeout: 5))
-            capture(app, "people-layout-\(title)")
-        }
         for title in ["Standard", "Satellite", "Hybrid", "Muted"] {
             app.buttons["Settings"].tap()
             let option = app.buttons[title].firstMatch

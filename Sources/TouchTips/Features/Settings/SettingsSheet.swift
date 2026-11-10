@@ -10,7 +10,6 @@ struct SettingsSheet: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
 
-    @AppStorage(PeopleLayout.key) private var peopleLayout = PeopleLayout.byDate
     @AppStorage("mapStyle") private var mapStyle = MapStyleChoice.muted
     @AppStorage("onboardingDone") private var onboardingDone = false
     @AppStorage(OnboardingAccess.pretendKey) private var pretendPending = false
@@ -40,15 +39,6 @@ struct SettingsSheet: View {
                             } else {
                                 openSettings()
                             }
-                        }
-                    }
-
-                    group("People page", footer: peopleLayout.detail) {
-                        ForEach(Array(PeopleLayout.allCases.enumerated()), id: \.element) { index, option in
-                            if index > 0 {
-                                hairline
-                            }
-                            layoutRow(option)
                         }
                     }
 
@@ -163,30 +153,6 @@ struct SettingsSheet: View {
         .buttonStyle(.press)
         .accessibilityIdentifier("settings-access-\(title.lowercased())")
         .accessibilityHint(status == "Allow" ? "Request permission" : "Change access in iOS Settings")
-    }
-
-    /// One row per layout, the chosen one ticked. The change happens under the sheet, so nothing animates.
-    private func layoutRow(_ option: PeopleLayout) -> some View {
-        let selected = peopleLayout == option
-        return Button {
-            HapticManager.selection()
-            peopleLayout = option
-        } label: {
-            HStack {
-                Text(option.title)
-                    .foregroundStyle(.primary)
-                Spacer()
-                if selected {
-                    Icon(.check, size: 16)
-                        .foregroundStyle(.primary)
-                }
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 15)
-            .contentShape(.rect)
-        }
-        .buttonStyle(.press)
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     @ViewBuilder
