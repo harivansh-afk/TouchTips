@@ -2,6 +2,8 @@ import SwiftUI
 import TouchTipsCore
 import UserNotifications
 
+/// Settings as the app draws its other sheets: a caption over each group, the group one glass card
+/// with hairlines between its rows, the way the Add sheet draws name and phone. No system Form.
 struct SettingsSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -18,91 +20,70 @@ struct SettingsSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    accessRow("Contacts", status: contactsStatus) {
-                        if app.contactsAccess.status == .notDetermined {
-                            Task {
-                                await app.contactsAccess.request()
-                                app.capture.scheduleTick(.user)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    group("Access", footer: "Tap a permission to change access in iOS Settings.") {
+                        accessRow("Contacts", status: contactsStatus) {
+                            if app.contactsAccess.status == .notDetermined {
+                                Task {
+                                    await app.contactsAccess.request()
+                                    app.capture.scheduleTick(.user)
+                                }
+                            } else {
+                                openSettings()
                             }
-                        } else {
-                            openSettings()
                         }
-                    }
-                    accessRow("Notifications", status: notificationsStatus) {
-                        if app.notifier.status == .notDetermined {
-                            Task { await app.notifier.request() }
-                        } else {
-                            openSettings()
-                        }
-                    }
-                } header: {
-                    Text("Access")
-                } footer: {
-                    Text("Tap a permission to change access in iOS Settings.")
-                }
-
-                Section {
-                    Picker("Layout", selection: $peopleLayout) {
-                        ForEach(PeopleLayout.allCases) { option in
-                            Text(option.title).tag(option)
-                        }
-                    }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
-                } header: {
-                    Text("People page")
-                } footer: {
-                    Text(peopleLayout.detail)
-                }
-
-                Section("Map page") {
-                    MapStyleGrid(choice: $mapStyle)
-                        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
-                        .listRowBackground(Color.clear)
-                }
-
-                Section {
-                    Button(role: .destructive) {
-                        confirmDelete = true
-                    } label: {
-                        Text("Delete all data")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.glass)
-                    .controlSize(.large)
-                    .tint(.red)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                    .disabled(app.capture.isResetting)
-                    if let problem {
-                        Text(problem).foregroundStyle(.secondary)
-                    }
-                }
-
-                if BuildEnvironment.isDev {
-                    if let lastNotice {
-                        Section {
-                            LabeledContent("Detection to submission", value: CaptureCoordinator.describe(lastNotice))
-                        } header: {
-                            Text("Dev")
-                        } footer: {
-                            Text("Notification timing starts at detection, not contact save.")
+                        hairline
+                        accessRow("Notifications", status: notificationsStatus) {
+                            if app.notifier.status == .notDetermined {
+                                Task { await app.notifier.request() }
+                            } else {
+                                openSettings()
+                            }
                         }
                     }
 
-                    Section("Onboarding") {
-                        Toggle("Replay with access pending", isOn: $pretendPending)
-                        Button("Replay onboarding") {
-                            HapticManager.medium()
-                            onboardingDone = false
-                            dismiss()
+                    group("People page", footer: peopleLayout.detail) {
+                        ForEach(Array(PeopleLayout.allCases.enumerated()), id: \.element) { index, option in
+                            if index > 0 {
+                                hairline
+                            }
+                            layoutRow(option)
                         }
                     }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        SectionLabel(text: "Map page").padding(.leading, 6)
+                        MapStyleGrid(choice: $mapStyle)
+                    }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Button(role: .destructive) {
+                            confirmDelete = true
+                        } label: {
+                            Text("Delete all data")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.glass)
+                        .controlSize(.large)
+                        .tint(.red)
+                        .disabled(app.capture.isResetting)
+                        if let problem {
+                            Text(problem)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 6)
+                        }
+                    }
+
+                    if BuildEnvironment.isDev {
+                        dev
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 40)
             }
-            .scrollContentBackground(.hidden)
             // Into the keyboard region too, or the translucent keyboard shows a hard edge where the black stops.
             .background { Color.ground.ignoresSafeArea() }
             .serifTitle("Settings")
@@ -129,7 +110,6 @@ struct SettingsSheet: View {
             } message: {
                 Text("Contacts themselves are untouched. Meetings, notes and places are removed.")
             }
-            .onChange(of: peopleLayout) { _, _ in HapticManager.selection() }
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
                 app.contactsAccess.refresh()
@@ -138,6 +118,113 @@ struct SettingsSheet: View {
             }
         }
     }
+
+    // MARK: - Groups
+
+    private func group(_ title: String, footer: String? = nil, @ViewBuilder rows: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(text: title).padding(.leading, 6)
+            VStack(spacing: 0) {
+                rows()
+            }
+            .glassEffect(.clear, in: .rect(cornerRadius: 22))
+            if let footer {
+                Text(footer)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+            }
+        }
+    }
+
+    private var hairline: some View {
+        Rectangle()
+            .fill(Color.hairline)
+            .frame(height: 1)
+            .padding(.leading, 18)
+    }
+
+    private func accessRow(_ title: String, status: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Text(title)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text(status)
+                    .foregroundStyle(.secondary)
+                Icon(.caretRight, size: 14)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 15)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.press)
+        .accessibilityIdentifier("settings-access-\(title.lowercased())")
+        .accessibilityHint(status == "Allow" ? "Request permission" : "Change access in iOS Settings")
+    }
+
+    /// One row per layout, the chosen one ticked. The change happens under the sheet, so nothing animates.
+    private func layoutRow(_ option: PeopleLayout) -> some View {
+        let selected = peopleLayout == option
+        return Button {
+            HapticManager.selection()
+            peopleLayout = option
+        } label: {
+            HStack {
+                Text(option.title)
+                    .foregroundStyle(.primary)
+                Spacer()
+                if selected {
+                    Icon(.check, size: 16)
+                        .foregroundStyle(.primary)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 15)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.press)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private var dev: some View {
+        if let lastNotice {
+            group("Dev", footer: "Notification timing starts at detection, not contact save.") {
+                HStack {
+                    Text("Detection to submission")
+                    Spacer()
+                    Text(CaptureCoordinator.describe(lastNotice))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 15)
+            }
+        }
+        group("Onboarding") {
+            Toggle("Replay with access pending", isOn: $pretendPending)
+                .tint(.white.opacity(0.4))
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+            hairline
+            Button {
+                HapticManager.medium()
+                onboardingDone = false
+                dismiss()
+            } label: {
+                Text("Replay onboarding")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 15)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.press)
+        }
+    }
+
+    // MARK: - State
 
     private var contactsStatus: String {
         switch app.contactsAccess.status {
@@ -155,26 +242,6 @@ struct SettingsSheet: View {
             return "On"
         }
         return app.notifier.status == .notDetermined ? "Allow" : "Off"
-    }
-
-    private func accessRow(_ title: String, status: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack {
-                Text(title)
-                    .foregroundStyle(.primary)
-                Spacer()
-                Text(status)
-                    .foregroundStyle(.secondary)
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("settings-access-\(title.lowercased())")
-        .accessibilityHint(status == "Allow" ? "Request permission" : "Change access in iOS Settings")
     }
 
     private func openSettings() {

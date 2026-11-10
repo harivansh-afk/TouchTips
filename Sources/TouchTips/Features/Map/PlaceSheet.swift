@@ -23,6 +23,7 @@ struct PlaceSheet: View {
                         Text(content.subtitle)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
+                            .contentTransition(.numericText())
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }

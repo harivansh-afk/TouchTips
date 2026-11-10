@@ -113,7 +113,7 @@ final class NotificationUITests: XCTestCase {
         let app = launch()
         XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Reading your contacts"].waitForNonExistence(timeout: 10))
-        app.buttons["Add"].tap()
+        app.pullToAdd()
         let field = app.textFields["Name"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         let name = "InAppUITest \(UUID().uuidString.prefix(8))"

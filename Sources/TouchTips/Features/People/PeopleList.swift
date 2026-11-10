@@ -39,8 +39,11 @@ struct PeopleList: View {
     var body: some View {
         List {
             if isEmpty, !query.isEmpty {
-                ContentUnavailableView.search(text: query)
+                EmptyNote(title: "No Results", detail: "Nothing matches “\(query)”.")
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 40)
                     .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
             } else {
                 let starts = arrivalOrders
@@ -119,6 +122,7 @@ struct UndocumentedRowLabel: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(count) undocumented")
                     .font(.body.weight(.medium))
+                    .contentTransition(.numericText())
             }
             Spacer(minLength: 8)
             ConfidenceDot(meet: nil)

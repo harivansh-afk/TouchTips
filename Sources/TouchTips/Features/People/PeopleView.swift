@@ -23,7 +23,6 @@ struct PeopleView: View {
                 .safeAreaInset(edge: .top, spacing: 0) {
                     ScreenHeader(title: "People", hidden: hideHeader) {
                         HeaderButtons {
-                            HeaderButton(glyph: .plus, label: "Add") { showAdd = true }
                             HeaderButton(glyph: .gearSix, label: "Settings") { showSettings = true }
                         }
                     }
@@ -53,6 +52,7 @@ struct PeopleView: View {
                 .aboveTabBar()
                 .hidesHeaderOnScroll($hideHeader)
                 .minimizesTabBarOnScroll()
+                .pullsDownToAdd { showAdd = true }
                 .overlay {
                     if people.rows.isEmpty {
                         emptyState.arrives(order: 1)
@@ -89,27 +89,11 @@ struct PeopleView: View {
     private var emptyState: some View {
         switch people.readiness {
         case .contactsOff:
-            ContentUnavailableView(
-                "Contacts is off",
-                systemImage: "person.crop.circle.badge.xmark",
-                description: Text(
-                    "Allow Contacts access in Settings."
-                )
-            )
+            EmptyNote(title: "Contacts is off", detail: "Allow Contacts access in Settings.")
         case .reading:
-            ContentUnavailableView {
-                Label {
-                    Text("Reading your contacts")
-                } icon: {
-                    ProgressView()
-                }
-            }
+            EmptyNote(title: "Reading your contacts", busy: true)
         case .ready:
-            ContentUnavailableView(
-                "No one yet",
-                systemImage: "person.2",
-                description: Text("New contacts will appear here.")
-            )
+            EmptyNote(title: "No one yet", detail: "Pull down to add someone you just met.")
         }
     }
 }

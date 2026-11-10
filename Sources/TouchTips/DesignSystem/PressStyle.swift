@@ -1,15 +1,13 @@
 import SwiftUI
 
-/// scale, a short spring, and a light tick on the way down. Glass buttons keep `.glass`.
+/// A row or inline control under a finger: a little dimmer and a little smaller, on a short spring.
+/// No sound of its own; the action it leads to makes the one tick. Glass buttons keep `.glass`.
 struct PressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .opacity(configuration.isPressed ? 0.55 : 1)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { _, pressed in
-                if pressed { HapticManager.light() }
-            }
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.appleInteractive, value: configuration.isPressed)
     }
 }
 

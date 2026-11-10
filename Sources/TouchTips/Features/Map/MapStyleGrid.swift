@@ -37,7 +37,7 @@ struct MapStyleGrid: View {
             .contentShape(.rect)
         }
         .buttonStyle(.press)
-        .animation(.snappy, value: selected)
+        .animation(.appleInteractive, value: selected)
         .accessibilityLabel(option.title)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
