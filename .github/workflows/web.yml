@@ -1,0 +1,53 @@
+name: Web
+
+on:
+  pull_request:
+    paths: ["web/**", ".github/workflows/web.yml"]
+  push:
+    branches: [main]
+    paths: ["web/**", ".github/workflows/web.yml"]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run test
+
+  # Vercel deploys every push; this waits for that deployment and runs the full flow against it.
+  smoke:
+    runs-on: ubuntu-latest
+    needs: checks
+    defaults:
+      run:
+        working-directory: web
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Wait for the Vercel deployment
+        id: deployment
+        run: |
+          sha="${{ github.event.pull_request.head.sha || github.sha }}"
+          wanted="${{ github.event_name == 'pull_request' && 'Preview' || 'Production' }}"
+          for i in $(seq 1 60); do
+            url=$(gh api "repos/${{ github.repository }}/deployments?sha=$sha&environment=$wanted&per_page=5" \
+              --jq '.[].id' | while read -r id; do
+                gh api "repos/${{ github.repository }}/deployments/$id/statuses" --jq '.[] | select(.state == "success") | .environment_url' | head -1
+              done | head -1)
+            if [ -n "$url" ]; then echo "url=$url" >> "$GITHUB_OUTPUT"; echo "deployed at $url"; exit 0; fi
+            sleep 10
+          done
+          echo "no successful $wanted deployment for $sha" >&2
+          exit 1
+      - name: Smoke test
+        run: node scripts/smoke.mjs "${{ steps.deployment.outputs.url }}"

@@ -12,6 +12,7 @@
     </a>
     <nav aria-label="Information">
       <a href="/" aria-current={page.url.pathname === '/' ? 'page' : undefined}>Home</a>
+      <a href="/connect" aria-current={page.url.pathname === '/connect' ? 'page' : undefined}>Connect</a>
       <a href="/support" aria-current={page.url.pathname === '/support' ? 'page' : undefined}>Support</a>
       <a href="/privacy" aria-current={page.url.pathname === '/privacy' ? 'page' : undefined}>Privacy</a>
     </nav>
