@@ -20,7 +20,7 @@ final class PeopleObserver {
     private(set) var rows: [PersonRow] = []
     private(set) var sections: [PeopleSection] = []
     private(set) var undocumented: [PersonRow] = []
-    /// The same dated people as one line, for the timeline layout Settings can choose.
+    /// The same dated people as one line, the way the People tab draws them.
     private(set) var timeline: [TimelineItem] = []
     private(set) var readiness: Readiness = .reading
 

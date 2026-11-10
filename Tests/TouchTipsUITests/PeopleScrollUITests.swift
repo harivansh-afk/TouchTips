@@ -6,9 +6,9 @@ final class PeopleScrollUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    private func launch(layout: String = "default") -> XCUIApplication {
+    private func launch() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-onboardingDone", "YES", "-peopleLayout", layout]
+        app.launchArguments = ["-onboardingDone", "YES"]
         app.launchEnvironment["TOUCHTIPS_QA_SESSION"] = UUID().uuidString
         app.launchEnvironment["TOUCHTIPS_QA_DATA"] = "standard"
         app.launch()
@@ -47,8 +47,8 @@ final class PeopleScrollUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["person-name"].exists, "A tab tap must not open a person")
     }
 
-    private func assertRepeatedReselectScrollsToTop(layout: String) {
-        let app = launch(layout: layout)
+    func testPeopleReselectRepeatedlyScrollsToTop() {
+        let app = launch()
         let firstRow = alice(in: app)
         XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
         XCTAssertTrue(firstRow.isHittable)
@@ -60,14 +60,6 @@ final class PeopleScrollUITests: XCTestCase {
             app.buttons["People"].tap()
             assertAtTop(app, originalY: originalY)
         }
-    }
-
-    func testDefaultPeopleReselectRepeatedlyScrollsToTop() {
-        assertRepeatedReselectScrollsToTop(layout: "default")
-    }
-
-    func testTimelinePeopleReselectRepeatedlyScrollsToTop() {
-        assertRepeatedReselectScrollsToTop(layout: "timeline")
     }
 
     func testSwitchingBackToPeoplePreservesScrollPosition() {

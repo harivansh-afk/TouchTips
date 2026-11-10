@@ -6,9 +6,9 @@ final class PersonSwipeUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    private func launch(layout: String = "default", search: Bool = false) -> XCUIApplication {
+    private func launch(search: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-onboardingDone", "YES", "-peopleLayout", layout]
+        app.launchArguments = ["-onboardingDone", "YES"]
         app.launchEnvironment["TOUCHTIPS_QA_SESSION"] = UUID().uuidString
         app.launchEnvironment["TOUCHTIPS_QA_DATA"] = "standard"
         app.launch()
@@ -39,8 +39,8 @@ final class PersonSwipeUITests: XCTestCase {
         add(screenshot)
     }
 
-    private func notesRoundTrip(layout: String = "default", search: Bool = false) {
-        let app = launch(layout: layout, search: search)
+    private func notesRoundTrip(search: Bool = false) {
+        let app = launch(search: search)
         openNote(app)
         let field = app.textFields["person.note"]
         field.typeText(" Swipe note")
@@ -77,16 +77,12 @@ final class PersonSwipeUITests: XCTestCase {
         notesRoundTrip()
     }
 
-    func testTimelineNotes() {
-        notesRoundTrip(layout: "timeline")
-    }
-
     func testSearchNotes() {
         notesRoundTrip(search: true)
     }
 
     func testSwipeAppearanceAndTimelineScroll() {
-        let app = launch(layout: "timeline")
+        let app = launch()
         let row = alice(app)
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         let start = row.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.5))
