@@ -10,6 +10,7 @@ final class AppModel {
     let capture: CaptureCoordinator
     let notifier: Notifier
     let photos: ContactPhotos
+    let cloud: CloudSync
     let contactsAccess = ContactsAccess()
 
     /// The app's own database in Application Support.
@@ -23,12 +24,14 @@ final class AppModel {
         self.photos = photos
         notifier = Notifier(database: database)
         capture = CaptureCoordinator(database: database, notifier: notifier)
+        cloud = CloudSync(database: database)
         capture.didIngest = { [photos] in photos.reset() }
     }
 
     func start() {
         notifier.activate()
         capture.start()
+        cloud.start()
     }
 
     static func openDatabase() throws -> AppDatabase {

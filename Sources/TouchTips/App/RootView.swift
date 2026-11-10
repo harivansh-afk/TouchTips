@@ -48,6 +48,27 @@ struct RootView: View {
             openNotification()
         }
         .onChange(of: router.peopleReady) { _, _ in openNotification() }
+        .onOpenURL { url in open(url) }
+        .sheet(item: Bindable(router).pairingRequest) { request in
+            PairingSheet(code: request.code)
+                .environment(app)
+        }
+    }
+
+    /// touchtips.app/pair/123456 opens the approval sheet; touchtips.app/p/<id> opens a person.
+    private func open(_ url: URL) {
+        let parts = url.pathComponents.filter { $0 != "/" }
+        guard parts.count == 2 else { return }
+        switch parts[0] {
+        case "pair" where parts[1].count == 6 && parts[1].allSatisfy(\.isNumber):
+            Log.ui.notice("pairing link")
+            router.pairingRequest = PairingRequest(code: parts[1])
+        case "p":
+            router.selectedTab = .people
+            router.paths[.people] = [.person(parts[1], zoom: false)]
+        default:
+            break
+        }
     }
 
     private func openNotification() {

@@ -37,6 +37,10 @@ targets:
       - package: TouchTipsCore
       - package: Lottie
       - package: PhoneNumberKit
+    entitlements:
+      path: Sources/TouchTips/TouchTips.entitlements
+      properties:
+        com.apple.developer.associated-domains: [applinks:touchtips.app]
     info:
       path: Sources/TouchTips/Info.plist
       properties:
