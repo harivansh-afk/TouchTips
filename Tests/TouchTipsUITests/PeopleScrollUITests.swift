@@ -42,7 +42,7 @@ final class PeopleScrollUITests: XCTestCase {
         let firstRow = alice(in: app)
         XCTAssertTrue(waitUntil {
             firstRow.exists && firstRow.isHittable && abs(firstRow.frame.minY - originalY) <= 12
-                && app.buttons["Settings"].isHittable && app.buttons["Add"].isHittable
+                && app.buttons["Settings"].isHittable
         }, "Reselecting People should restore the first row's original position and the header")
         XCTAssertFalse(app.staticTexts["person-name"].exists, "A tab tap must not open a person")
     }

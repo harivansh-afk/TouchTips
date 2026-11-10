@@ -1,10 +1,12 @@
 import SwiftUI
 import TouchTipsCore
 
-/// Native icon-only swipe actions, following Mixbridge's TrackRow implementation.
+/// Native icon-only swipe actions, following Mixbridge's TrackRow implementation. A long press
+/// offers the same actions by name, plus the place on the map.
 private struct PersonSwipeActions: ViewModifier {
     let row: PersonRow
     @Environment(AppModel.self) private var app
+    @Environment(Router.self) private var router
     @State private var showNote = false
     @State private var showForget = false
     @State private var problem: String?
@@ -16,7 +18,7 @@ private struct PersonSwipeActions: ViewModifier {
                     HapticManager.selection()
                     showNote = true
                 } label: {
-                    Label("", systemImage: "note.text")
+                    Label("", image: .notePencil)
                 }
                 .accessibilityLabel("Note")
                 // Notes accent sampled from Apple's current Notes App Store screenshot.
@@ -29,11 +31,32 @@ private struct PersonSwipeActions: ViewModifier {
                         HapticManager.selection()
                         showForget = true
                     } label: {
-                        Label("", systemImage: "trash")
+                        Label("", image: .trash)
                     }
                     .accessibilityLabel("Forget")
                     .tint(.red)
                     .accessibilityIdentifier("person.swipe.forget")
+                }
+            }
+            .contextMenu {
+                Button {
+                    showNote = true
+                } label: {
+                    Label("Note", image: .notePencil)
+                }
+                if let placeID = row.place?.id {
+                    Button {
+                        router.showPlace(placeID)
+                    } label: {
+                        Label("Show on map", image: .mapPin)
+                    }
+                }
+                if row.meet != nil || row.person.note != nil {
+                    Button(role: .destructive) {
+                        showForget = true
+                    } label: {
+                        Label("Forget", image: .trash)
+                    }
                 }
             }
             .sheet(isPresented: $showNote) {

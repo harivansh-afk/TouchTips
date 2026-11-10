@@ -192,7 +192,7 @@ final class RegularUseUITests: XCTestCase {
 
     func testAddCancelDoesNotCreatePerson() {
         let app = launch()
-        app.buttons["Add"].tap()
+        app.pullToAdd()
         let name = app.textFields["Name"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Save"].isEnabled)
@@ -257,7 +257,7 @@ final class RegularUseUITests: XCTestCase {
         app.launchEnvironment["TOUCHTIPS_QA_STORAGE_FAILURE"] = "once"
         app.launch()
         XCTAssertTrue(app.buttons["storage.retry"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.buttons["Add"].exists)
+        XCTAssertFalse(app.buttons["Settings"].exists)
         capture(app, "storage-unavailable")
         app.buttons["storage.retry"].tap()
         XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 10))

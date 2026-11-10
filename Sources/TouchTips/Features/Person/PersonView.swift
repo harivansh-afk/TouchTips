@@ -5,7 +5,6 @@ struct PersonView: View {
     let contactID: String
 
     @Environment(AppModel.self) private var app
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var allowDismissalGesture: AllowedNavigationDismissalGestures = .none
     @State private var row: PersonRow?
     @State private var showCard = false
@@ -31,7 +30,7 @@ struct PersonView: View {
                                 do {
                                     try Ingest.confirmMeet(contactID: row.id, now: .now, to: app.database)
                                     confirmationProblem = nil
-                                    HapticManager.selection()
+                                    HapticManager.success()
                                 } catch {
                                     confirmationProblem = error.localizedDescription
                                     HapticManager.error()
@@ -61,22 +60,17 @@ struct PersonView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
-                .smoothAppear()
-                .transaction { transaction in
-                    if reduceMotion { transaction.animation = nil }
-                }
             } else if loadFailed {
-                ContentUnavailableView(
-                    "Couldn't load this contact",
-                    systemImage: "exclamationmark.triangle",
-                    description: Text("Go back and try opening the contact again.")
+                EmptyNote(
+                    title: "Couldn’t load this contact", detail: "Go back and try opening the contact again."
                 )
+                    .padding(.top, 40)
             } else if loaded {
-                ContentUnavailableView(
-                    "Contact unavailable",
-                    systemImage: "person.crop.circle.badge.xmark",
-                    description: Text("This contact was removed or is no longer available to TouchTips.")
+                EmptyNote(
+                    title: "Contact unavailable",
+                    detail: "This contact was removed or is no longer available to TouchTips."
                 )
+                    .padding(.top, 40)
             } else {
                 ProgressView("Loading contact")
                     .padding(.top, 40)
@@ -90,8 +84,10 @@ struct PersonView: View {
         .toolbar(.hidden, for: .navigationBar)
         .navigationAllowDismissalGestures(allowDismissalGesture)
         .navigationBarBackButtonHidden(true)
+        // The zoom's own gestures would fight the push while it is still landing. Half a second is
+        // the push and a little slack; after that, swiping back is immediate.
         .task {
-            try? await Task.sleep(for: .seconds(1))
+            try? await Task.sleep(for: .milliseconds(500))
             allowDismissalGesture = .all
         }
         .sheet(isPresented: $showCard) {

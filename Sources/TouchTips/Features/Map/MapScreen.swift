@@ -184,20 +184,8 @@ struct MapScreen: View {
         }
     }
 
-    /// One line in the app's voice, centred on the map, in place of a system placeholder.
     private var emptyState: some View {
-        VStack(spacing: 2) {
-            Text("Nowhere yet")
-                .font(.display(24))
-            Text("The map fills in as you meet people.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-        .multilineTextAlignment(.center)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 14)
-        .glassEffect(.clear, in: .rect(cornerRadius: 24))
-        .allowsHitTesting(false)
+        EmptyNote(title: "Nowhere yet", detail: "The map fills in as you meet people.")
     }
 
     private func pushPendingPerson() {
