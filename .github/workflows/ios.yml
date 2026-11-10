@@ -1,0 +1,27 @@
+name: iOS
+
+on:
+  pull_request:
+    paths: ["Sources/**", "Packages/**", "Tests/**", "project.yml", "configs/**", ".github/workflows/ios.yml"]
+  push:
+    branches: [main]
+    paths: ["Sources/**", "Packages/**", "Tests/**", "project.yml", "configs/**", ".github/workflows/ios.yml"]
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
+      - run: brew install xcodegen
+      - name: Core package tests
+        run: swift test --package-path Packages/TouchTipsCore
+      - name: Simulator build, warnings are failures
+        run: |
+          cp configs/Local.example.xcconfig configs/Local.xcconfig
+          xcodegen generate
+          set -o pipefail
+          xcodebuild -project TouchTips.xcodeproj -scheme TouchTips \
+            -destination 'generic/platform=iOS Simulator' -quiet build CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log
+          if grep -q "warning:" build.log; then grep "warning:" build.log; echo "warnings are failures" >&2; exit 1; fi
