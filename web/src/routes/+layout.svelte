@@ -23,10 +23,6 @@
 </main>
 
 <footer>
-  <div class="wrap">
-    <a class="app" href="/ios" aria-label="Get TouchTips on the App Store">
-      <img src="/app-icon.png" alt="" width="132" height="132" />
-    </a>
-    <div class="word serif" aria-hidden="true">TouchTips</div>
-  </div>
+  <div class="word serif" aria-hidden="true">TouchTips</div>
+  <span class="copy">© {new Date().getFullYear()} TouchTips</span>
 </footer>

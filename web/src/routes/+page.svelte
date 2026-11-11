@@ -1,5 +1,6 @@
 <script>
   import { AGENTS, iconClass, iconStyle } from '$lib/agents';
+  const cities = ['New York', 'Lisbon', 'Tokyo', 'Berlin', 'Austin', 'London', 'Paris', 'Mumbai', 'Sydney', 'Chicago'];
 </script>
 
 <svelte:head>
@@ -9,9 +10,13 @@
 </svelte:head>
 
 <div class="hero">
-  <h1 class="serif">Who was that guy I met in <span class="city" id="city">New York</span>?</h1>
+  <h1 class="lines" id="lines" aria-label="Who was that guy I met in New York?">
+    {#each cities as city, i}
+      <span class="line" class:on={i === 0} aria-hidden={i !== 0}>Who was that guy I met in {city}?</span>
+    {/each}
+  </h1>
   <p class="lede">The app that remembers everyone.</p>
-  <a class="button ios" href="/ios"><span class="ico" style="--i:url(/agents/apple.svg)"></span>Download for iOS</a>
+  <a class="button primary lg" href="/ios"><span class="ico" style="--i:url(/agents/apple.svg)"></span>Download for iOS</a>
 </div>
 
 <ul class="agents">
@@ -22,17 +27,13 @@
 
 {@html `<script>
   (() => {
-    const el = document.getElementById('city');
-    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const cities = ['New York', 'Lisbon', 'Tokyo', 'Berlin', 'Austin', 'London', 'Paris', 'Mumbai', 'Sydney', 'Chicago'];
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const lines = Array.from(document.querySelectorAll('#lines .line'));
     let i = 0;
     setInterval(() => {
-      el.classList.add('out');
-      setTimeout(() => {
-        i = (i + 1) % cities.length;
-        el.textContent = cities[i];
-        el.classList.remove('out');
-      }, 260);
-    }, 2600);
+      lines[i].classList.remove('on');
+      i = (i + 1) % lines.length;
+      lines[i].classList.add('on');
+    }, 2800);
   })();
 </script>`}

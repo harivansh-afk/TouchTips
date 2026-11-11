@@ -5,12 +5,12 @@
 
 <svelte:head>
   <title>Connect TouchTips to your AI</title>
-  <meta name="description" content="Give Claude, ChatGPT, Claude Code, Cursor or any agent a private URL to your TouchTips meetings." />
+  <meta name="description" content="Give Claude, ChatGPT, Grok Bot, Instinct or any agent a private URL to your TouchTips meetings." />
   <link rel="canonical" href="https://touchtips.app/connect" />
 </svelte:head>
 
 <div class="connect-head">
-  <h1 class="serif">One URL. Any agent.</h1>
+  <h1>One URL. Any agent.</h1>
 </div>
 
 <ul class="rows">

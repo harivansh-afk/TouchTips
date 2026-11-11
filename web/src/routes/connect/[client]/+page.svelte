@@ -12,15 +12,16 @@
 </svelte:head>
 
 <p class="eyebrow"><span class={iconClass(CLIENT_ICONS[client.id])} style={iconStyle(CLIENT_ICONS[client.id])}></span></p>
-<h1 class="serif">Connect {client.name}</h1>
-<p class="lede">In TouchTips, tap the plug, then <strong class="muted">{client.name}</strong>, then Open {client.name}.{#if client.where} On a computer: {client.where}.{/if}</p>
+<h1>Connect {client.name}</h1>
+<p class="lede">In TouchTips, tap the plug, then <strong class="muted">{client.name}</strong>, then Open {client.name}.{#if client.where}{" "}On a computer: {client.where}.{/if}</p>
 <ol class="steps">
   {#each client.steps as step}
     <li>{step}</li>
   {/each}
 </ol>
 {#if client.id === 'claude'}
-  <p class="lede" style="margin-top:28px">Claude Code: the app copies the same URL as a command.</p>
+  <h2>Claude Code</h2>
+  <p>The app has the same URL as a command.</p>
   <pre>{claudeCodeCommand('https://touchtips.app/c/…/mcp')}</pre>
 {/if}
 <div class="actions">
