@@ -36,6 +36,7 @@ final class CloudSync {
     }
 
     /// Mint a connection. The first one turns sync on and pushes, so the client's first question has data.
+    /// Tapping the same client again before its URL was used hands back the same URL instead of a new one.
     func connect(_ client: ConnectClient) async throws -> ConnectorKey {
         if isEnabled {
             await pushNow()
@@ -43,9 +44,24 @@ final class CloudSync {
             try await enable()
         }
         guard let api else { throw CloudError.keychain(errSecItemNotFound) }
+        if var pending = keys.first(where: { $0.kind == client && $0.lastUsedAt == nil }),
+           let url = Self.urls[pending.id] {
+            pending.url = url
+            return pending
+        }
         let key = try await api.createKey(client: client)
+        keys.removeAll { $0.kind == client && $0.lastUsedAt == nil }
         keys.insert(key, at: 0)
+        if let url = key.url {
+            Self.urls[key.id] = url
+        }
         return key
+    }
+
+    /// URLs this phone minted, by key id. The server never returns them again.
+    private static var urls: [String: String] {
+        get { UserDefaults.standard.dictionary(forKey: "connectorURLs") as? [String: String] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: "connectorURLs") }
     }
 
     func refreshKeys() async {
@@ -66,6 +82,7 @@ final class CloudSync {
         do {
             try await api.revoke(id: key.id)
             keys.removeAll { $0.id == key.id }
+            Self.urls[key.id] = nil
         } catch {
             lastError = error.localizedDescription
         }
@@ -84,6 +101,7 @@ final class CloudSync {
         isEnabled = false
         keys = []
         lastSyncAt = nil
+        UserDefaults.standard.removeObject(forKey: "connectorURLs")
     }
 
     func pushNow() async {

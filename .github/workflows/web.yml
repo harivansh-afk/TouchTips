@@ -44,7 +44,11 @@ jobs:
               --jq '.[].id' | while read -r id; do
                 gh api "repos/${{ github.repository }}/deployments/$id/statuses" --jq '.[] | select(.state == "success") | .environment_url' | head -1
               done | head -1)
-            if [ -n "$url" ]; then echo "url=$url" >> "$GITHUB_OUTPUT"; echo "deployed at $url"; exit 0; fi
+            if [ -n "$url" ]; then
+              # Production mints URLs on the custom domain, so test the alias, not the deployment URL.
+              [ "$wanted" = "Production" ] && url="https://touchtips.app"
+              echo "url=$url" >> "$GITHUB_OUTPUT"; echo "deployed at $url"; exit 0
+            fi
             sleep 10
           done
           echo "no successful $wanted deployment for $sha" >&2
