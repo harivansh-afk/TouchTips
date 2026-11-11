@@ -9,13 +9,12 @@
 
 <header class="top">
   <nav class="wrap" aria-label="Site">
-    <span class="left">
-      {#if path !== '/'}<a href="/">Home</a>{/if}
-      <a href="/connect" aria-current={path.startsWith('/connect') ? 'page' : undefined}>Connect</a>
+    <span class="left">{#if path !== '/'}<a href="/">Home</a>{/if}</span>
+    <span class="right">
       <a href="/privacy" aria-current={path === '/privacy' ? 'page' : undefined}>Privacy</a>
       <a href="/support" aria-current={path === '/support' ? 'page' : undefined}>Support</a>
+      <a class="gh" href="https://github.com/harivansh-afk/TouchTips" aria-label="Source on GitHub"><span class="ico" style="--i:url(/agents/github.svg)"></span></a>
     </span>
-    <a class="gh" href="https://github.com/harivansh-afk/TouchTips" aria-label="Source on GitHub"><span class="ico" style="--i:url(/agents/github.svg)"></span></a>
   </nav>
 </header>
 
