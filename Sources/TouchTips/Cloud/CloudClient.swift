@@ -30,6 +30,27 @@ struct ConnectorKey: Decodable, Identifiable, Hashable, Sendable {
     }
 }
 
+/// A client's sign-in, waiting for this phone's Allow.
+struct ApprovalRequest: Decodable, Identifiable, Hashable, Sendable {
+    var id: String
+    var client: String
+    /// "Claude", or "Some Name · host" when the sign-in doesn't return to that client's own site.
+    var name: String
+    /// The sign-in returns to the site of the client the user tapped.
+    var recognised: Bool
+    /// One of these is on the sign-in page. The user taps that one.
+    var choices: [Int]
+    var createdAt: String
+
+    var kind: ConnectClient {
+        ConnectClient(rawValue: client) ?? .other
+    }
+}
+
+enum ApprovalOutcome: String, Decodable, Sendable {
+    case allowed, denied, wrongNumber = "wrong-number", gone
+}
+
 struct CloudClient: Sendable {
     var baseURL: URL
     var deviceKey: String
@@ -61,6 +82,49 @@ struct CloudClient: Sendable {
         return try JSONDecoder().decode(ConnectorKey.self, from: data)
     }
 
+    /// The phone's MCP URL for a client that signs in with OAuth. Also lets that client's sign-in
+    /// push an approval prompt to this phone for the next ten minutes.
+    func startConnect(client: ConnectClient) async throws -> String {
+        struct Body: Decodable { var url: String }
+        let body = try JSONEncoder().encode(["client": client.rawValue])
+        let (status, data) = try await send("POST", "/v1/connect", body: body)
+        guard status == 200 else { throw CloudError.http(status, "Couldn't connect.") }
+        return try JSONDecoder().decode(Body.self, from: data).url
+    }
+
+    /// Where approval prompts go. Debug builds get sandbox tokens; TestFlight and the App Store, production.
+    func registerDevice(pushToken: String?, sandbox: Bool) async throws {
+        var fields: [String: String] = ["apnsEnv": sandbox ? "sandbox" : "production"]
+        fields["apnsToken"] = pushToken
+        let (status, _) = try await send("PUT", "/v1/device", body: JSONEncoder().encode(fields))
+        guard status == 200 else { throw CloudError.http(status, "Couldn't register for approvals.") }
+    }
+
+    /// No more prompts until the user taps a client again.
+    func closeConnect() async throws {
+        let (status, _) = try await send("DELETE", "/v1/connect")
+        guard status == 200 else { throw CloudError.http(status, "Couldn't finish connecting.") }
+    }
+
+    /// Sign-ins waiting for Allow: those started while connecting, plus `opened` from a sign-in page's link.
+    func approvals(opened: String? = nil) async throws -> [ApprovalRequest] {
+        struct Body: Decodable { var requests: [ApprovalRequest] }
+        let query = opened.flatMap { $0.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(["_", "-"])) }
+        let (status, data) = try await send("GET", "/v1/requests", query: query.map { "opened=\($0)" })
+        guard status == 200 else { throw CloudError.http(status, "Couldn't load sign-in requests.") }
+        return try JSONDecoder().decode(Body.self, from: data).requests
+    }
+
+    /// Allow carries the number the user tapped; the server checks it against the sign-in page's.
+    func decide(_ id: String, allow: Bool, number: Int?) async throws -> ApprovalOutcome {
+        struct Body: Encodable { var allow: Bool; var number: Int? }
+        struct Reply: Decodable { var outcome: ApprovalOutcome }
+        let (status, data) = try await send("POST", "/v1/requests/\(id)", body: JSONEncoder().encode(Body(allow: allow, number: number)))
+        if status == 404 { return .gone }
+        guard status == 200 else { throw CloudError.http(status, "Couldn't answer the request.") }
+        return try JSONDecoder().decode(Reply.self, from: data).outcome
+    }
+
     func keys() async throws -> [ConnectorKey] {
         struct Body: Decodable { var keys: [ConnectorKey] }
         let (status, data) = try await send("GET", "/v1/keys")
@@ -78,8 +142,10 @@ struct CloudClient: Sendable {
         guard status == 204 else { throw CloudError.http(status, "Couldn't delete cloud data.") }
     }
 
-    private func send(_ method: String, _ path: String, body: Data? = nil) async throws -> (Int, Data) {
-        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+    private func send(_ method: String, _ path: String, body: Data? = nil, query: String? = nil) async throws -> (Int, Data) {
+        var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+        components.percentEncodedQuery = query
+        var request = URLRequest(url: components.url!)
         request.httpMethod = method
         request.setValue("Bearer \(deviceKey)", forHTTPHeaderField: "Authorization")
         if let body {

@@ -1,12 +1,8 @@
-import { userHashFromRequest } from "$lib/server/identity";
-import { json } from "$lib/server/json";
-import { deleteAccount } from "$lib/server/store";
-import type { RequestHandler } from "./$types";
+import { deleteAccount } from "$lib/server/account";
+import { withDevice } from "$lib/server/device";
 
-/** Forget this phone entirely: snapshot and every connected app. */
-export const DELETE: RequestHandler = async ({ request }) => {
-  const userHash = userHashFromRequest(request);
-  if (!userHash) return json({ error: "device key required" }, 401);
-  await deleteAccount(userHash);
+/** Forget this phone entirely: its data, every connected app, every token. */
+export const DELETE = withDevice(async (device) => {
+  await deleteAccount(device.userHash);
   return new Response(null, { status: 204 });
-};
+});

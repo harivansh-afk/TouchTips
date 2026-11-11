@@ -1,13 +1,10 @@
+import { accountFor, putSnapshot } from "$lib/server/account";
+import { withDevice } from "$lib/server/device";
 import { json } from "$lib/server/json";
-import { putSnapshot } from "$lib/server/store";
-import { userHashFromRequest } from "$lib/server/identity";
-import type { RequestHandler } from "./$types";
 
-/** Replace everything. Idempotent; older snapshots are refused. */
-export const PUT: RequestHandler = async ({ request }) => {
-  const userHash = userHashFromRequest(request);
-  if (!userHash) return json({ error: "device key required" }, 401);
-  switch (await putSnapshot(userHash, await request.text())) {
+/** Replace everything. Idempotent; older snapshots are refused. Stored sealed under the phone's data key. */
+export const PUT = withDevice(async (device, { request }) => {
+  switch (await putSnapshot(await accountFor(device), await request.text())) {
     case "stored":
       return json({ ok: true });
     case "stale":
@@ -17,4 +14,4 @@ export const PUT: RequestHandler = async ({ request }) => {
     case "invalid":
       return json({ error: "snapshot failed validation" }, 400);
   }
-};
+});

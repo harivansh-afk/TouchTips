@@ -26,6 +26,13 @@ final class AppModel {
         capture = CaptureCoordinator(database: database, notifier: notifier)
         cloud = CloudSync(database: database)
         capture.didIngest = { [photos] in photos.reset() }
+        notifier.onApproval = { [cloud] id, allow in
+            if let allow {
+                await cloud.decide(id, allow: allow)
+            } else {
+                await cloud.checkApprovals(showing: id)
+            }
+        }
     }
 
     func start() {

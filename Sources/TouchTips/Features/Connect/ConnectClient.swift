@@ -28,6 +28,15 @@ enum ConnectClient: String, CaseIterable, Identifiable, Hashable, Sendable {
         }
     }
 
+    /// Clients that sign in with OAuth: the link is not a secret, and the phone approves the sign-in.
+    /// The rest can't do OAuth, so their link carries a key and is the whole credential.
+    var usesOAuth: Bool {
+        switch self {
+        case .claude, .chatgpt, .grokBot: true
+        case .instinct, .other: false
+        }
+    }
+
     /// Step one's title: the clipboard is already filled when the screen appears.
     var copiedTitle: String {
         self == .grokBot ? "Your message is copied" : "Your link is copied"
@@ -46,7 +55,7 @@ enum ConnectClient: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var openDetail: String? {
         switch self {
-        case .claude: "TouchTips and your link are already filled in."
+        case .claude: "TouchTips and its link are already filled in."
         case .chatgpt: "ChatGPT's app can't add servers yet."
         default: nil
         }
@@ -55,14 +64,18 @@ enum ConnectClient: String, CaseIterable, Identifiable, Hashable, Sendable {
     /// What's left once the client is open, one action per line. `**Bold**` marks words on the client's screen.
     var finish: [String] {
         switch self {
-        case .claude: ["Tap **Continue**, choose **No sign-in**, then tap **Add**."]
+        case .claude: [
+                "Tap **Continue**, choose **Sign in now**, then tap **Add**.",
+                "Tap **Allow** when TouchTips asks.",
+            ]
         case .chatgpt: [
                 "Tap **+**, then **Add custom MCP server**, and paste the link.",
-                "Choose **No authentication**, then tap **Create**.",
+                "Choose **OAuth**, then tap **Create**.",
+                "Tap **Allow** when TouchTips asks.",
             ]
         case .grokBot: [
                 "Paste the message into a chat with your Bot.",
-                "Confirm when it reads the server back.",
+                "Sign in when it asks, then tap **Allow** when TouchTips asks.",
             ]
         case .instinct: [
                 "Find **MCP connections** and add one named **TouchTips**.",
@@ -78,7 +91,8 @@ enum ConnectClient: String, CaseIterable, Identifiable, Hashable, Sendable {
     /// A caveat under the steps, for clients where the path isn't there for everyone.
     var note: String? {
         switch self {
-        case .instinct: "No MCP connections in your settings? Instinct hasn't turned it on for every account yet."
+        case .instinct: "No MCP connections in your settings? Instinct hasn't turned it on for every account yet. Instinct can't sign in, so this link works on its own: keep it private, and disconnect it here if it leaks."
+        case .other: "This link works on its own, without a sign-in: keep it private, and disconnect it here if it leaks."
         default: nil
         }
     }

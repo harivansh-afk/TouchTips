@@ -1,12 +1,8 @@
-import { userHashFromRequest } from "$lib/server/identity";
+import { withDevice } from "$lib/server/device";
 import { json } from "$lib/server/json";
-import { revokeClientKey } from "$lib/server/store";
-import type { RequestHandler } from "./$types";
+import { revokeConnected } from "$lib/server/store";
 
-/** Disconnect one app. Its URL stops working at once. */
-export const DELETE: RequestHandler = async ({ request, params }) => {
-  const userHash = userHashFromRequest(request);
-  if (!userHash) return json({ error: "device key required" }, 401);
-  const removed = await revokeClientKey(userHash, params.id);
-  return removed ? json({ ok: true }) : json({ error: "unknown key" }, 404);
-};
+/** Disconnect one app. Its tokens or URL stop working at once. */
+export const DELETE = withDevice(async (device, { params }) =>
+  (await revokeConnected(device.userHash, params.id!)) ? json({ ok: true }) : json({ error: "unknown key" }, 404),
+);

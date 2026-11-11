@@ -1,4 +1,5 @@
-// Keeps the cloud copy of the database current once any client is connected.
+// Keeps the cloud copy of the database current once any client is connected, and answers
+// clients' sign-ins: the server asks this phone, and only Allow here lets a client read anything.
 // Whole-snapshot pushes: debounced after any change to people, places or meetings.
 
 import Foundation
@@ -17,6 +18,10 @@ final class CloudSync {
     private(set) var lastSyncAt: Date?
     private(set) var lastError: String?
     private(set) var isSyncing = false
+    /// A sign-in waiting for Allow or Don't Allow on screen.
+    var pendingApproval: ApprovalRequest?
+    /// The Connect sheet is up, so it shows the Allow sheet instead of the root.
+    var connectScreenOpen = false
 
     private var observation: Task<Void, Never>?
     private var pendingPush: Task<Void, Never>?
@@ -29,14 +34,20 @@ final class CloudSync {
     func start() {
         guard isEnabled else { return }
         observe()
+        // Every launch: the server stores only sealed data, so a phone that synced before it did pushes again.
+        Task {
+            await pushNow()
+            await registerDevice()
+        }
     }
 
     private var api: CloudClient? {
         DeviceKey.existing().map { CloudClient(baseURL: CloudClient.defaultBaseURL, deviceKey: $0) }
     }
 
-    /// Mint a connection. The first one turns sync on and pushes, so the client's first question has data.
-    /// Tapping the same client again before its URL was used hands back the same URL instead of a new one.
+    /// Start a connection. The first one turns sync on and pushes, so the client's first question has data.
+    /// OAuth clients get this phone's MCP URL, which is not a secret: the client signs in and the phone approves.
+    /// The rest get a connector URL. Tapping one again before its URL was used hands back the same URL.
     func connect(_ client: ConnectClient) async throws -> ConnectorKey {
         if isEnabled {
             await pushNow()
@@ -44,6 +55,11 @@ final class CloudSync {
             try await enable()
         }
         guard let api else { throw CloudError.keychain(errSecItemNotFound) }
+        if client.usesOAuth {
+            await registerDevice()
+            let url = try await api.startConnect(client: client)
+            return ConnectorKey(id: "oauth-\(client.rawValue)", client: client.rawValue, name: client.name, createdAt: "", url: url)
+        }
         if var pending = keys.first(where: { $0.kind == client && $0.lastUsedAt == nil }),
            let url = Self.urls[pending.id] {
             pending.url = url
@@ -62,6 +78,70 @@ final class CloudSync {
     private static var urls: [String: String] {
         get { UserDefaults.standard.dictionary(forKey: "connectorURLs") as? [String: String] ?? [:] }
         set { UserDefaults.standard.set(newValue, forKey: "connectorURLs") }
+    }
+
+    // MARK: - Approvals
+
+    private static let pushTokenKey = "apnsToken"
+
+    /// From the app delegate, whenever iOS hands over a device token.
+    static func storePushToken(_ token: Data) {
+        UserDefaults.standard.set(token.map { String(format: "%02x", $0) }.joined(), forKey: pushTokenKey)
+    }
+
+    /// Tell the server where to send approval prompts. Harmless to repeat.
+    func registerDevice() async {
+        guard isEnabled, let api else { return }
+        #if DEBUG
+            let sandbox = true
+        #else
+            let sandbox = false
+        #endif
+        do {
+            try await api.registerDevice(pushToken: UserDefaults.standard.string(forKey: Self.pushTokenKey), sandbox: sandbox)
+        } catch {
+            Log.ui.error("device registration failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Anything waiting goes on screen. Called when the app comes forward and when a prompt is tapped.
+    func checkApprovals(showing id: String? = nil) async {
+        guard isEnabled, let api else { return }
+        guard let requests = try? await api.approvals(opened: id) else { return }
+        let next = id.flatMap { id in requests.first { $0.id == id } } ?? requests.first
+        if let next, pendingApproval?.id != next.id {
+            pendingApproval = next
+        }
+    }
+
+    /// Allow with the number the user tapped, or Don't Allow (from the sheet or the notification).
+    /// The outcome says whether the number matched the sign-in page's.
+    @discardableResult
+    func decide(_ id: String, allow: Bool, number: Int? = nil) async -> ApprovalOutcome? {
+        guard let api else { return nil }
+        do {
+            let outcome = try await api.decide(id, allow: allow, number: number)
+            // A wrong number stays on screen to say why; anything else is finished.
+            if pendingApproval?.id == id, outcome != .wrongNumber {
+                pendingApproval = nil
+            }
+            if outcome == .allowed {
+                HapticManager.success()
+                // Connected: no more prompts until the user taps a client again.
+                try? await api.closeConnect()
+            } else if outcome == .wrongNumber {
+                HapticManager.warning()
+            }
+            Task {
+                // The client exchanges its code a moment later; the list picks it up then.
+                try? await Task.sleep(for: .seconds(3))
+                await refreshKeys()
+            }
+            return outcome
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
     }
 
     func refreshKeys() async {
@@ -119,6 +199,7 @@ final class CloudSync {
         isEnabled = true
         try await push(with: CloudClient(baseURL: CloudClient.defaultBaseURL, deviceKey: deviceKey))
         observe()
+        await registerDevice()
     }
 
     private func push(with api: CloudClient) async throws {
