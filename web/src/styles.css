@@ -146,5 +146,6 @@ footer { margin-top: auto; }
 .city { display: inline-block; transition: opacity 0.26s ease, transform 0.26s ease; }
 .city.out { opacity: 0; transform: translateY(0.12em); }
 
-.button.big { padding: 22px 36px; font-size: 20px; gap: 14px; }
-.button.big .ico { font-size: 22px; margin-top: -2px; }
+.button.ios { padding: 22px 38px; font-size: 20px; gap: 14px; background: #1b2fa0; border-color: #1b2fa0; color: #fff; transition: background 0.2s ease, transform 0.2s ease; }
+.button.ios:hover { background: #2440c4; border-color: #2440c4; transform: translateY(-1px); }
+.button.ios .ico { font-size: 22px; margin-top: -3px; }

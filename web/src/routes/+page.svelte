@@ -11,7 +11,7 @@
 <div class="hero">
   <h1 class="serif">Who was that guy I met in <span class="city" id="city">New York</span>?</h1>
   <p class="lede">The app that remembers everyone.</p>
-  <a class="button primary big" href="/ios"><span class="ico" style="--i:url(/agents/apple.svg)"></span>Get the app</a>
+  <a class="button ios" href="/ios"><span class="ico" style="--i:url(/agents/apple.svg)"></span>Download for iOS</a>
 </div>
 
 <ul class="agents">
