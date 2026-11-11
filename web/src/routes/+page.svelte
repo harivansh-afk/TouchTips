@@ -10,7 +10,7 @@
 
 <div class="hero">
   <h1 class="serif">Who was that guy I met in New York?</h1>
-  <p class="lede">The iPhone app that remembers everyone you meet. Your AI can ask it.</p>
+  <p class="lede">The app that remembers everyone.</p>
   <a class="button primary" href="/ios">Get the app</a>
 </div>
 
