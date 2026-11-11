@@ -208,49 +208,70 @@ struct ConnectView: View {
     }
 }
 
-/// The URL, already on the clipboard, and the way into the client.
+/// One numbered list: the link (already on the clipboard), the way into the client, then what to tap there.
 struct ConnectedView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .body) private var badgeSize: CGFloat = 26
 
     let key: ConnectorKey
     var onDone: () -> Void
 
     @State private var web: WebDestination?
+    @State private var copied: String?
 
     private var client: ConnectClient { key.kind }
     private var url: String { key.url ?? "" }
 
     var body: some View {
+        let way = client.way(for: url)
+        let clipboard = client.clipboardText(for: url)
+        let first = way == nil ? 2 : 3
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                pill(client.clipboardText(for: url))
-
-                HStack(spacing: 10) {
-                    if client.sharesFirst {
-                        share(prominent: true)
-                        if let way = client.way(for: url) {
-                            openButton(way, prominent: false)
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(spacing: 0) {
+                        step(.done, client.copiedTitle) {
+                            field(clipboard)
                         }
-                    } else if let way = client.way(for: url) {
-                        openButton(way, prominent: true)
-                        share(prominent: false)
-                    } else {
-                        share(prominent: true)
+                        if let way {
+                            hairline
+                            if typeSize.isAccessibilitySize {
+                                step(.number(2), client.openTitle, detail: client.openDetail) {
+                                    openButton(way)
+                                }
+                            } else {
+                                step(.number(2), client.openTitle, detail: client.openDetail) {
+                                    EmptyView()
+                                } trailing: {
+                                    openButton(way)
+                                }
+                            }
+                        }
+                        ForEach(Array(client.finish.enumerated()), id: \.offset) { index, line in
+                            hairline
+                            step(.number(first + index), line) { EmptyView() }
+                        }
+                    }
+                    .glassEffect(.clear, in: .rect(cornerRadius: 22))
+
+                    if let note = client.note {
+                        Text(note)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
                     }
                 }
 
-                steps(client.steps)
-
                 if client == .claude {
+                    let command = ConnectClient.claudeCodeCommand(url)
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionLabel(text: "Claude Code").padding(.leading, 6)
-                        pill(ConnectClient.claudeCodeCommand(url))
-                        ShareLink(item: ConnectClient.claudeCodeCommand(url)) {
-                            Text("Share command")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.glass)
-                        .controlSize(.large)
+                        SectionLabel(text: "Or in Claude Code").padding(.leading, 6)
+                        field(command)
+                        Text(copied == command ? "Copied. Run it in your terminal." : "Tap to copy.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
                     }
                 }
 
@@ -275,91 +296,128 @@ struct ConnectedView: View {
                 .ignoresSafeArea()
         }
         .onAppear {
-            UIPasteboard.general.string = client.clipboardText(for: url)
+            UIPasteboard.general.string = clipboard
+            copied = clipboard
             HapticManager.success()
         }
     }
 
-    private func pill(_ text: String) -> some View {
-        HStack(spacing: 12) {
-            Text(text)
-                .font(.footnote.monospaced())
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .foregroundStyle(.primary)
-            Spacer(minLength: 0)
-            Text("Copied")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 15)
-        .glassEffect(.clear, in: .rect(cornerRadius: 22))
+    // MARK: - Steps
+
+    private enum Badge {
+        case done
+        case number(Int)
     }
 
-    @ViewBuilder
-    private func openButton(_ way: ConnectClient.Way, prominent: Bool) -> some View {
-        let label = Text(client.openLabel).frame(maxWidth: .infinity)
-        let act = {
+    private func step(
+        _ badge: Badge,
+        _ title: String,
+        detail: String? = nil,
+        @ViewBuilder below: () -> some View,
+        @ViewBuilder trailing: () -> some View = { EmptyView() }
+    ) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
+                badgeView(badge)
+                VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(Self.markdown(title))
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let detail {
+                            Text(detail)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    below()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            trailing()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16)
+    }
+
+    private func badgeView(_ badge: Badge) -> some View {
+        ZStack {
+            Circle().fill(Color.pill)
+            switch badge {
+            case .done:
+                Icon(.check, size: badgeSize / 2)
+            case let .number(value):
+                Text("\(value)")
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+            }
+        }
+        .foregroundStyle(.primary)
+        .frame(width: badgeSize, height: badgeSize)
+        .accessibilityHidden(true)
+    }
+
+    /// Text that copies on tap, with Share beside it.
+    private func field(_ text: String) -> some View {
+        HStack(spacing: 4) {
+            Button {
+                UIPasteboard.general.string = text
+                copied = text
+                HapticManager.light()
+            } label: {
+                Text(text)
+                    .font(.footnote.monospaced())
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.press)
+            .accessibilityLabel("Copy")
+            .accessibilityValue(text)
+
+            ShareLink(item: text) {
+                Icon(.export, size: 18)
+                    .foregroundStyle(.primary)
+                    .frame(width: 40, height: 40)
+                    .contentShape(.rect)
+            }
+            .tint(.primary)
+            .accessibilityLabel("Share")
+        }
+        .background(Color.hairline, in: .rect(cornerRadius: 12))
+    }
+
+    private func openButton(_ way: ConnectClient.Way) -> some View {
+        Button {
             HapticManager.light()
             switch way {
             case let .app(target): openURL(target)
             case let .web(target): web = WebDestination(url: target)
             }
+        } label: {
+            Text("Open")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 6)
         }
-        if prominent {
-            Button(action: act) {
-                label.foregroundStyle(.black)
-            }
-            .buttonStyle(.glassProminent)
-            .tint(.white)
-            .controlSize(.large)
-        } else {
-            Button(action: act) {
-                label
-            }
-            .buttonStyle(.glass)
-            .controlSize(.large)
-        }
+        .buttonStyle(.glassProminent)
+        .tint(.white)
+        .controlSize(.regular)
+        .accessibilityLabel(client.openTitle)
     }
 
-    @ViewBuilder
-    private func share(prominent: Bool) -> some View {
-        let label = Text("Share").frame(maxWidth: .infinity)
-        if prominent {
-            ShareLink(item: client.clipboardText(for: url)) {
-                label.foregroundStyle(.black)
-            }
-            .buttonStyle(.glassProminent)
-            .tint(.white)
-            .controlSize(.large)
-        } else {
-            ShareLink(item: client.clipboardText(for: url)) {
-                label
-            }
-            .buttonStyle(.glass)
-            .controlSize(.large)
-        }
+    private var hairline: some View {
+        Rectangle()
+            .fill(Color.hairline)
+            .frame(height: 1)
+            .padding(.leading, 16 + badgeSize + 14)
     }
 
-    private func steps(_ lines: [String]) -> some View {
-        VStack(spacing: 0) {
-            ForEach(Array(lines.enumerated()), id: \.offset) { index, step in
-                if index > 0 {
-                    Rectangle().fill(Color.hairline).frame(height: 1).padding(.leading, 18)
-                }
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text("\(index + 1)")
-                        .font(.footnote.monospacedDigit())
-                        .foregroundStyle(.tertiary)
-                    Text(step)
-                        .foregroundStyle(.primary)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 15)
-            }
-        }
-        .glassEffect(.clear, in: .rect(cornerRadius: 22))
+    private static func markdown(_ text: String) -> AttributedString {
+        (try? AttributedString(markdown: text)) ?? AttributedString(text)
     }
 }

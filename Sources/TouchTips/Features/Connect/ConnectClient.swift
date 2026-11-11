@@ -28,14 +28,58 @@ enum ConnectClient: String, CaseIterable, Identifiable, Hashable, Sendable {
         }
     }
 
-    /// After the clipboard is filled. One action each.
-    var steps: [String] {
+    /// Step one's title: the clipboard is already filled when the screen appears.
+    var copiedTitle: String {
+        self == .grokBot ? "Your message is copied" : "Your link is copied"
+    }
+
+    /// The step the Open button sits in. Its title says where Open goes, so the button doesn't have to.
+    var openTitle: String {
         switch self {
-        case .claude: ["Check the name and URL, then Continue.", "No sign-in → Add."]
-        case .chatgpt: ["+ → Add custom MCP server → paste the URL.", "No authentication → Create."]
-        case .grokBot: ["In any chat with your Bot, paste the message.", "Confirm when the Bot repeats it back."]
-        case .instinct: ["Settings → MCP connections → name TouchTips, this URL.", "Not there? Instinct hasn't opened custom MCP to everyone yet."]
-        case .other: ["Give it the URL as an MCP server, no auth."]
+        case .claude: "Open Claude"
+        case .chatgpt: "Open ChatGPT on the web"
+        case .grokBot: "Open Grok Bot"
+        case .instinct: "Open your Instinct settings"
+        case .other: "Open your agent"
+        }
+    }
+
+    var openDetail: String? {
+        switch self {
+        case .claude: "TouchTips and your link are already filled in."
+        case .chatgpt: "ChatGPT's app can't add servers yet."
+        default: nil
+        }
+    }
+
+    /// What's left once the client is open, one action per line. `**Bold**` marks words on the client's screen.
+    var finish: [String] {
+        switch self {
+        case .claude: ["Tap **Continue**, choose **No sign-in**, then tap **Add**."]
+        case .chatgpt: [
+                "Tap **+**, then **Add custom MCP server**, and paste the link.",
+                "Choose **No authentication**, then tap **Create**.",
+            ]
+        case .grokBot: [
+                "Paste the message into a chat with your Bot.",
+                "Confirm when it reads the server back.",
+            ]
+        case .instinct: [
+                "Find **MCP connections** and add one named **TouchTips**.",
+                "Paste the link.",
+            ]
+        case .other: [
+                "Add the link to your agent as a remote MCP server.",
+                "Leave authentication off.",
+            ]
+        }
+    }
+
+    /// A caveat under the steps, for clients where the path isn't there for everyone.
+    var note: String? {
+        switch self {
+        case .instinct: "No MCP connections in your settings? Instinct hasn't turned it on for every account yet."
+        default: nil
         }
     }
 
@@ -79,22 +123,6 @@ enum ConnectClient: String, CaseIterable, Identifiable, Hashable, Sendable {
             return URL(string: "https://app.instinct.com/settings").map { .web($0) }
         case .other:
             return nil
-        }
-    }
-
-    var openLabel: String {
-        switch self {
-        case .grokBot: "Open Grok Bot"
-        case .instinct: "Open Instinct settings"
-        default: "Open \(name)"
-        }
-    }
-
-    /// Clients you reach by messaging them lead with Share.
-    var sharesFirst: Bool {
-        switch self {
-        case .grokBot, .instinct, .other: true
-        case .claude, .chatgpt: false
         }
     }
 
