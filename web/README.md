@@ -4,20 +4,18 @@ The site at touchtips.app, and the server that lets Claude, ChatGPT and Claude C
 
 - **Pages**: home, connect, support, privacy. Prerendered.
 - **Sync**: the phone pushes its whole dataset as one JSON snapshot to `PUT /v1/snapshot`, stored per user in Neon Postgres. Older snapshots are refused.
-- **Identity**: the phone holds a random device key. The user is its SHA-256, which doubles as a Better Auth user. No sign-up.
-- **Pairing**: the OAuth consent step shows a six-digit code and a universal link. The phone approves with its device key; a magic link then signs the browser in as that user and the authorization resumes on its own.
-- **MCP**: `POST /mcp` with three read-only tools that cite dates at the precision the record has. Better Auth's MCP plugin is the OAuth 2.1 server (discovery, dynamic client registration, PKCE, refresh, JWT access tokens).
+- **Identity**: the phone holds a random device key. The user is its SHA-256. No sign-up.
+- **Connecting**: the app mints one secret URL per client (`/c/<key>/mcp`). The URL is the whole credential: no OAuth, no headers. Keys are stored hashed, revocable from the app, with last-used times.
+- **MCP**: three read-only tools that cite dates at the precision the record has.
 
 ## Routes
 
 | Route | Who | What |
 |---|---|---|
-| `/mcp` | AI client, OAuth bearer | MCP over Streamable HTTP |
-| `/api/auth/oauth2/*`, `/.well-known/oauth-*` | AI client | OAuth 2.1 |
-| `/connect/pair`, `/connect/consent` | Browser | Pairing page and auto-accepted consent |
-| `/pair/:code`, `/pair/:code/status` | Browser | Universal link; polled status |
-| `/v1/snapshot`, `/v1/account`, `/v1/clients[/:id]`, `/v1/pair/:code[/approve|/deny]` | App, device key | Sync, delete, list and revoke clients, approve pairing |
-| `/.well-known/apple-app-site-association` | iOS | Universal links for `/pair/*` and `/p/*` |
+| `/c/:key/mcp` | AI client | MCP over Streamable HTTP; the key is the credential |
+| `/connect`, `/connect/:client` | Browser | Per-client steps; on a phone with the app, a universal link into Connect |
+| `/v1/snapshot`, `/v1/keys[/:id]`, `/v1/account` | App, device key | Sync, mint and list and revoke keys, delete |
+| `/.well-known/apple-app-site-association` | iOS | Universal links for `/connect/*` and `/p/*` |
 
 Device key header: `Authorization: Bearer tt_<base64url, 32 random bytes>`.
 
@@ -25,7 +23,7 @@ Device key header: `Authorization: Bearer tt_<base64url, 32 random bytes>`.
 
 ```sh
 bun install --frozen-lockfile
-npx vercel link && npx vercel env pull   # DATABASE_URL and BETTER_AUTH_SECRET into .env.local
+npx vercel link && npx vercel env pull   # DATABASE_URL into .env.local
 set -a; source .env.local; set +a
 bun run db:migrate                        # once per database
 bun run dev

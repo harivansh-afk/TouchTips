@@ -1,4 +1,4 @@
-// The phone's half of the sync and pairing API. Every call carries the device key.
+// The phone's half of the sync API. Every call carries the device key.
 
 import Foundation
 
@@ -16,14 +16,18 @@ enum CloudError: LocalizedError {
     }
 }
 
-struct PairedClient: Decodable, Identifiable, Hashable, Sendable {
+/// One connected app. `url` is present only on the response that created it.
+struct ConnectorKey: Decodable, Identifiable, Hashable, Sendable {
     var id: String
+    var client: String
     var name: String
-    var pairedAt: String
-}
+    var createdAt: String
+    var lastUsedAt: String?
+    var url: String?
 
-struct PairingInfo: Decodable, Sendable {
-    var clientName: String
+    var kind: ConnectClient {
+        ConnectClient(rawValue: client) ?? .other
+    }
 }
 
 struct CloudClient: Sendable {
@@ -50,33 +54,23 @@ struct CloudClient: Sendable {
         }
     }
 
-    func pairingInfo(code: String) async throws -> PairingInfo {
-        let (status, data) = try await send("GET", "/v1/pair/\(code)")
-        guard status == 200 else { throw CloudError.http(status, "That code isn't valid any more.") }
-        return try JSONDecoder().decode(PairingInfo.self, from: data)
+    func createKey(client: ConnectClient) async throws -> ConnectorKey {
+        let body = try JSONEncoder().encode(["client": client.rawValue])
+        let (status, data) = try await send("POST", "/v1/keys", body: body)
+        guard status == 201 else { throw CloudError.http(status, "Couldn't connect.") }
+        return try JSONDecoder().decode(ConnectorKey.self, from: data)
     }
 
-    func approve(code: String) async throws -> String {
-        let (status, data) = try await send("POST", "/v1/pair/\(code)/approve")
-        guard status == 200 else { throw CloudError.http(status, "That code isn't valid any more.") }
-        return try JSONDecoder().decode(PairingInfo.self, from: data).clientName
-    }
-
-    func deny(code: String) async throws {
-        _ = try await send("POST", "/v1/pair/\(code)/deny")
-    }
-
-    func clients() async throws -> [PairedClient] {
-        struct Body: Decodable { var clients: [PairedClient] }
-        let (status, data) = try await send("GET", "/v1/clients")
+    func keys() async throws -> [ConnectorKey] {
+        struct Body: Decodable { var keys: [ConnectorKey] }
+        let (status, data) = try await send("GET", "/v1/keys")
         guard status == 200 else { throw CloudError.http(status, "Couldn't load connected apps.") }
-        return try JSONDecoder().decode(Body.self, from: data).clients
+        return try JSONDecoder().decode(Body.self, from: data).keys
     }
 
-    func revoke(clientID: String) async throws {
-        let encoded = clientID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? clientID
-        let (status, _) = try await send("DELETE", "/v1/clients/\(encoded)")
-        guard status == 200 else { throw CloudError.http(status, "Couldn't disconnect.") }
+    func revoke(id: String) async throws {
+        let (status, _) = try await send("DELETE", "/v1/keys/\(id)")
+        guard status == 200 || status == 404 else { throw CloudError.http(status, "Couldn't disconnect.") }
     }
 
     func deleteAccount() async throws {

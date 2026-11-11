@@ -4,8 +4,12 @@ export default {
   kit: {
     adapter: adapter({ runtime: 'nodejs24.x' }),
     paths: { relative: false },
-    // OAuth clients post form-encoded token requests with no Origin header. Nothing here is a
-    // cookie-authenticated form, so SvelteKit's cross-site check only gets in the way.
-    csrf: { checkOrigin: false },
+    prerender: {
+      // /ios is a Vercel redirect to TestFlight (vercel.json), not a route.
+      handleHttpError: ({ path, message }) => {
+        if (path === '/ios') return;
+        throw new Error(message);
+      },
+    },
   },
 };

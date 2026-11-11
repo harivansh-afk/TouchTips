@@ -1,8 +1,8 @@
 import { query } from "./db";
+import { newClientKey, newId, sha256 } from "./identity";
 import { SnapshotSchema, type Snapshot } from "./snapshot";
 
 const MAX_SNAPSHOT_BYTES = 10 * 1024 * 1024;
-export const PAIRING_TTL_MINUTES = 10;
 
 export async function readSnapshot(userHash: string): Promise<Snapshot | null> {
   const rows = await query<{ body: unknown }>("SELECT body FROM snapshot WHERE user_hash = $1", [userHash]);
@@ -30,69 +30,57 @@ export async function putSnapshot(userHash: string, raw: string): Promise<PutRes
   return rows.length ? "stored" : "stale";
 }
 
-export async function deleteSnapshot(userHash: string): Promise<void> {
-  await query("DELETE FROM snapshot WHERE user_hash = $1", [userHash]);
-}
+export const CLIENTS = ["claude", "chatgpt", "claude-code", "cursor", "vscode", "other"] as const;
+export type Client = (typeof CLIENTS)[number];
 
-export interface PairingRow {
-  code: string;
-  client_name: string;
-  authorize_query: string;
-  status: "pending" | "approved" | "denied";
-  redirect_to: string | null;
-}
-
-export async function createPairing(clientName: string, authorizeQuery: string): Promise<string> {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
-    const rows = await query<{ code: string }>(
-      "INSERT INTO pairing (code, client_name, authorize_query) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING code",
-      [code, clientName, authorizeQuery],
-    );
-    if (rows.length) return code;
-  }
-  throw new Error("could not allocate pairing code");
-}
-
-/** The row for a code, or null when unknown or expired. */
-export async function getPairing(code: string): Promise<PairingRow | null> {
-  const rows = await query<PairingRow>(
-    `SELECT code, client_name, authorize_query, status, redirect_to FROM pairing
-     WHERE code = $1 AND created_at > now() - make_interval(mins => $2)`,
-    [code, PAIRING_TTL_MINUTES],
-  );
-  return rows[0] ?? null;
-}
-
-export async function finishPairing(code: string, status: "approved" | "denied", redirectTo: string): Promise<void> {
-  await query("UPDATE pairing SET status = $2, redirect_to = $3 WHERE code = $1 AND status = 'pending'", [code, status, redirectTo]);
-  await query("DELETE FROM pairing WHERE created_at < now() - make_interval(mins => $1)", [PAIRING_TTL_MINUTES]);
-}
-
-export interface PairedClient {
+export interface ClientKeyRow {
   id: string;
+  client: Client;
   name: string;
-  pairedAt: string;
+  createdAt: string;
+  lastUsedAt: string | null;
 }
 
-/** Clients a phone has approved: one per OAuth consent. */
-export async function listPairedClients(userId: string): Promise<PairedClient[]> {
-  return query<PairedClient>(
-    `SELECT c."clientId" AS id, COALESCE(cl.name, 'Unknown client') AS name, c."createdAt" AS "pairedAt"
-     FROM "oauthConsent" c JOIN "oauthClient" cl ON cl."clientId" = c."clientId"
-     WHERE c."userId" = $1 ORDER BY c."createdAt" DESC`,
-    [userId],
+/** Mint a key for one client. The plaintext is returned once and never stored. */
+export async function createClientKey(userHash: string, client: Client, name: string): Promise<{ row: ClientKeyRow; key: string }> {
+  const key = newClientKey();
+  const id = newId();
+  const rows = await query<ClientKeyRow>(
+    `INSERT INTO client_key (id, key_hash, user_hash, client, name) VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, client, name, created_at AS "createdAt", last_used_at AS "lastUsedAt"`,
+    [id, sha256(key), userHash, client, name],
+  );
+  return { row: rows[0], key };
+}
+
+export async function listClientKeys(userHash: string): Promise<ClientKeyRow[]> {
+  return query<ClientKeyRow>(
+    `SELECT id, client, name, created_at AS "createdAt", last_used_at AS "lastUsedAt"
+     FROM client_key WHERE user_hash = $1 ORDER BY created_at DESC`,
+    [userHash],
   );
 }
 
-/** Forget a client: its consent and every token. Outstanding access tokens die within 15 minutes. */
-export async function revokePairedClient(userId: string, clientId: string): Promise<void> {
-  await query('DELETE FROM "oauthRefreshToken" WHERE "userId" = $1 AND "clientId" = $2', [userId, clientId]);
-  await query('DELETE FROM "oauthAccessToken" WHERE "userId" = $1 AND "clientId" = $2', [userId, clientId]);
-  await query('DELETE FROM "oauthConsent" WHERE "userId" = $1 AND "clientId" = $2', [userId, clientId]);
+export async function revokeClientKey(userHash: string, id: string): Promise<boolean> {
+  const rows = await query<{ id: string }>("DELETE FROM client_key WHERE user_hash = $1 AND id = $2 RETURNING id", [userHash, id]);
+  return rows.length > 0;
 }
 
-/** Delete the Better Auth user; tokens, consents and sessions cascade. */
-export async function deleteUser(userId: string): Promise<void> {
-  await query('DELETE FROM "user" WHERE id = $1', [userId]);
+/** The owner of a client key, touching last_used_at at most once a minute. */
+export async function userHashForClientKey(key: string): Promise<string | null> {
+  const rows = await query<{ user_hash: string }>(
+    `UPDATE client_key SET last_used_at = now()
+     WHERE key_hash = $1 AND (last_used_at IS NULL OR last_used_at < now() - interval '1 minute')
+     RETURNING user_hash`,
+    [sha256(key)],
+  );
+  if (rows.length) return rows[0].user_hash;
+  const fresh = await query<{ user_hash: string }>("SELECT user_hash FROM client_key WHERE key_hash = $1", [sha256(key)]);
+  return fresh[0]?.user_hash ?? null;
+}
+
+/** Forget a phone entirely: its snapshot and every client key. */
+export async function deleteAccount(userHash: string): Promise<void> {
+  await query("DELETE FROM client_key WHERE user_hash = $1", [userHash]);
+  await query("DELETE FROM snapshot WHERE user_hash = $1", [userHash]);
 }

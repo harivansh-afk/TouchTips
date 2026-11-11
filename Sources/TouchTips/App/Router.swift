@@ -23,8 +23,8 @@ enum Destination: Hashable {
 final class Router {
     var peopleReady = false
     var notificationRequest = 0
-    /// A pairing code from a universal link, until its sheet has been shown.
-    var pairingRequest: PairingRequest?
+    /// touchtips.app/connect[/<client>] from a universal link, until its sheet has been shown.
+    var connectRequest: ConnectRequest?
 
     func openNotification(_ contactID: String) {
         notificationRequest += 1

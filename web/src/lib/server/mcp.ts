@@ -1,7 +1,7 @@
 // The three read-only tools AI clients get.
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import { BASE_URL } from "./auth";
+import { BASE_URL } from "./config";
 import { Index, type MeetingView } from "./snapshot";
 import { readSnapshot } from "./store";
 

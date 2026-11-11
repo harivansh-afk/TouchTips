@@ -1,33 +1,25 @@
-// The phone's credential is a random key it generated once. We only ever see its hash,
-// which doubles as the Better Auth user's email so OAuth tokens map back to the phone.
-import { createHash } from "node:crypto";
-import { query } from "./db";
+// Two credentials, both random, both only ever stored as hashes.
+// The device key proves a phone owns its data. A client key is one connected app's secret URL.
 
-const KEY_PATTERN = /^Bearer\s+(tt_[A-Za-z0-9_-]{40,})$/;
-const EMAIL_DOMAIN = "device.touchtips.app";
+import { createHash, randomBytes } from "node:crypto";
 
-export function emailForHash(hash: string): string {
-  return `${hash}@${EMAIL_DOMAIN}`;
-}
+const DEVICE_KEY = /^Bearer\s+(tt_[A-Za-z0-9_-]{40,})$/;
+export const CLIENT_KEY = /^[A-Za-z0-9_-]{40,}$/;
 
-export function hashFromEmail(email: string): string | null {
-  const [hash, domain] = email.split("@");
-  return domain === EMAIL_DOMAIN && /^[0-9a-f]{64}$/.test(hash) ? hash : null;
+export function sha256(s: string): string {
+  return createHash("sha256").update(s).digest("hex");
 }
 
 /** User hash from the device key in the Authorization header, or null when absent or malformed. */
 export function userHashFromRequest(request: Request): string | null {
-  const m = KEY_PATTERN.exec(request.headers.get("authorization") ?? "");
-  return m ? createHash("sha256").update(m[1]).digest("hex") : null;
+  const m = DEVICE_KEY.exec(request.headers.get("authorization") ?? "");
+  return m ? sha256(m[1]) : null;
 }
 
-/** The Better Auth user id for a phone, or null when the phone never paired. */
-export async function userIdForHash(hash: string): Promise<string | null> {
-  const rows = await query<{ id: string }>('SELECT id FROM "user" WHERE email = $1', [emailForHash(hash)]);
-  return rows[0]?.id ?? null;
+export function newClientKey(): string {
+  return randomBytes(32).toString("base64url");
 }
 
-export async function hashForUserId(userId: string): Promise<string | null> {
-  const rows = await query<{ email: string }>('SELECT email FROM "user" WHERE id = $1', [userId]);
-  return rows[0] ? hashFromEmail(rows[0].email) : null;
+export function newId(): string {
+  return randomBytes(8).toString("base64url");
 }

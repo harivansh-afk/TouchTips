@@ -7,6 +7,7 @@ struct PeopleView: View {
     @State private var people = PeopleObserver()
     @State private var showAdd = false
     @State private var showSettings = false
+    @State private var showConnect = false
     @State private var hideHeader = false
     @Namespace private var zoom
 
@@ -22,6 +23,7 @@ struct PeopleView: View {
                 .safeAreaInset(edge: .top, spacing: 0) {
                     ScreenHeader(title: "People", hidden: hideHeader) {
                         HeaderButtons {
+                            HeaderButton(glyph: .plugs, label: "Connect") { showConnect = true }
                             HeaderButton(glyph: .gearSix, label: "Settings") { showSettings = true }
                         }
                     }
@@ -33,6 +35,9 @@ struct PeopleView: View {
                 .sheet(isPresented: $showSettings) {
                     SettingsSheet()
                 }
+                .sheet(isPresented: $showConnect) {
+                    ConnectView()
+                }
                 .onChange(of: router.paths[.people]?.count) { _, _ in
                     HapticManager.selection()
                 }
@@ -42,10 +47,11 @@ struct PeopleView: View {
                     showAdd = false
                     showSettings = false
                 }
-                .onChange(of: router.pairingRequest) { _, request in
+                .onChange(of: router.connectRequest) { _, request in
                     guard request != nil else { return }
                     showAdd = false
                     showSettings = false
+                    showConnect = false
                 }
         }
     }
