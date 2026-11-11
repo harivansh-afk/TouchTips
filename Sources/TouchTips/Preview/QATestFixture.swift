@@ -49,6 +49,18 @@
                 }
                 try Person(contactID: "qa-undocumented", name: "QA Undocumented", beforeInstall: true, createdAt: now)
                     .insert(db)
+                // A contact found a few minutes ago, as a scan would record it: the app opening now
+                // should give it the place the simulator is set to.
+                if environment["TOUCHTIPS_QA_JUST_MET"] == "1" {
+                    let seen = now.addingTimeInterval(-4 * 60)
+                    let found = now.addingTimeInterval(-60)
+                    try Person(contactID: "qa-newcomer", name: "QA Newcomer", beforeInstall: false, createdAt: found)
+                        .insert(db)
+                    try Meet(
+                        contactID: "qa-newcomer", start: seen, end: found, precision: .day, placeID: nil,
+                        tier: .dateOnly, userSet: false, addSeenStart: seen, addSeenEnd: found, computedAt: found
+                    ).insert(db)
+                }
             }
             return database
         }
