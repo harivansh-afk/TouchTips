@@ -5,7 +5,7 @@ import type { ClientId } from "./connect";
 
 export interface Agent {
   name: string;
-  /** File in static/agents. SVGs are drawn as a mask in the text color; anything else is shown as is. */
+  /** File in static/agents, drawn as a mask in the text color. */
   icon: string;
   client: ClientId;
 }
@@ -13,22 +13,19 @@ export interface Agent {
 export const AGENTS: Agent[] = [
   { name: "Claude", icon: "claude.svg", client: "claude" },
   { name: "ChatGPT", icon: "openai.svg", client: "chatgpt" },
-  { name: "Grok Bot", icon: "grok.svg", client: "grok" },
-  { name: "Instinct", icon: "instinct.svg", client: "instinct" },
+  { name: "Grok Bot", icon: "grokbot.svg", client: "grok" },
+  { name: "Instinct", icon: "instinct.png", client: "instinct" },
   { name: "OpenClaw", icon: "openclaw.svg", client: "other" },
   { name: "Hermes", icon: "hermesagent.svg", client: "other" },
-  { name: "Claude Code", icon: "claudecode.svg", client: "claude-code" },
   { name: "Codex", icon: "codex.svg", client: "other" },
-  { name: "Cursor", icon: "cursor.svg", client: "other" },
   { name: "Anything else", icon: "plus.svg", client: "other" },
 ];
 
 export const CLIENT_ICONS: Record<ClientId, string> = {
   claude: "claude.svg",
   chatgpt: "openai.svg",
-  "claude-code": "claudecode.svg",
-  instinct: "instinct.svg",
-  grok: "grok.svg",
+  grok: "grokbot.svg",
+  instinct: "instinct.png",
   other: "plus.svg",
 };
 
@@ -36,6 +33,6 @@ export function iconStyle(icon: string): string {
   return `--i:url(/agents/${icon})`;
 }
 
-export function iconClass(icon: string): string {
-  return icon.endsWith(".svg") ? "ico" : "ico img";
+export function iconClass(_icon: string): string {
+  return "ico";
 }

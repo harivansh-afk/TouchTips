@@ -1,7 +1,7 @@
 {
   "images": [
     {
-      "filename": "brand-instinct.svg",
+      "filename": "brand-instinct.png",
       "idiom": "universal"
     }
   ],
@@ -10,7 +10,7 @@
     "version": 1
   },
   "properties": {
-    "preserves-vector-representation": true,
+    "preserves-vector-representation": false,
     "template-rendering-intent": "template"
   }
 }
