@@ -44,6 +44,8 @@
   --wide: 1120px;
   --narrow: 760px;
   --gutter: 28px;
+  /* Nav to headline; the footer word sits the same distance below the content. */
+  --edge: calc(var(--s-2) + var(--s-7) + var(--s-10));
 
   --fast: 200ms;
   --slow: 500ms;
@@ -96,7 +98,7 @@ main.narrow { padding-top: var(--s-6); }
 
 footer { margin-top: auto; position: relative; overflow: hidden; }
 footer .word {
-  margin: var(--s-9) 0 -0.16em;
+  margin: var(--edge) 0 -0.16em;
   padding: 0 0.12em;
   text-align: center;
   font-size: clamp(84px, 20vw, 270px);
@@ -159,10 +161,18 @@ footer .copy { position: absolute; right: var(--gutter); bottom: 20px; font-size
 .hero { text-align: center; padding: var(--s-10) 0 var(--s-9); }
 .hero h1 { margin: 0; font-size: clamp(44px, 6vw, 80px); line-height: 1.02; letter-spacing: -0.02em; }
 .hero .lede { max-width: 380px; margin: var(--s-5) auto var(--s-6); font-size: 14px; }
-/* Every headline sentence is laid out in the same box, so the box never changes size; only opacity moves. */
+/* Every headline sentence is laid out in the same box, so the box never changes size.
+   Switching waits: the old line lifts and blurs away, then the new one rises out of a blur. Never two at once. */
 .lines { display: grid; }
-.line { grid-area: 1 / 1; opacity: 0; transition: opacity var(--slow) ease; }
-.line.on { opacity: 1; }
+.line {
+  grid-area: 1 / 1; opacity: 0; filter: blur(10px); transform: translateY(0.18em);
+  transition: opacity 320ms ease-in, filter 320ms ease-in, transform 320ms ease-in;
+}
+.line.on {
+  opacity: 1; filter: blur(0); transform: none;
+  transition: opacity 700ms var(--ease) 280ms, filter 700ms var(--ease) 280ms, transform 700ms var(--ease) 280ms;
+}
+.line.out { transform: translateY(-0.18em); }
 .connect-head { margin-top: var(--s-6); }
 
 /* 7. Breakpoints */
@@ -181,7 +191,7 @@ footer .copy { position: absolute; right: var(--gutter); bottom: 20px; font-size
   .agents li:nth-last-child(2) a { border-bottom-left-radius: calc(var(--r-card) - 1px); }
   .rows .name { font-size: 24px; }
   footer { display: flex; flex-direction: column; }
-  footer .copy { position: static; order: -1; align-self: flex-end; padding: var(--s-9) var(--gutter) 0; }
+  footer .copy { position: static; order: -1; align-self: flex-end; padding: calc(var(--edge) - var(--s-5) - 20px) var(--gutter) 0; }
   footer .word { margin-top: var(--s-5); }
 }
 @media (prefers-reduced-motion: reduce) {

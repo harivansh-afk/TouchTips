@@ -31,7 +31,9 @@
     const lines = Array.from(document.querySelectorAll('#lines .line'));
     let i = 0;
     setInterval(() => {
-      lines[i].classList.remove('on');
+      const prev = lines[i];
+      prev.classList.replace('on', 'out');
+      setTimeout(() => prev.classList.remove('out'), 400);
       i = (i + 1) % lines.length;
       lines[i].classList.add('on');
     }, 2800);
