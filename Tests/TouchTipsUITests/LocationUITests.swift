@@ -1,11 +1,13 @@
+import CoreLocation
 import XCTest
 
-/// The screens location touches. Needs a simulator set somewhere with places around it; CI sets it
-/// with `simctl location`. Permission is given the way a person gives it, through the system prompt.
+/// The screens location touches, with the simulator placed at Mint Plaza, San Francisco, where cafés
+/// are a few metres away. Permission is given the way a person gives it, through the system prompt.
 @MainActor
 final class LocationUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
+        XCUIDevice.shared.location = XCUILocation(location: CLLocation(latitude: 37.78245, longitude: -122.40755))
     }
 
     private func launch(justMet: Bool = false) -> XCUIApplication {

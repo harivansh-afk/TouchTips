@@ -31,8 +31,6 @@ jobs:
           echo "UDID=$udid" >> "$GITHUB_ENV"
           xcrun simctl boot "$udid"
           xcrun simctl privacy "$udid" grant contacts sh.harivan.touchtips
-          # Mint Plaza, San Francisco: cafés within a few metres, for the location screens.
-          xcrun simctl location "$udid" set 37.78245,-122.40755
       - name: App unit tests
         run: |
           set -o pipefail
