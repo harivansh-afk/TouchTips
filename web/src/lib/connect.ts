@@ -1,27 +1,27 @@
-// Everything the site and the app agree on about connecting a client. The app mirrors this in Swift.
+// Everything the site and the app agree on about connecting a client. Paths come from docs/connectors.md.
 
 export type ClientId = "claude" | "chatgpt" | "grok" | "instinct" | "other";
 
 export interface ClientGuide {
   id: ClientId;
   name: string;
-  /** After the URL is on the clipboard. One action each. */
+  /** After the clipboard is filled. One action each. */
   steps: string[];
-  /** Where "Open" goes: the place in that client where the URL is pasted. */
-  open?: string;
+  /** Where the URL gets pasted, for people reading this on a computer. */
+  where?: string;
 }
 
 export const CLIENTS: ClientGuide[] = [
-  { id: "claude", name: "Claude", steps: ["Settings → Connectors → Add custom connector", "Paste the URL. Add."], open: "https://claude.ai/settings/connectors" },
-  { id: "chatgpt", name: "ChatGPT", steps: ["Settings → Apps & Connectors → Developer mode", "Create → paste the URL, no authentication."], open: "https://chatgpt.com/#settings/Connectors" },
-  { id: "grok", name: "Grok Bot", steps: ["Tell your Bot: add this MCP server. Paste the URL.", "Or Connect apps → Add a custom connector → Remote HTTPS."] },
-  { id: "instinct", name: "Instinct", steps: ["Text Instinct: connect this MCP server. Paste the URL.", "Or Settings → MCP connections → name TouchTips, this URL."], open: "https://app.instinct.com" },
+  { id: "claude", name: "Claude", steps: ["Check the name and URL, then Continue.", "No sign-in → Add."], where: "claude.ai → Customize → Connectors → Add custom connector" },
+  { id: "chatgpt", name: "ChatGPT", steps: ["+ → Add custom MCP server → paste the URL.", "No authentication → Create."], where: "chatgpt.com/plugins, on the web (the phone app can't add servers)" },
+  { id: "grok", name: "Grok Bot", steps: ["In any chat with your Bot, paste the message.", "Confirm when the Bot repeats it back."], where: "Or on desktop: Connect apps → Add a custom connector → Remote HTTPS" },
+  { id: "instinct", name: "Instinct", steps: ["Settings → MCP connections → name TouchTips, this URL.", "Not there? Instinct hasn't opened custom MCP to everyone yet."], where: "app.instinct.com → Settings" },
   { id: "other", name: "Any agent", steps: ["Give it the URL as an MCP server, no auth."] },
 ];
 
 /** For Claude Code, the same URL as a command. */
 export function claudeCodeCommand(url: string): string {
-  return `claude mcp add --transport http touchtips ${url}`;
+  return `claude mcp add --transport http touchtips --scope user ${url}`;
 }
 
 export function guide(id: string): ClientGuide | undefined {

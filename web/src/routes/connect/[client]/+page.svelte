@@ -13,7 +13,7 @@
 
 <p class="eyebrow"><span class={iconClass(CLIENT_ICONS[client.id])} style={iconStyle(CLIENT_ICONS[client.id])}></span></p>
 <h1 class="serif">Connect {client.name}</h1>
-<p class="lede">In TouchTips, tap the plug, then <strong class="muted">{client.name}</strong>. The URL is on your clipboard.</p>
+<p class="lede">In TouchTips, tap the plug, then <strong class="muted">{client.name}</strong>, then Open {client.name}.{#if client.where} On a computer: {client.where}.{/if}</p>
 <ol class="steps">
   {#each client.steps as step}
     <li>{step}</li>

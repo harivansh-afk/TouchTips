@@ -56,7 +56,7 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         UIApplicationSupportsIndirectInputEvents: true
         NSContactsUsageDescription: Notices new contacts. Limited access cannot see changes.
-        LSApplicationQueriesSchemes: [claude]
+        LSApplicationQueriesSchemes: [grokbot]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: sh.harivan.touchtips
