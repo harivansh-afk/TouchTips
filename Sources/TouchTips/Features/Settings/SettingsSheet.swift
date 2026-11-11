@@ -48,8 +48,8 @@ struct SettingsSheet: View {
                         MapStyleGrid(choice: $mapStyle)
                     }
 
-                    group("AI", footer: "Let Claude, ChatGPT or any MCP client ask when and where you met someone.") {
-                        accessRow("Connected apps", status: app.cloud.clients.isEmpty ? "None" : "\(app.cloud.clients.count)") {
+                    group("AI", footer: "Let Claude, ChatGPT or any agent ask when and where you met someone.") {
+                        accessRow("Connect", status: app.cloud.keys.isEmpty ? "None" : "\(app.cloud.keys.count)") {
                             showConnected = true
                         }
                     }
@@ -85,7 +85,7 @@ struct SettingsSheet: View {
             .background { Color.ground.ignoresSafeArea() }
             .serifTitle("Settings")
             .navigationDestination(isPresented: $showConnected) {
-                ConnectedAppsView()
+                ConnectView(isSheet: false)
             }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

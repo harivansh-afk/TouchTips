@@ -28,29 +28,6 @@ export function page(title: string, body: string, script = ""): Response {
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
 }
 
-export function pairingPage(opts: { code: string; clientName: string; openUrl: string; appStoreUrl: string }): Response {
-  const body = `
-    <h1>Connect ${escape(opts.clientName)} to TouchTips</h1>
-    <p>Open TouchTips on your iPhone and approve this code. On this phone, the button does it.</p>
-    <div class="code" aria-label="Pairing code">${escape(opts.code)}</div>
-    <a class="button" href="${escape(opts.openUrl)}">Open TouchTips</a>
-    <p class="small" id="status">Waiting for approval…</p>
-    <p class="small">Don't have TouchTips? <a class="plain" href="${escape(opts.appStoreUrl)}">Get it on the App Store</a></p>`;
-  const script = `
-    const el = document.getElementById('status');
-    async function poll() {
-      try {
-        const r = await fetch('/pair/${opts.code}/status', { cache: 'no-store' });
-        const j = await r.json();
-        if (j.redirectTo) { el.textContent = 'Approved. Returning to ${escape(opts.clientName)}…'; location.replace(j.redirectTo); return; }
-        if (j.status === 'expired') { el.textContent = 'This code expired. Go back and try again.'; return; }
-      } catch {}
-      setTimeout(poll, 1500);
-    }
-    poll();`;
-  return page("Connect to TouchTips", body, script);
-}
-
 export function messagePage(title: string, text: string, link?: { href: string; label: string }): Response {
   const body = `<h1>${escape(title)}</h1><p>${escape(text)}</p>${
     link ? `<a class="button" href="${escape(link.href)}">${escape(link.label)}</a>` : ""

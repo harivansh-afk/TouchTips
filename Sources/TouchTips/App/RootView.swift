@@ -49,21 +49,22 @@ struct RootView: View {
         }
         .onChange(of: router.peopleReady) { _, _ in openNotification() }
         .onOpenURL { url in open(url) }
-        .sheet(item: Bindable(router).pairingRequest) { request in
-            PairingSheet(code: request.code)
+        .sheet(item: Bindable(router).connectRequest) { request in
+            ConnectView(start: request.client)
                 .environment(app)
         }
     }
 
-    /// touchtips.app/pair/123456 opens the approval sheet; touchtips.app/p/<id> opens a person.
+    /// touchtips.app/connect/<client> opens Connect and starts that client; touchtips.app/p/<id> opens a person.
     private func open(_ url: URL) {
         let parts = url.pathComponents.filter { $0 != "/" }
-        guard parts.count == 2 else { return }
-        switch parts[0] {
-        case "pair" where parts[1].count == 6 && parts[1].allSatisfy(\.isNumber):
-            Log.ui.notice("pairing link")
-            router.pairingRequest = PairingRequest(code: parts[1])
-        case "p":
+        switch (parts.first, parts.count) {
+        case ("connect", 1):
+            router.connectRequest = ConnectRequest(client: nil)
+        case ("connect", 2):
+            Log.ui.notice("connect link")
+            router.connectRequest = ConnectRequest(client: ConnectClient.from(path: parts[1]))
+        case ("p", 2):
             router.selectedTab = .people
             router.paths[.people] = [.person(parts[1], zoom: false)]
         default:

@@ -1,4 +1,4 @@
-// Keeps the cloud copy of the database current once the user has connected an AI client.
+// Keeps the cloud copy of the database current once any client is connected.
 // Whole-snapshot pushes: debounced after any change to people, places or meetings.
 
 import Foundation
@@ -13,7 +13,7 @@ final class CloudSync {
 
     private let database: AppDatabase
     private(set) var isEnabled: Bool
-    private(set) var clients: [PairedClient] = []
+    private(set) var keys: [ConnectorKey] = []
     private(set) var lastSyncAt: Date?
     private(set) var lastError: String?
     private(set) var isSyncing = false
@@ -31,60 +31,41 @@ final class CloudSync {
         observe()
     }
 
-    private var client: CloudClient? {
+    private var api: CloudClient? {
         DeviceKey.existing().map { CloudClient(baseURL: CloudClient.defaultBaseURL, deviceKey: $0) }
     }
 
-    /// Turn sync on and push at once, so an AI client's first question already has data.
-    func enable() async throws {
-        let key = try DeviceKey.getOrCreate()
-        UserDefaults.standard.set(true, forKey: Self.enabledKey)
-        isEnabled = true
-        try await push(with: CloudClient(baseURL: CloudClient.defaultBaseURL, deviceKey: key))
-        observe()
-    }
-
-    /// What the app is being asked to allow.
-    func pairingInfo(code: String) async throws -> PairingInfo {
-        let key = try DeviceKey.getOrCreate()
-        return try await CloudClient(baseURL: CloudClient.defaultBaseURL, deviceKey: key).pairingInfo(code: code)
-    }
-
-    /// The user tapped Allow. Returns the client's name.
-    func approve(code: String) async throws -> String {
-        if !isEnabled {
-            try await enable()
-        } else {
+    /// Mint a connection. The first one turns sync on and pushes, so the client's first question has data.
+    func connect(_ client: ConnectClient) async throws -> ConnectorKey {
+        if isEnabled {
             await pushNow()
+        } else {
+            try await enable()
         }
-        guard let client else { throw CloudError.keychain(errSecItemNotFound) }
-        let name = try await client.approve(code: code)
-        await refreshClients()
-        return name
+        guard let api else { throw CloudError.keychain(errSecItemNotFound) }
+        let key = try await api.createKey(client: client)
+        keys.insert(key, at: 0)
+        return key
     }
 
-    func deny(code: String) async {
-        try? await client?.deny(code: code)
-    }
-
-    func refreshClients() async {
-        guard let client else {
-            clients = []
+    func refreshKeys() async {
+        guard let api else {
+            keys = []
             return
         }
         do {
-            clients = try await client.clients()
+            keys = try await api.keys()
             lastError = nil
         } catch {
             lastError = error.localizedDescription
         }
     }
 
-    func revoke(_ paired: PairedClient) async {
-        guard let client else { return }
+    func revoke(_ key: ConnectorKey) async {
+        guard let api else { return }
         do {
-            try await client.revoke(clientID: paired.id)
-            clients.removeAll { $0.id == paired.id }
+            try await api.revoke(id: key.id)
+            keys.removeAll { $0.id == key.id }
         } catch {
             lastError = error.localizedDescription
         }
@@ -92,8 +73,8 @@ final class CloudSync {
 
     /// Delete the cloud copy and every connection, and stop syncing. The phone's own data stays.
     func deleteCloudData() async throws {
-        if let client {
-            try await client.deleteAccount()
+        if let api {
+            try await api.deleteAccount()
         }
         observation?.cancel()
         observation = nil
@@ -101,20 +82,28 @@ final class CloudSync {
         DeviceKey.forget()
         UserDefaults.standard.set(false, forKey: Self.enabledKey)
         isEnabled = false
-        clients = []
+        keys = []
         lastSyncAt = nil
     }
 
     func pushNow() async {
-        guard let client else { return }
+        guard let api else { return }
         do {
-            try await push(with: client)
+            try await push(with: api)
         } catch {
             lastError = error.localizedDescription
         }
     }
 
-    private func push(with client: CloudClient) async throws {
+    private func enable() async throws {
+        let deviceKey = try DeviceKey.getOrCreate()
+        UserDefaults.standard.set(true, forKey: Self.enabledKey)
+        isEnabled = true
+        try await push(with: CloudClient(baseURL: CloudClient.defaultBaseURL, deviceKey: deviceKey))
+        observe()
+    }
+
+    private func push(with api: CloudClient) async throws {
         isSyncing = true
         defer { isSyncing = false }
         let taskID = UIApplication.shared.beginBackgroundTask(withName: "cloud-sync")
@@ -124,7 +113,7 @@ final class CloudSync {
             }
         }
         let body = try await database.reader.read { db in try CloudSnapshot.build(db).encoded() }
-        _ = try await client.pushSnapshot(body)
+        _ = try await api.pushSnapshot(body)
         lastSyncAt = Date()
         lastError = nil
     }
