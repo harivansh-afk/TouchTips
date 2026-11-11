@@ -91,6 +91,7 @@ struct ConnectView: View {
             .navigationDestination(item: $minted) { key in
                 ConnectedView(key: key) { dismiss() }
             }
+
             .confirmationDialog(
                 "Disconnect \(disconnecting?.name ?? "")?",
                 isPresented: Binding(get: { disconnecting != nil }, set: { if !$0 { disconnecting = nil } }),
@@ -126,6 +127,10 @@ struct ConnectView: View {
                 }
             }
         }
+        // On the stack, not its root: pushing the connected screen mustn't look like Connect closing.
+        .approvalSheet(app.cloud)
+        .onAppear { app.cloud.connectScreenOpen = true }
+        .onDisappear { app.cloud.connectScreenOpen = false }
     }
 
     // MARK: - Rows
@@ -268,7 +273,7 @@ struct ConnectedView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         SectionLabel(text: "Or in Claude Code").padding(.leading, 6)
                         field(command)
-                        Text(copied == command ? "Copied. Run it in your terminal." : "Tap to copy.")
+                        Text(copied == command ? "Copied. Run it, then /mcp in Claude Code to sign in." : "Tap to copy. Then /mcp in Claude Code to sign in.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 6)

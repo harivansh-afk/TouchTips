@@ -38,7 +38,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             }
         }
         session.retry()
+        // A device token needs no permission prompt. It's how a client's sign-in reaches this phone for Allow.
+        application.registerForRemoteNotifications()
         return true
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        CloudSync.storePushToken(deviceToken)
+        Task { await session.app?.cloud.registerDevice() }
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        Log.notify.error("push registration failed: \(error.localizedDescription, privacy: .public)")
     }
 
     func applicationProtectedDataDidBecomeAvailable(_ application: UIApplication) {

@@ -2,8 +2,7 @@
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { BASE_URL } from "./config";
-import { Index, type MeetingView } from "./snapshot";
-import { readSnapshot } from "./store";
+import { Index, type MeetingView, type Snapshot } from "./snapshot";
 
 const INSTRUCTIONS = `TouchTips is the user's own record of when and where they met each contact.
 Every date has a precision. Quote the "when" field exactly as given (for example "March 2024"); never add a day or time the record doesn't have.
@@ -39,10 +38,10 @@ const NO_DATA = {
   content: [{ type: "text" as const, text: "TouchTips has not synced any data for this account yet. Open TouchTips on the iPhone to sync." }],
 };
 
-export function createServer(userHash: string) {
+export function createServer(load: () => Promise<Snapshot | null>) {
   const server = new McpServer({ name: "TouchTips", version: "1.0.0" }, { instructions: INSTRUCTIONS });
   const loadIndex = async () => {
-    const snapshot = await readSnapshot(userHash);
+    const snapshot = await load();
     return snapshot ? new Index(snapshot, BASE_URL) : null;
   };
 
@@ -117,7 +116,7 @@ export function createServer(userHash: string) {
   return server;
 }
 
-/** One handler per phone, built per request: the SDK handler is stateless. */
-export function mcpHandlerFor(userHash: string) {
-  return createMcpHandler(() => createServer(userHash));
+/** One handler per request, for one phone's data: the SDK handler is stateless. */
+export function mcpHandlerFor(load: () => Promise<Snapshot | null>) {
+  return createMcpHandler(() => createServer(load));
 }

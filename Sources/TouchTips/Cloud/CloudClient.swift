@@ -30,6 +30,24 @@ struct ConnectorKey: Decodable, Identifiable, Hashable, Sendable {
     }
 }
 
+/// A client's sign-in, waiting for this phone's Allow.
+struct ApprovalRequest: Decodable, Identifiable, Hashable, Sendable {
+    var id: String
+    var client: String
+    /// "Claude", or "Some Name · host" when the sign-in doesn't return to that client's own site.
+    var name: String
+    var createdAt: String
+
+    var kind: ConnectClient {
+        ConnectClient(rawValue: client) ?? .other
+    }
+
+    /// The server only names a client it recognises. Anything else shows where it would send the user.
+    var isRecognised: Bool {
+        !name.contains(" · ")
+    }
+}
+
 struct CloudClient: Sendable {
     var baseURL: URL
     var deviceKey: String
@@ -59,6 +77,38 @@ struct CloudClient: Sendable {
         let (status, data) = try await send("POST", "/v1/keys", body: body)
         guard status == 201 else { throw CloudError.http(status, "Couldn't connect.") }
         return try JSONDecoder().decode(ConnectorKey.self, from: data)
+    }
+
+    /// The phone's MCP URL for a client that signs in with OAuth. Also lets that client's sign-in
+    /// push an approval prompt to this phone for the next ten minutes.
+    func startConnect(client: ConnectClient) async throws -> String {
+        struct Body: Decodable { var url: String }
+        let body = try JSONEncoder().encode(["client": client.rawValue])
+        let (status, data) = try await send("POST", "/v1/connect", body: body)
+        guard status == 200 else { throw CloudError.http(status, "Couldn't connect.") }
+        return try JSONDecoder().decode(Body.self, from: data).url
+    }
+
+    /// Where approval prompts go. Debug builds get sandbox tokens; TestFlight and the App Store, production.
+    func registerDevice(pushToken: String?, sandbox: Bool) async throws {
+        var fields: [String: String] = ["apnsEnv": sandbox ? "sandbox" : "production"]
+        fields["apnsToken"] = pushToken
+        let (status, _) = try await send("PUT", "/v1/device", body: JSONEncoder().encode(fields))
+        guard status == 200 else { throw CloudError.http(status, "Couldn't register for approvals.") }
+    }
+
+    func approvals() async throws -> [ApprovalRequest] {
+        struct Body: Decodable { var requests: [ApprovalRequest] }
+        let (status, data) = try await send("GET", "/v1/requests")
+        guard status == 200 else { throw CloudError.http(status, "Couldn't load sign-in requests.") }
+        return try JSONDecoder().decode(Body.self, from: data).requests
+    }
+
+    /// False when the request is gone: expired, or already answered.
+    func decide(_ id: String, allow: Bool) async throws -> Bool {
+        let (status, _) = try await send("POST", "/v1/requests/\(id)", body: JSONEncoder().encode(["allow": allow]))
+        guard status == 200 || status == 404 else { throw CloudError.http(status, "Couldn't answer the request.") }
+        return status == 200
     }
 
     func keys() async throws -> [ConnectorKey] {

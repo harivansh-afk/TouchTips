@@ -1,25 +1,19 @@
-// Two credentials, both random, both only ever stored as hashes.
-// The device key proves a phone owns its data. A client key is one connected app's secret URL.
+// The phone's credential. A random device key, sent as a bearer token on every /v1 call.
+// The server stores only its hash (the user) and uses the key itself to unwrap the user's data key.
 
-import { createHash, randomBytes } from "node:crypto";
+import { sha256 } from "./crypto";
 
-const DEVICE_KEY = /^Bearer\s+(tt_[A-Za-z0-9_-]{40,})$/;
-export const CLIENT_KEY = /^[A-Za-z0-9_-]{40,}$/;
+const DEVICE_KEY = /^Bearer\s+(tt_[A-Za-z0-9_-]{43})$/;
+export const CLIENT_KEY = /^[A-Za-z0-9_-]{43}$/;
+export const PUBLIC_ID = /^[A-Za-z0-9_-]{22}$/;
 
-export function sha256(s: string): string {
-  return createHash("sha256").update(s).digest("hex");
+export interface Device {
+  key: string;
+  userHash: string;
 }
 
-/** User hash from the device key in the Authorization header, or null when absent or malformed. */
-export function userHashFromRequest(request: Request): string | null {
+/** The device behind a request, or null when the Authorization header is absent or malformed. */
+export function deviceFromRequest(request: Request): Device | null {
   const m = DEVICE_KEY.exec(request.headers.get("authorization") ?? "");
-  return m ? sha256(m[1]) : null;
-}
-
-export function newClientKey(): string {
-  return randomBytes(32).toString("base64url");
-}
-
-export function newId(): string {
-  return randomBytes(8).toString("base64url");
+  return m ? { key: m[1], userHash: sha256(m[1]) } : null;
 }
