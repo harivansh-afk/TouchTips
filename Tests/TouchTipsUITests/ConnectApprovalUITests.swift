@@ -139,7 +139,10 @@ private struct MCPClient {
         let metadataURL = try XCTUnwrap(challenge.firstMatch(of: /resource_metadata="([^"]+)"/).map { String($0.1) })
         let resource = try await Self.json(URL(string: metadataURL)!)
         let issuer = try XCTUnwrap(URL(string: try XCTUnwrap((resource["authorization_servers"] as? [String])?.first)))
-        let server = try await Self.json(URL(string: "\(issuer.scheme!)://\(issuer.host!):\(issuer.port!)/.well-known/oauth-authorization-server\(issuer.path)")!)
+        // RFC 8414: the well-known segment goes between the host and the issuer's path.
+        var metadata = try XCTUnwrap(URLComponents(url: issuer, resolvingAgainstBaseURL: false))
+        metadata.path = "/.well-known/oauth-authorization-server" + issuer.path
+        let server = try await Self.json(try XCTUnwrap(metadata.url))
         authorizeURL = URL(string: server["authorization_endpoint"] as! String)!
         tokenURL = URL(string: server["token_endpoint"] as! String)!
         var register = URLRequest(url: URL(string: server["registration_endpoint"] as! String)!)
