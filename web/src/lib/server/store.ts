@@ -30,7 +30,7 @@ export async function putSnapshot(userHash: string, raw: string): Promise<PutRes
   return rows.length ? "stored" : "stale";
 }
 
-export const CLIENTS = ["claude", "chatgpt", "claude-code", "cursor", "vscode", "other"] as const;
+export const CLIENTS = ["claude", "chatgpt", "claude-code", "instinct", "grok", "other"] as const;
 export type Client = (typeof CLIENTS)[number];
 
 export interface ClientKeyRow {
@@ -41,8 +41,10 @@ export interface ClientKeyRow {
   lastUsedAt: string | null;
 }
 
-/** Mint a key for one client. The plaintext is returned once and never stored. */
+/** Mint a key for one client. The plaintext is returned once and never stored.
+ *  A key for the same client that was never used is replaced, so re-tapping doesn't pile up URLs. */
 export async function createClientKey(userHash: string, client: Client, name: string): Promise<{ row: ClientKeyRow; key: string }> {
+  await query("DELETE FROM client_key WHERE user_hash = $1 AND client = $2 AND last_used_at IS NULL", [userHash, client]);
   const key = newClientKey();
   const id = newId();
   const rows = await query<ClientKeyRow>(
@@ -54,6 +56,7 @@ export async function createClientKey(userHash: string, client: Client, name: st
 }
 
 export async function listClientKeys(userHash: string): Promise<ClientKeyRow[]> {
+  await query("DELETE FROM client_key WHERE user_hash = $1 AND last_used_at IS NULL AND created_at < now() - interval '7 days'", [userHash]);
   return query<ClientKeyRow>(
     `SELECT id, client, name, created_at AS "createdAt", last_used_at AS "lastUsedAt"
      FROM client_key WHERE user_hash = $1 ORDER BY created_at DESC`,

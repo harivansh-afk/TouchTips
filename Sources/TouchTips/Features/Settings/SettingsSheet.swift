@@ -16,7 +16,6 @@ struct SettingsSheet: View {
     @State private var lastNotice: NoticeTiming?
     @State private var problem: String?
     @State private var confirmDelete = false
-    @State private var showConnected = false
 
     var body: some View {
         NavigationStack {
@@ -46,12 +45,6 @@ struct SettingsSheet: View {
                     VStack(alignment: .leading, spacing: 12) {
                         SectionLabel(text: "Map page").padding(.leading, 6)
                         MapStyleGrid(choice: $mapStyle)
-                    }
-
-                    group("AI", footer: "Let Claude, ChatGPT or any agent ask when and where you met someone.") {
-                        accessRow("Connect", status: app.cloud.keys.isEmpty ? "None" : "\(app.cloud.keys.count)") {
-                            showConnected = true
-                        }
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
@@ -84,9 +77,6 @@ struct SettingsSheet: View {
             // Into the keyboard region too, or the translucent keyboard shows a hard edge where the black stops.
             .background { Color.ground.ignoresSafeArea() }
             .serifTitle("Settings")
-            .navigationDestination(isPresented: $showConnected) {
-                ConnectView(isSheet: false)
-            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button {

@@ -119,3 +119,6 @@ footer .word { font-size: clamp(84px, 20vw, 270px); line-height: 0.8; letter-spa
   .wrap.narrow { padding-top: 24px; padding-bottom: 72px; }
   h2 { margin-top: 56px; font-size: 28px; }
 }
+
+.eyebrow { margin: 0 0 14px; }
+.eyebrow .ico { font-size: 28px; }
