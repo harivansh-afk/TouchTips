@@ -48,13 +48,32 @@ jobs:
             -only-testing:TouchTipsUITests/LocationUITests \
             -only-testing:TouchTipsUITests/RegularUseUITests/testOnboardingContentReachable \
             test CODE_SIGNING_ALLOWED=NO 2>&1 | tail -80
-      - name: Export screenshots
+      - name: UI test failures
+        if: failure()
+        run: |
+          xcrun xcresulttool get test-results tests --path build/ui.xcresult --compact \
+            | python3 -c 'import json,sys
+          def walk(n, path=""):
+              name = n.get("name", "")
+              if n.get("nodeType") == "Failure Message": print(path, "::", name)
+              for c in n.get("children", []): walk(c, path + "/" + name if n.get("nodeType") == "Test Case" else path or name)
+          for n in json.load(sys.stdin)["testNodes"]: walk(n)' || true
+      - name: Screenshots
         if: always()
         run: |
           mkdir -p screenshots
-          [ -d build/ui.xcresult ] && xcrun xcresulttool export attachments --path build/ui.xcresult --output-path screenshots || true
+          [ -d build/ui.xcresult ] || exit 0
+          xcrun xcresulttool export attachments --path build/ui.xcresult --output-path screenshots || true
+          # The log carries them too, small, so they can be read when artifact upload is down.
+          for f in screenshots/*.png; do
+            [ -e "$f" ] || continue
+            sips -Z 900 -s format jpeg -s formatOptions 60 "$f" --out /tmp/shot.jpg >/dev/null
+            echo "SHOT $(basename "$f") $(base64 -i /tmp/shot.jpg | tr -d '\n')"
+          done
+          cat screenshots/manifest.json 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         if: always()
+        continue-on-error: true
         with:
           name: screenshots
           path: screenshots
