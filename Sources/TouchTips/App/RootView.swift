@@ -37,8 +37,15 @@ struct RootView: View {
             if phase == .active {
                 app.contactsAccess.refresh()
                 app.capture.foreground()
+                // Contacts found while the app was away, by background refresh, get their place now.
+                Task { await app.placeOnOpen.fill() }
                 openNotification()
                 Task { await app.cloud.checkApprovals() }
+            }
+        }
+        .onChange(of: app.location.usable) { _, usable in
+            if usable {
+                Task { await app.placeOnOpen.fill() }
             }
         }
         .onChange(of: app.notifier.pendingPerson, initial: true) { _, _ in openNotification() }

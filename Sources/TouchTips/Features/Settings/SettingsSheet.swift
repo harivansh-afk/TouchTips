@@ -21,7 +21,10 @@ struct SettingsSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
-                    group("Access", footer: "Tap a permission to change access in iOS Settings.") {
+                    group(
+                        "Access",
+                        footer: "Location is used only while TouchTips is open, to name where you just met someone. Tap a permission to change access in iOS Settings."
+                    ) {
                         accessRow("Contacts", status: contactsStatus) {
                             if app.contactsAccess.status == .notDetermined {
                                 Task {
@@ -36,6 +39,14 @@ struct SettingsSheet: View {
                         accessRow("Notifications", status: notificationsStatus) {
                             if app.notifier.status == .notDetermined {
                                 Task { await app.notifier.request() }
+                            } else {
+                                openSettings()
+                            }
+                        }
+                        hairline
+                        accessRow("Location", status: locationStatus) {
+                            if app.location.status == .notDetermined {
+                                Task { await app.location.request() }
                             } else {
                                 openSettings()
                             }
@@ -208,6 +219,16 @@ struct SettingsSheet: View {
             return "On"
         }
         return app.notifier.status == .notDetermined ? "Allow" : "Off"
+    }
+
+    private var locationStatus: String {
+        switch app.location.status {
+        case .notDetermined: "Allow"
+        case .authorizedWhenInUse, .authorizedAlways: app.location.precise ? "While using" : "Approximate"
+        case .denied: "Off"
+        case .restricted: "Restricted"
+        @unknown default: "Manage"
+        }
     }
 
     private func openSettings() {

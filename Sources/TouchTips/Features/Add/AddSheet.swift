@@ -21,6 +21,8 @@ struct AddSheet: View {
     }()
 
     @State private var choices: [PlaceChoice] = []
+    /// Places around the phone, nearest first. You are adding someone you just met, so they lead.
+    @State private var nearby: [PlaceChoice] = []
     @State private var place: PlaceChoice?
     @State private var problem: String?
     @State private var creation = ContactCreation()
@@ -39,7 +41,17 @@ struct AddSheet: View {
                     fields
                     VStack(alignment: .leading, spacing: 12) {
                         SectionLabel(text: "Where").padding(.leading, 6)
-                        PlaceChooser(candidates: choices, selection: $place, origin: choices.first?.coordinate)
+                        PlaceChooser(
+                            candidates: nearby + choices,
+                            selection: $place,
+                            origin: (nearby + choices).first?.coordinate,
+                            onLocate: app.location.status == .notDetermined ? {
+                                Task {
+                                    await app.location.request()
+                                    await locate()
+                                }
+                            } : nil
+                        )
                     }
                     if let problem {
                         Text(problem)
@@ -80,6 +92,7 @@ struct AddSheet: View {
             .task {
                 focus = .name
                 await loadRecent()
+                await locate()
             }
         }
         // Full height, so the keyboard never covers Where.
@@ -119,6 +132,18 @@ struct AddSheet: View {
     }
 
     // MARK: - Where
+
+    /// The nearest place is chosen for you, unless you have already chosen. It shows on the map
+    /// before you save, like any other choice.
+    private func locate() async {
+        guard app.location.usable, let fix = await app.location.fix() else { return }
+        let found = await PlaceSearch.nearby(fix)
+        guard !Task.isCancelled else { return }
+        nearby = found
+        if place == nil {
+            place = found.first
+        }
+    }
 
     private func loadRecent() async {
         do {

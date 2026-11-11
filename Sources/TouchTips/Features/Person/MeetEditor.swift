@@ -13,6 +13,7 @@ struct MeetEditor: View {
     @State private var date: Date
     @State private var place: PlaceChoice?
     @State private var suggestions: [PlaceChoice] = []
+    @State private var nearby: [PlaceChoice] = []
     @State private var problem: String?
 
     init(row: PersonRow) {
@@ -56,7 +57,12 @@ struct MeetEditor: View {
                         HapticManager.selection()
                         router.showPlace(placeID)
                     }
-                })
+                }, onLocate: metToday && app.location.status == .notDetermined ? {
+                    Task {
+                        await app.location.request()
+                        await locate()
+                    }
+                } : nil)
                 if row.meet == nil, place != nil {
                     Text("Choose a date to save this place.")
                         .font(.footnote)
@@ -79,7 +85,10 @@ struct MeetEditor: View {
         .onChange(of: row.place) { _, updated in
             place = updated.map { PlaceChoice(place: $0, detail: "Current") }
         }
-        .task { await loadSuggestions() }
+        .task {
+            await loadSuggestions()
+            await locate()
+        }
     }
 
     // MARK: - When
@@ -123,13 +132,19 @@ struct MeetEditor: View {
 
     // MARK: - Where
 
-    /// The place already on record leads; recent meeting places follow.
+    /// Met today, so the phone may still be where it happened.
+    private var metToday: Bool {
+        row.meet.map { Calendar.current.isDateInToday($0.end) } ?? false
+    }
+
+    /// The place already on record leads; places near you, for a meeting today, and recent meeting
+    /// places follow.
     private var candidates: [PlaceChoice] {
         var list: [PlaceChoice] = []
         if let existing = row.place {
             list.append(PlaceChoice(place: existing, detail: "Current"))
         }
-        for suggestion in suggestions where !list.contains(where: { $0.key == suggestion.key }) {
+        for suggestion in nearby + suggestions where !list.contains(where: { $0.key == suggestion.key }) {
             list.append(suggestion)
         }
         return list
@@ -137,6 +152,14 @@ struct MeetEditor: View {
 
     private var origin: CLLocationCoordinate2D? {
         (place ?? candidates.first)?.coordinate
+    }
+
+    /// Suggested, never chosen: a choice here is saved the moment it is made.
+    private func locate() async {
+        guard metToday, app.location.usable, let fix = await app.location.fix() else { return }
+        let found = await PlaceSearch.nearby(fix, limit: 3)
+        guard !Task.isCancelled else { return }
+        nearby = found
     }
 
     private func loadSuggestions() async {

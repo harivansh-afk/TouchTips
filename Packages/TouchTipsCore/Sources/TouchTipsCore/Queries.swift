@@ -45,6 +45,18 @@ public extension Person {
     }
 }
 
+public extension Meet {
+    /// Contacts discovered since `cutoff` that still have no place. Only discovered ones: a meeting
+    /// added in the app took its place, or its lack of one, from the user.
+    static func awaitingPlace(seenSince cutoff: Date) -> QueryInterfaceRequest<Meet> {
+        Meet.filter(
+            Columns.placeID == nil
+                && Columns.addSeenStart >= cutoff
+                && Columns.addSeenEnd > Columns.addSeenStart
+        )
+    }
+}
+
 /// A place with how many people were met there. Drives the map.
 public struct PlaceSummary: Decodable, FetchableRecord, Hashable, Identifiable, Sendable {
     public var id: Int64

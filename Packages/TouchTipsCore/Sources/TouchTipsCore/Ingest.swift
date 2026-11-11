@@ -182,6 +182,50 @@ public enum Ingest {
         }
     }
 
+    /// Confirm from a notification, which showed one place or none. The place is accepted only if it
+    /// is still the one shown: a place suggested after the notice was posted has not been seen.
+    public static func confirmMeet(
+        contactID: String, shownPlaceID: Int64?, now: Date, to database: AppDatabase
+    ) throws {
+        try database.writer.write { db in
+            guard var meet = try Meet.fetchOne(db, key: contactID) else { return }
+            meet.userSet = true
+            meet.dateConfirmed = true
+            if meet.placeID == shownPlaceID {
+                meet.tier = .exact
+                meet.placeConfirmed = true
+            }
+            meet.computedAt = now
+            try meet.update(db)
+        }
+    }
+
+    /// Where the phone is now, for contacts discovered since `cutoff`: recently enough that the user
+    /// is most likely still where they added them. Only fills a missing place, and leaves it for the
+    /// user to confirm. Returns the contacts that got it.
+    @discardableResult
+    public static func suggestPlace(
+        _ place: Place, forContactsSeenSince cutoff: Date, now: Date, to database: AppDatabase
+    ) throws -> [String] {
+        try database.writer.write { db in
+            let meets = try Meet.awaitingPlace(seenSince: cutoff).fetchAll(db)
+            guard !meets.isEmpty else { return [] }
+            let placeID = try Place.findOrCreate(
+                db, key: place.key, latitude: place.latitude, longitude: place.longitude, name: place.name
+            ).id
+            for var meet in meets {
+                meet.placeID = placeID
+                meet.placeConfirmed = false
+                if meet.tier == .dateOnly {
+                    meet.tier = .inferred
+                }
+                meet.computedAt = now
+                try meet.update(db)
+            }
+            return meets.map(\.contactID)
+        }
+    }
+
     /// The user says they do not know. Removes the answer; a later tick will not recreate it.
     public static func clearMeet(contactID: String, to database: AppDatabase) throws {
         try database.writer.write { db in

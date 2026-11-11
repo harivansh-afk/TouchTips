@@ -9,7 +9,8 @@ public enum Tier: Int, Codable, Hashable, Sendable, Comparable {
     case exact = 0
     /// Legacy: a location visit contained the moment the contact appeared.
     case witnessed = 1
-    /// Legacy: a location visit was near the moment the contact appeared.
+    /// Where the phone was, with the app open, soon after the contact appeared. Also legacy
+    /// records from a location visit near that moment.
     case inferred = 2
     /// We know roughly when, not where.
     case dateOnly = 3

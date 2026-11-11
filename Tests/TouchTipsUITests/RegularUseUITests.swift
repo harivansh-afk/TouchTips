@@ -154,15 +154,17 @@ final class RegularUseUITests: XCTestCase {
         let next = app.buttons["onboarding.continue"]
         XCTAssertTrue(next.waitForExistence(timeout: 15))
         // Each part's rows are staged after its headline, but exist before they are visible.
-        for title in ["Contacts", "Notifications"] {
+        for titles in [["Contacts"], ["Notifications", "Location"]] {
             Thread.sleep(forTimeInterval: 6)
-            let label = app.staticTexts[title]
-            XCTAssertTrue(label.waitForExistence(timeout: 5))
-            for _ in 0 ..< 8 where !label.isHittable {
-                app.swipeUp()
+            for title in titles {
+                let label = app.staticTexts[title]
+                XCTAssertTrue(label.waitForExistence(timeout: 5))
+                for _ in 0 ..< 8 where !label.isHittable {
+                    app.swipeUp()
+                }
+                XCTAssertTrue(label.isHittable, "Unreachable onboarding permission: \(title)")
             }
-            XCTAssertTrue(label.isHittable, "Unreachable onboarding permission: \(title)")
-            capture(app, "onboarding-\(title)")
+            capture(app, "onboarding-\(titles[0])")
             for _ in 0 ..< 4 where !next.isHittable {
                 app.swipeUp()
             }

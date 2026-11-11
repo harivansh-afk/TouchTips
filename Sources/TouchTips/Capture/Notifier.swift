@@ -43,6 +43,8 @@ final class Notifier: NSObject {
 
     private nonisolated static let category = "meet"
     private nonisolated static let contactKey = "contactID"
+    /// The place the notice named, if any. "That's right" accepts only what was shown.
+    private nonisolated static let placeKey = "placeID"
     /// A client's sign-in asking this phone. Sent by the server; see web/src/lib/server/apns.ts.
     private nonisolated static let approvalCategory = "connect-approval"
     private nonisolated static let approvalDeny = "deny"
@@ -180,12 +182,7 @@ final class Notifier: NSObject {
                     try Task.checkCancellation()
                     let identifier = Self.identifier(for: notice.contactID)
                     if !submitted.contains(identifier) {
-                        try await postMeet(
-                            contactID: notice.contactID,
-                            name: row.person.name,
-                            meet: row.meet,
-                            placeName: row.place?.name
-                        )
+                        try await postMeet(contactID: notice.contactID, name: row.person.name, meet: row.meet, place: row.place)
                         // Keep this receipt even if SQLite acknowledgement fails on this pass.
                         submitted.insert(identifier)
                     }
@@ -230,8 +227,9 @@ final class Notifier: NSObject {
     }
 
     /// Discovery is reported as a new contact; only user-confirmed records claim a meeting.
-    private func postMeet(contactID: String, name: String, meet: Meet?, placeName: String?) async throws {
+    private func postMeet(contactID: String, name: String, meet: Meet?, place: Place?) async throws {
         let content = UNMutableNotificationContent()
+        let placeName = place.map { Format.placeLabel($0.name, latitude: $0.latitude, longitude: $0.longitude) }
         // A suggestion is asked as a question, the way the app asks everything: the actions
         // under it are the answers. Its body says where and when it thinks, so one tap can confirm
         // it while it is fresh; with only a time known, the gap is the invitation to fix it.
@@ -250,17 +248,22 @@ final class Notifier: NSObject {
         content.sound = .default
         content.categoryIdentifier = Self.category
         content.threadIdentifier = Self.category
-        content.userInfo = [Self.contactKey: contactID]
+        var info: [String: Any] = [Self.contactKey: contactID]
+        if let placeID = place?.id {
+            info[Self.placeKey] = NSNumber(value: placeID)
+        }
+        content.userInfo = info
         let request = UNNotificationRequest(identifier: Self.identifier(for: contactID), content: content, trigger: nil)
         try await delivery.submit(request)
     }
 
-    func handle(action: String, contactID: String?) {
+    func handle(action: String, contactID: String?, shownPlaceID: Int64? = nil) {
         guard let contactID, !contactID.isEmpty else { return }
         Log.notify.notice("notification action: \(action, privacy: .public)")
         do {
             switch action {
-            case Action.confirm.rawValue: try Ingest.confirmMeet(contactID: contactID, now: .now, to: database)
+            case Action.confirm.rawValue:
+                try Ingest.confirmMeet(contactID: contactID, shownPlaceID: shownPlaceID, now: .now, to: database)
             case Action.notAMeeting.rawValue: try Ingest.clearMeet(contactID: contactID, to: database)
             case Action.fix.rawValue, UNNotificationDefaultActionIdentifier: pendingPerson = contactID
             default: return
@@ -309,10 +312,11 @@ extension Notifier: UNUserNotificationCenterDelegate {
             return
         }
         let contactID = content.userInfo[Self.contactKey] as? String
+        let shownPlaceID = (content.userInfo[Self.placeKey] as? NSNumber)?.int64Value
         // UIKit's completion updates scene restoration and must run on the main thread. The async
         // delegate's generated completion can run on a pool thread even after MainActor.run returns.
         Task { @MainActor in
-            handle(action: action, contactID: contactID)
+            handle(action: action, contactID: contactID, shownPlaceID: shownPlaceID)
             completionHandler()
         }
     }

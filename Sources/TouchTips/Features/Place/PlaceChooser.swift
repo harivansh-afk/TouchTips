@@ -13,6 +13,8 @@ struct PlaceChooser: View {
     var origin: CLLocationCoordinate2D?
     /// Opens the saved meeting place from the contact page.
     var onOpenMap: (() -> Void)?
+    /// Offered while location has not been asked for: asks, then the places near you join the chips.
+    var onLocate: (() -> Void)?
 
     @AppStorage("mapStyle") private var styleChoice = MapStyleChoice.muted
     @State private var query = ""
@@ -149,6 +151,10 @@ struct PlaceChooser: View {
         ScrollView(.horizontal, showsIndicators: false) {
             GlassEffectContainer(spacing: 8) {
                 HStack(spacing: 8) {
+                    if let onLocate {
+                        chip("Near me", selected: false, id: "near-me", action: onLocate)
+                            .accessibilityHint("Allows location while TouchTips is open")
+                    }
                     ForEach(chips) { choice in
                         chip(choice.name, selected: selection?.key == choice.key, id: choice.key) {
                             selection = choice

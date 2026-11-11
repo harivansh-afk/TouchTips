@@ -25,3 +25,58 @@ jobs:
           xcodebuild -project TouchTips.xcodeproj -scheme TouchTips \
             -destination 'generic/platform=iOS Simulator' -quiet build CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log
           if grep -q "warning:" build.log; then grep "warning:" build.log; echo "warnings are failures" >&2; exit 1; fi
+      - name: Simulator
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
+          echo "UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid"
+          xcrun simctl privacy "$udid" grant contacts sh.harivan.touchtips
+      - name: App unit tests
+        run: |
+          set -o pipefail
+          xcodebuild -project TouchTips.xcodeproj -scheme TouchTips -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath build/dd -only-testing:TouchTipsTests -parallel-testing-enabled NO -quiet \
+            test CODE_SIGNING_ALLOWED=NO 2>&1 | tail -80
+      - name: Location and onboarding UI tests
+        run: |
+          set -o pipefail
+          xcodebuild -project TouchTips.xcodeproj -scheme TouchTips -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath build/dd -resultBundlePath build/ui.xcresult -parallel-testing-enabled NO -quiet \
+            -only-testing:TouchTipsUITests/LocationUITests \
+            -only-testing:TouchTipsUITests/RegularUseUITests/testOnboardingContentReachable \
+            test CODE_SIGNING_ALLOWED=NO 2>&1 | tail -80
+      - name: UI test failures
+        if: failure()
+        run: |
+          xcrun xcresulttool get test-results tests --path build/ui.xcresult --compact \
+            | python3 -c 'import json,sys
+          def walk(n, path=""):
+              name = n.get("name", "")
+              if n.get("nodeType") == "Failure Message": print(path, "::", name)
+              for c in n.get("children", []): walk(c, path + "/" + name if n.get("nodeType") == "Test Case" else path or name)
+          for n in json.load(sys.stdin)["testNodes"]: walk(n)' || true
+      - name: App log
+        if: failure()
+        run: |
+          xcrun simctl spawn "$UDID" log show --last 40m --style compact \
+            --predicate 'subsystem == "sh.harivan.touchtips" AND (category == "geocode" OR category == "capture")' | tail -80 || true
+      - name: Screenshots
+        if: always()
+        run: |
+          mkdir -p screenshots
+          [ -d build/ui.xcresult ] || exit 0
+          xcrun xcresulttool export attachments --path build/ui.xcresult --output-path screenshots || true
+          # The log carries them too, small, so they can be read when artifact upload is down.
+          for f in screenshots/*.png; do
+            [ -e "$f" ] || continue
+            sips -Z 900 -s format jpeg -s formatOptions 60 "$f" --out /tmp/shot.jpg >/dev/null
+            echo "SHOT $(basename "$f") $(base64 -i /tmp/shot.jpg | tr -d '\n')"
+          done
+          cat screenshots/manifest.json 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: screenshots
+          path: screenshots
+          if-no-files-found: ignore

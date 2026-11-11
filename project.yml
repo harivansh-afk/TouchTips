@@ -62,6 +62,7 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         UIApplicationSupportsIndirectInputEvents: true
         NSContactsUsageDescription: Notices new contacts. Limited access cannot see changes.
+        NSLocationWhenInUseUsageDescription: While TouchTips is open, your location names the place where you met someone you just added, like the café you are in. It is never used in the background.
         LSApplicationQueriesSchemes: [grokbot]
     settings:
       base:
