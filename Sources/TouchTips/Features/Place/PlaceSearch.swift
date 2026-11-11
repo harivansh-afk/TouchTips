@@ -16,4 +16,29 @@ enum PlaceSearch {
         let response = try await MKLocalSearch(request: request).start()
         return Array(response.mapItems.compactMap(PlaceChoice.init(mapItem:)).prefix(8))
     }
+
+    /// Places of interest around a fix, nearest first. The radius grows with the fix's uncertainty,
+    /// so a vague fix still reaches the place the phone is really in.
+    static func nearby(_ location: CLLocation, limit: Int = 4) async -> [PlaceChoice] {
+        let radius = min(max(location.horizontalAccuracy, 40), LocationAccess.maxUncertainty)
+        let request = MKLocalPointsOfInterestRequest(center: location.coordinate, radius: radius)
+        guard let response = try? await MKLocalSearch(request: request).start() else { return [] }
+        return Array(
+            response.mapItems
+                .sorted { location.distance(from: $0.location) < location.distance(from: $1.location) }
+                .compactMap(PlaceChoice.init(mapItem:))
+                .prefix(limit)
+        )
+    }
+
+    /// The one place to name a fix by: the nearest place of interest, else the street address.
+    static func here(_ location: CLLocation) async -> PlaceChoice? {
+        if let nearest = await nearby(location, limit: 1).first {
+            return nearest
+        }
+        guard let request = MKReverseGeocodingRequest(location: location),
+              let item = try? await request.mapItems.first
+        else { return nil }
+        return PlaceChoice(mapItem: item)
+    }
 }

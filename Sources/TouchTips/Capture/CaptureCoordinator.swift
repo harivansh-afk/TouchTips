@@ -64,6 +64,9 @@ final class CaptureCoordinator {
     private(set) var isResetting = false
     /// Fires after anything landed in the database.
     var didIngest: (() -> Void)?
+    /// Runs after new people are recorded and before they are announced, so a notice posted while
+    /// the app is open can already say where.
+    var beforeAnnouncing: (() async -> Void)?
 
     init(
         database: AppDatabase, notifier: Notifier, contacts: CaptureContacts = .system,
@@ -279,6 +282,9 @@ final class CaptureCoordinator {
             )
             if summary != IngestSummary() {
                 didIngest?()
+            }
+            if summary.newPeople > 0, let beforeAnnouncing {
+                await beforeAnnouncing()
             }
             // Reconcile deletions before draining.
             await notifier.deliverPending(timing: NoticeTiming(

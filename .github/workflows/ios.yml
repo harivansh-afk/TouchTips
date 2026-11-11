@@ -25,3 +25,11 @@ jobs:
           xcodebuild -project TouchTips.xcodeproj -scheme TouchTips \
             -destination 'generic/platform=iOS Simulator' -quiet build CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log
           if grep -q "warning:" build.log; then grep "warning:" build.log; echo "warnings are failures" >&2; exit 1; fi
+      - name: App unit tests
+        run: |
+          set -o pipefail
+          udid=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
+          xcrun simctl boot "$udid"
+          xcrun simctl privacy "$udid" grant contacts sh.harivan.touchtips
+          xcodebuild -project TouchTips.xcodeproj -scheme TouchTips -destination "platform=iOS Simulator,id=$udid" \
+            -only-testing:TouchTipsTests -parallel-testing-enabled NO -quiet test CODE_SIGNING_ALLOWED=NO 2>&1 | tail -80

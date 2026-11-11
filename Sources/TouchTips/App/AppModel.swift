@@ -12,6 +12,8 @@ final class AppModel {
     let photos: ContactPhotos
     let cloud: CloudSync
     let contactsAccess = ContactsAccess()
+    let location: LocationAccess
+    let placeOnOpen: PlaceOnOpen
 
     /// The app's own database in Application Support.
     convenience init() throws {
@@ -25,7 +27,11 @@ final class AppModel {
         notifier = Notifier(database: database)
         capture = CaptureCoordinator(database: database, notifier: notifier)
         cloud = CloudSync(database: database)
+        location = LocationAccess()
+        placeOnOpen = PlaceOnOpen(database: database, location: location)
         capture.didIngest = { [photos] in photos.reset() }
+        // Bounded: a slow fix may cost the notice its place, never its delivery.
+        capture.beforeAnnouncing = { [placeOnOpen] in await placeOnOpen.fill(within: .seconds(8)) }
     }
 
     func start() {

@@ -78,7 +78,7 @@ export interface MeetingWithPerson extends MeetingView {
 const BASIS: Record<Meet["tier"], string> = {
   0: "recorded in TouchTips",
   1: "estimated from an earlier location visit",
-  2: "estimated from an earlier location visit",
+  2: "suggested from where the phone was soon after the contact appeared",
   3: "estimated from when the contact appeared on the phone",
 };
 

@@ -9,8 +9,9 @@ explicit **Confirm meeting** action accepts the whole record. Manually edited re
 existing protection against automatic replacement. Add through TouchTips records a confirmed meeting.
 
 An automatically discovered contact gets a date-only suggestion spanning its discovery interval: the
-last successful Contacts read to the one that found it. TouchTips does not use location, so places
-are only ever chosen by the user. Notifications distinguish new contacts from recorded meetings.
+last successful Contacts read to the one that found it. If the app is open within 20 minutes of that
+interval's start, the place the phone is in is added as an unconfirmed suggestion; see
+[location-on-open.md](location-on-open.md). Notifications distinguish new contacts from recorded meetings.
 
 The additive v5 migration preserves manual edits. Older records did not distinguish field edits from
 whole-meeting confirmation, so only records with the unambiguous in-app Add signature migrate as
