@@ -1,5 +1,6 @@
 <script>
   import { CLIENTS } from '$lib/connect';
+  import { CLIENT_ICONS, iconClass, iconStyle } from '$lib/agents';
 </script>
 
 <svelte:head>
@@ -8,11 +9,18 @@
   <link rel="canonical" href="https://touchtips.app/connect" />
 </svelte:head>
 
-<h1 class="serif">Connect</h1>
-<p class="lede">Open TouchTips on your iPhone, tap Connect, pick a client. It gives you a URL that is the whole connection. Pick your client below for the steps after that.</p>
-<ul class="clients">
+<div class="connect-head">
+  <h1 class="serif">One URL. Any agent.</h1>
+</div>
+
+<ul class="rows">
   {#each CLIENTS as client}
-    <li><a href={`/connect/${client.id}`}><span class="name">{client.name}</span><span class="tagline">{client.tagline}</span></a></li>
+    <li>
+      <a href={`/connect/${client.id}`}>
+        <span class={iconClass(CLIENT_ICONS[client.id])} style={iconStyle(CLIENT_ICONS[client.id])}></span>
+        <span class="name serif">{client.name}</span>
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+    </li>
   {/each}
 </ul>
-<div class="note">Don't have the app yet? <a href="/ios">Get TouchTips</a>, then come back.</div>
