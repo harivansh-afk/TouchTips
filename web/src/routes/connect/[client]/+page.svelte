@@ -1,4 +1,5 @@
 <script>
+  import { CLIENT_ICONS, iconClass, iconStyle } from '$lib/agents';
   let { data } = $props();
   const client = $derived(data.client);
 </script>
@@ -9,7 +10,7 @@
   <link rel="canonical" href={`https://touchtips.app/connect/${client.id}`} />
 </svelte:head>
 
-<p class="eyebrow"><img src={`/icons/${client.id}.svg`} alt="" width="22" height="22" /></p>
+<p class="eyebrow"><span class={iconClass(CLIENT_ICONS[client.id])} style={iconStyle(CLIENT_ICONS[client.id])}></span></p>
 <h1 class="serif">Connect {client.name}</h1>
 <p class="lede">In TouchTips, tap the plug, then <strong class="muted">{client.name}</strong>. The URL is on your clipboard.</p>
 <ol class="steps">

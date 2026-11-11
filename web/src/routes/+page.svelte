@@ -1,33 +1,21 @@
 <script>
-  import { CLIENTS } from '$lib/connect';
+  import { AGENTS, iconClass, iconStyle } from '$lib/agents';
 </script>
 
 <svelte:head>
-  <title>TouchTips — ask your AI when you met someone</title>
-  <meta name="description" content="TouchTips remembers when and where you met each contact. Claude, ChatGPT, Instinct, Grok and any agent can read it back to you." />
+  <title>TouchTips — remember everyone you meet</title>
+  <meta name="description" content="TouchTips is the iPhone app that remembers everyone you meet. Claude, ChatGPT and any agent can ask it." />
   <link rel="canonical" href="https://touchtips.app/" />
 </svelte:head>
 
-<h1 class="serif">Ask your AI when you met someone.</h1>
-<p class="lede">TouchTips notices every new contact on your iPhone and remembers the day and the place. Connect it once, and your AI can answer “when did I meet Sam?” with the date, the place, and a link back to them.</p>
-<div class="actions">
+<div class="hero">
+  <h1 class="serif">Who was that guy I met in New York?</h1>
+  <p class="lede">The iPhone app that remembers everyone you meet. Your AI can ask it.</p>
   <a class="button primary" href="/ios">Get the app</a>
 </div>
 
-<figure class="demo">
-  <video controls muted playsinline preload="none" poster="/demo-poster.jpg" width="1280" height="720" aria-label="TouchTips demo" aria-describedby="demo-caption">
-    <source src="/demo.mp4" type="video/mp4" />
-    <a href="/demo.mp4">Watch the TouchTips demo</a>.
-  </video>
-  <figcaption id="demo-caption">22 seconds of TouchTips</figcaption>
-</figure>
-
-<h2 class="serif" id="connect">One tap in the app.</h2>
-<ul class="clients">
-  {#each CLIENTS as client}
-    <li><a href={`/connect/${client.id}`}><img src={`/icons/${client.id}.svg`} alt="" width="22" height="22" /><span class="name">{client.name}</span></a></li>
+<ul class="agents">
+  {#each AGENTS as agent}
+    <li><a href={`/connect/${agent.client}`}><span class={iconClass(agent.icon)} style={iconStyle(agent.icon)}></span>{agent.name}</a></li>
   {/each}
 </ul>
-
-<h2 class="serif">What leaves your phone</h2>
-<p>Names, meeting dates, places and your notes. No phone numbers, no emails, no contacts upload. Each client gets its own URL; disconnect one with a tap, or delete the cloud copy entirely.</p>
