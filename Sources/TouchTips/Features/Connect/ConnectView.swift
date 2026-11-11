@@ -215,22 +215,24 @@ struct ConnectedView: View {
     let key: ConnectorKey
     var onDone: () -> Void
 
+    @State private var web: WebDestination?
+
     private var client: ConnectClient { key.kind }
     private var url: String { key.url ?? "" }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                pill(url)
+                pill(client.clipboardText(for: url))
 
                 HStack(spacing: 10) {
                     if client.sharesFirst {
                         share(prominent: true)
-                        if let open = client.openURL {
-                            openButton(open, prominent: false)
+                        if let way = client.way(for: url) {
+                            openButton(way, prominent: false)
                         }
-                    } else if let open = client.openURL {
-                        openButton(open, prominent: true)
+                    } else if let way = client.way(for: url) {
+                        openButton(way, prominent: true)
                         share(prominent: false)
                     } else {
                         share(prominent: true)
@@ -268,8 +270,12 @@ struct ConnectedView: View {
         }
         .background { Color.ground.ignoresSafeArea() }
         .serifTitle(client.name)
+        .sheet(item: $web) { destination in
+            SafariView(url: destination.url)
+                .ignoresSafeArea()
+        }
         .onAppear {
-            UIPasteboard.general.string = url
+            UIPasteboard.general.string = client.clipboardText(for: url)
             HapticManager.success()
         }
     }
@@ -292,23 +298,24 @@ struct ConnectedView: View {
     }
 
     @ViewBuilder
-    private func openButton(_ target: URL, prominent: Bool) -> some View {
-        let label = Text("Open \(client.name)").frame(maxWidth: .infinity)
+    private func openButton(_ way: ConnectClient.Way, prominent: Bool) -> some View {
+        let label = Text(client.openLabel).frame(maxWidth: .infinity)
+        let act = {
+            HapticManager.light()
+            switch way {
+            case let .app(target): openURL(target)
+            case let .web(target): web = WebDestination(url: target)
+            }
+        }
         if prominent {
-            Button {
-                HapticManager.light()
-                openURL(target)
-            } label: {
+            Button(action: act) {
                 label.foregroundStyle(.black)
             }
             .buttonStyle(.glassProminent)
             .tint(.white)
             .controlSize(.large)
         } else {
-            Button {
-                HapticManager.light()
-                openURL(target)
-            } label: {
+            Button(action: act) {
                 label
             }
             .buttonStyle(.glass)
@@ -320,14 +327,14 @@ struct ConnectedView: View {
     private func share(prominent: Bool) -> some View {
         let label = Text("Share").frame(maxWidth: .infinity)
         if prominent {
-            ShareLink(item: url) {
+            ShareLink(item: client.clipboardText(for: url)) {
                 label.foregroundStyle(.black)
             }
             .buttonStyle(.glassProminent)
             .tint(.white)
             .controlSize(.large)
         } else {
-            ShareLink(item: url) {
+            ShareLink(item: client.clipboardText(for: url)) {
                 label
             }
             .buttonStyle(.glass)

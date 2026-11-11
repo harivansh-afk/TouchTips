@@ -1,4 +1,4 @@
-// The clients you can connect, and what each needs. Mirrors web/src/lib/connect.ts.
+// The clients you can connect, and what each needs. Every path here comes from docs/connectors.md.
 
 import SwiftUI
 import UIKit
@@ -28,38 +28,69 @@ enum ConnectClient: String, CaseIterable, Identifiable, Hashable, Sendable {
         }
     }
 
-    /// After the URL is on the clipboard. One action each.
+    /// After the clipboard is filled. One action each.
     var steps: [String] {
         switch self {
-        case .claude: ["Settings → Connectors → Add custom connector", "Paste the URL. Add."]
-        case .chatgpt: ["Settings → Apps & Connectors → Developer mode", "Create → paste the URL, no authentication."]
-        case .grokBot: ["Tell your Bot: add this MCP server. Paste the URL.", "Or Connect apps → Add a custom connector → Remote HTTPS."]
-        case .instinct: ["Text Instinct: connect this MCP server. Paste the URL.", "Or Settings → MCP connections → name TouchTips, this URL."]
+        case .claude: ["Check the name and URL, then Continue.", "No sign-in → Add."]
+        case .chatgpt: ["+ → Add custom MCP server → paste the URL.", "No authentication → Create."]
+        case .grokBot: ["In any chat with your Bot, paste the message.", "Confirm when the Bot repeats it back."]
+        case .instinct: ["Settings → MCP connections → name TouchTips, this URL.", "Not there? Instinct hasn't opened custom MCP to everyone yet."]
         case .other: ["Give it the URL as an MCP server, no auth."]
         }
     }
 
-    /// The client's own app when it is installed, else the page in it where the URL gets pasted.
-    /// Nil when the way in is sharing the URL into a conversation.
+    /// What goes on the clipboard. Grok Bot takes the server as a chat message, so the message is the clipboard.
+    func clipboardText(for url: String) -> String {
+        switch self {
+        case .grokBot: "Add this MCP server: \(url)"
+        default: url
+        }
+    }
+
+    /// How "Open" gets in. `.app` hands off to iOS, which opens the client's app when it claims the link.
+    /// `.web` stays in an in-app browser, for clients whose iOS app can't take a server.
+    enum Way {
+        case app(URL)
+        case web(URL)
+    }
+
     @MainActor
-    var openURL: URL? {
+    func way(for url: String) -> Way? {
         switch self {
         case .claude:
-            if let scheme = URL(string: "claude://"), UIApplication.shared.canOpenURL(scheme) {
-                return scheme
-            }
-            return URL(string: "https://claude.ai/settings/connectors")
+            // Anthropic's install link: the add-custom-connector dialog, prefilled. claude.ai's universal-link
+            // file routes exactly this form into the Claude iOS app.
+            var parts = URLComponents(string: "https://claude.ai/customize/connectors")!
+            parts.queryItems = [
+                URLQueryItem(name: "modal", value: "add-custom-connector"),
+                URLQueryItem(name: "connectorName", value: "TouchTips"),
+                URLQueryItem(name: "connectorUrl", value: url),
+            ]
+            return parts.url.map { .app($0) }
         case .chatgpt:
-            // chatgpt.com is a universal link; the app takes it when installed.
-            return URL(string: "https://chatgpt.com/#settings/Connectors")
+            // The ChatGPT iOS app can't add servers (web only), so keep its universal link out of the way.
+            return URL(string: "https://chatgpt.com/plugins?no_universal_links=1").map { .web($0) }
+        case .grokBot:
+            if let scheme = URL(string: "grokbot://"), UIApplication.shared.canOpenURL(scheme) {
+                return .app(scheme)
+            }
+            return URL(string: "https://apps.apple.com/app/id6794501026").map { .app($0) }
         case .instinct:
-            return URL(string: "https://app.instinct.com")
-        case .grokBot, .other:
+            return URL(string: "https://app.instinct.com/settings").map { .web($0) }
+        case .other:
             return nil
         }
     }
 
-    /// Clients you reach by messaging them: Share leads, Open follows.
+    var openLabel: String {
+        switch self {
+        case .grokBot: "Open Grok Bot"
+        case .instinct: "Open Instinct settings"
+        default: "Open \(name)"
+        }
+    }
+
+    /// Clients you reach by messaging them lead with Share.
     var sharesFirst: Bool {
         switch self {
         case .grokBot, .instinct, .other: true
@@ -68,7 +99,7 @@ enum ConnectClient: String, CaseIterable, Identifiable, Hashable, Sendable {
     }
 
     static func claudeCodeCommand(_ url: String) -> String {
-        "claude mcp add --transport http touchtips \(url)"
+        "claude mcp add --transport http touchtips --scope user \(url)"
     }
 
     static func from(path: String) -> ConnectClient? {
