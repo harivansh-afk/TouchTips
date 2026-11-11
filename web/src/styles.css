@@ -64,11 +64,13 @@ p { margin: 0 0 18px; max-width: 58ch; }
 
 .clients { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
 .clients a {
-  display: block; padding: 16px 18px; border-radius: 16px; background: var(--card); border: 1px solid var(--hairline);
+  display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 16px; background: var(--card); border: 1px solid var(--hairline);
 }
 .clients a:hover { text-decoration: none; border-color: rgba(255, 255, 255, 0.35); }
-.clients .name { display: block; color: var(--fg); font-size: 16px; }
-.clients .tagline { display: block; font-size: 12px; margin-top: 2px; }
+.clients img { width: 22px; height: 22px; opacity: 0.9; }
+.clients .name { color: var(--fg); font-size: 16px; }
+.eyebrow { margin: 0 0 14px; }
+.eyebrow img { width: 28px; height: 28px; display: block; }
 
 .steps { counter-reset: step; list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 0; }
 .steps li { counter-increment: step; display: grid; grid-template-columns: 36px 1fr; gap: 12px; padding: 16px 0; border-top: 1px solid var(--hairline); color: var(--fg); }

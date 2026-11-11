@@ -23,5 +23,5 @@ export const POST: RequestHandler = async ({ request }) => {
 };
 
 function defaultName(client: Client): string {
-  return { claude: "Claude", chatgpt: "ChatGPT", "claude-code": "Claude Code", cursor: "Cursor", vscode: "VS Code", other: "Agent" }[client];
+  return { claude: "Claude", chatgpt: "ChatGPT", "claude-code": "Claude Code", instinct: "Instinct", grok: "Grok", other: "Agent" }[client];
 }

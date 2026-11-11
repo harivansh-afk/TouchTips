@@ -28,6 +28,13 @@ function check(cond, what) {
   console.log(`ok ${step}: ${what}`);
 }
 
+// A fresh deployment can report success a few seconds before the alias serves it.
+for (let i = 0; i < 30; i++) {
+  const probe = await fetch(`${BASE}/v1/keys`).catch(() => null);
+  if (probe?.status === 401) break;
+  await new Promise((r) => setTimeout(r, 3000));
+}
+
 const deviceKey = "tt_" + randomBytes(32).toString("base64url");
 const device = { authorization: `Bearer ${deviceKey}`, "content-type": "application/json" };
 
@@ -43,12 +50,15 @@ check(r.status === 401, "no device key → 401");
 r = await fetch(`${BASE}/v1/keys`, { method: "POST", headers: device, body: JSON.stringify({ client: "claude" }) });
 const minted = await r.json();
 check(r.status === 201 && minted.url?.startsWith(`${BASE}/c/`) && minted.url.endsWith("/mcp"), `connector minted for ${minted.name}`);
-r = await fetch(`${BASE}/v1/keys`, { method: "POST", headers: device, body: JSON.stringify({ client: "other", name: "Grok bot" }) });
+r = await fetch(`${BASE}/v1/keys`, { method: "POST", headers: device, body: JSON.stringify({ client: "grok" }) });
 const second = await r.json();
-check(r.status === 201 && second.name === "Grok bot", "second connector with a custom name");
+check(r.status === 201 && second.name === "Grok", "second connector for Grok");
+r = await fetch(`${BASE}/v1/keys`, { method: "POST", headers: device, body: JSON.stringify({ client: "grok" }) });
+const replaced = await r.json();
+check(r.status === 201 && replaced.id !== second.id, "re-tapping an unused client replaces its key");
 r = await fetch(`${BASE}/v1/keys`, { headers: device });
 let { keys } = await r.json();
-check(keys.length === 2 && !keys.some((k) => k.url), "phone lists both, URLs never echoed back");
+check(keys.length === 2 && !keys.some((k) => k.url), "phone lists two, URLs never echoed back");
 
 // 3. MCP through the URL, no auth headers at all.
 let nextId = 1;
@@ -93,12 +103,14 @@ check(r.status === 200, "connector revoked");
 res = await rpc(minted.url, "tools/list", {});
 check(res.status === 404, "revoked URL rejected");
 res = await rpc(second.url, "tools/list", {});
-check(res.status === 200, "other connector unaffected");
+check(res.status === 404, "the replaced Grok URL is dead");
+res = await rpc(replaced.url, "tools/list", {});
+check(res.status === 200, "the current Grok URL works");
 
 // 5. Delete everything.
 r = await fetch(`${BASE}/v1/account`, { method: "DELETE", headers: device });
 check(r.status === 204, "account deleted");
-res = await rpc(second.url, "tools/list", {});
+res = await rpc(replaced.url, "tools/list", {});
 check(res.status === 404, "every connector gone");
 r = await fetch(`${BASE}/v1/keys`, { headers: device });
 check((await r.json()).keys.length === 0, "no keys remain");
