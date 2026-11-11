@@ -32,7 +32,14 @@ export interface ApprovalPush {
 }
 
 export async function pushApproval(p: ApprovalPush): Promise<PushResult> {
-  const jwt = providerToken();
+  let jwt: string | null;
+  try {
+    jwt = providerToken();
+  } catch (e) {
+    // A broken key must not break sign-in: the phone can still allow from the app.
+    console.error("apns key unusable", e instanceof Error ? e.message : e);
+    return "failed";
+  }
   if (!jwt) return "unconfigured";
   if (!/^[0-9a-f]{64,200}$/i.test(p.deviceToken)) return "bad-token";
   const payload = JSON.stringify({
