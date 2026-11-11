@@ -45,11 +45,10 @@ final class Notifier: NSObject {
     private nonisolated static let contactKey = "contactID"
     /// A client's sign-in asking this phone. Sent by the server; see web/src/lib/server/apns.ts.
     private nonisolated static let approvalCategory = "connect-approval"
-    private nonisolated static let approvalAllow = "allow"
     private nonisolated static let approvalDeny = "deny"
     private nonisolated static let requestKey = "requestId"
 
-    /// Allow (true), Don't Allow (false), or show it on screen (nil). Set by AppModel.
+    /// Don't Allow (false), or show it on screen to pick the number (nil). Set by AppModel.
     var onApproval: ((String, Bool?) async -> Void)?
 
     private let database: AppDatabase
@@ -96,9 +95,8 @@ final class Notifier: NSObject {
             ),
             UNNotificationCategory(
                 identifier: Self.approvalCategory,
+                // No Allow here: allowing means picking the number on the sign-in page, in the app.
                 actions: [
-                    // Unlocking first: nobody can allow from a locked phone's lock screen.
-                    UNNotificationAction(identifier: Self.approvalAllow, title: "Allow", options: .authenticationRequired),
                     UNNotificationAction(identifier: Self.approvalDeny, title: "Don't Allow", options: .destructive),
                 ],
                 intentIdentifiers: []
@@ -306,7 +304,7 @@ extension Notifier: UNUserNotificationCenterDelegate {
         let action = response.actionIdentifier
         let content = response.notification.request.content
         if content.categoryIdentifier == Self.approvalCategory, let id = content.userInfo[Self.requestKey] as? String {
-            let allow: Bool? = action == Self.approvalAllow ? true : action == Self.approvalDeny ? false : nil
+            let allow: Bool? = action == Self.approvalDeny ? false : nil
             Task { @MainActor in approve(id, allow: allow, done: completionHandler) }
             return
         }

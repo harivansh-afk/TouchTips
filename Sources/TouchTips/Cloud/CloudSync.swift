@@ -107,29 +107,40 @@ final class CloudSync {
     /// Anything waiting goes on screen. Called when the app comes forward and when a prompt is tapped.
     func checkApprovals(showing id: String? = nil) async {
         guard isEnabled, let api else { return }
-        guard let requests = try? await api.approvals() else { return }
+        guard let requests = try? await api.approvals(opened: id) else { return }
         let next = id.flatMap { id in requests.first { $0.id == id } } ?? requests.first
         if let next, pendingApproval?.id != next.id {
             pendingApproval = next
         }
     }
 
-    /// Allow or Don't Allow, from the sheet or straight from the notification.
-    func decide(_ id: String, allow: Bool) async {
-        guard let api else { return }
+    /// Allow with the number the user tapped, or Don't Allow (from the sheet or the notification).
+    /// The outcome says whether the number matched the sign-in page's.
+    @discardableResult
+    func decide(_ id: String, allow: Bool, number: Int? = nil) async -> ApprovalOutcome? {
+        guard let api else { return nil }
         do {
-            _ = try await api.decide(id, allow: allow)
-            if pendingApproval?.id == id {
+            let outcome = try await api.decide(id, allow: allow, number: number)
+            // A wrong number stays on screen to say why; anything else is finished.
+            if pendingApproval?.id == id, outcome != .wrongNumber {
                 pendingApproval = nil
             }
-            if allow {
+            if outcome == .allowed {
                 HapticManager.success()
+                // Connected: no more prompts until the user taps a client again.
+                try? await api.closeConnect()
+            } else if outcome == .wrongNumber {
+                HapticManager.warning()
             }
-            // The client exchanges its code a moment later; the list picks it up then.
-            try? await Task.sleep(for: .seconds(3))
-            await refreshKeys()
+            Task {
+                // The client exchanges its code a moment later; the list picks it up then.
+                try? await Task.sleep(for: .seconds(3))
+                await refreshKeys()
+            }
+            return outcome
         } catch {
             lastError = error.localizedDescription
+            return nil
         }
     }
 

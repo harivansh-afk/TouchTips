@@ -15,6 +15,7 @@ const STYLE = `
   h1 { font: italic 400 38px/1.1 "Instrument Serif", Georgia, serif; margin: 0 0 14px; letter-spacing: -.01em; }
   p { color: rgba(255,255,255,.62); margin: 0 0 22px; }
   .who { color: #fff; }
+  .number { font: italic 400 96px/1 "Instrument Serif", Georgia, serif; margin: 6px 0 28px; letter-spacing: .02em; }
   .pulse { width: 12px; height: 12px; border-radius: 50%; background: #fff; margin: 0 auto 26px; animation: p 1.6s ease-in-out infinite; }
   @keyframes p { 0%,100% { opacity: .2; transform: scale(.8) } 50% { opacity: 1; transform: scale(1) } }
   a.button { display: block; background: #fff; color: #000; text-decoration: none; font-weight: 600;

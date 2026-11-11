@@ -3,9 +3,14 @@
 // resource indicators (RFC 8707), issuer in the response (RFC 9207), rotating refresh tokens.
 //
 // Each phone is its own issuer: https://touchtips.app/u/<public id>. There is no sign-in page. The phone
-// approves: a push asks "Allow Claude?", and Allow sends the device key, which unwraps the data key.
+// approves: a push asks "Allow Claude?", and the device key unwraps the data key for that one request.
+//
+// The approval is bound to the browser that started it (number matching, like CIBA's binding message):
+// the authorize page shows a number, and the phone only allows if the user picks that number. Anyone else
+// who starts a sign-in sees their own number, never the user's, so a stray Allow can't hand them a code.
 import { BASE_URL } from "./config";
 import { query } from "./db";
+import { randomInt } from "node:crypto";
 import { newId, openForServer, pkceMatches, sealForServer, secret, sha256, unwrap, wrap } from "./crypto";
 import type { Account } from "./account";
 import { pushApproval } from "./apns";
@@ -17,6 +22,7 @@ const REFRESH_DAYS = 60;
 const REQUEST_MINUTES = 10;
 const CODE_MINUTES = 5;
 const MAX_PENDING = 10;
+const REFRESH_GRACE_SECONDS = 60;
 
 export function issuer(publicId: string): string {
   return `${BASE_URL}/u/${publicId}`;
@@ -134,7 +140,7 @@ function isLoopback(url: URL): boolean {
 /** What the phone shows: "Claude", or "Some Name · evil.example" when the redirect isn't one we know for that client. */
 export function displayName(windowClient: Client | null, registeredName: string, redirectUri: string): string {
   const url = new URL(redirectUri);
-  if (isLoopback(url)) return registeredName.length > 40 ? `${registeredName.slice(0, 40)}…` : registeredName;
+  if (isLoopback(url)) return `${registeredName.slice(0, 40)} · a computer`;
   const host = url.protocol === "https:" ? url.hostname : url.protocol.slice(0, -1);
   const known = windowClient ? KNOWN_HOSTS[windowClient] : undefined;
   if (known?.some((h) => host === h || host.endsWith(`.${h}`))) return clientName(windowClient!);
@@ -144,7 +150,20 @@ export function displayName(windowClient: Client | null, registeredName: string,
 export type AuthorizeOutcome =
   | { kind: "error"; message: string }
   | { kind: "redirect"; location: string }
-  | { kind: "wait"; requestId: string; browserSecret: string; displayName: string; pushed: boolean };
+  | { kind: "wait"; requestId: string; browserSecret: string; displayName: string; number: number };
+
+/** The number the page shows, and two others for the phone to offer beside it, shuffled. */
+function numbers(): { match: number; choices: number[] } {
+  const picked = new Set<number>();
+  while (picked.size < 3) picked.add(randomInt(10, 100));
+  const choices = [...picked];
+  const match = choices[0];
+  for (let i = choices.length - 1; i > 0; i--) {
+    const j = randomInt(0, i + 1);
+    [choices[i], choices[j]] = [choices[j], choices[i]];
+  }
+  return { match, choices };
+}
 
 function errorRedirect(redirectUri: string, publicId: string, error: string, state: string | null, description?: string): AuthorizeOutcome {
   const url = new URL(redirectUri);
@@ -172,18 +191,18 @@ export async function authorize(publicId: string, userHash: string, params: URLS
   if (!redirectUri || !client.redirect_uris.includes(redirectUri)) {
     return { kind: "error", message: "This sign-in link doesn't match the app that registered it." };
   }
-  // From here on, errors go back to the client.
+  // Anyone can register a client, so a malformed request gets this page rather than a redirect: no open redirect.
   const state = params.get("state");
-  if (params.get("response_type") !== "code") return errorRedirect(redirectUri, publicId, "unsupported_response_type", state);
+  if (params.get("response_type") !== "code") return { kind: "error", message: "This app asked for a kind of sign-in TouchTips doesn't offer." };
   const challenge = params.get("code_challenge") ?? "";
   if (params.get("code_challenge_method") !== "S256" || !/^[A-Za-z0-9_-]{43}$/.test(challenge)) {
-    return errorRedirect(redirectUri, publicId, "invalid_request", state, "PKCE with S256 is required");
+    return { kind: "error", message: "This app's sign-in is missing PKCE, which TouchTips requires." };
   }
   const resource = params.get("resource");
-  if (resource && !sameResource(resource, publicId)) return errorRedirect(redirectUri, publicId, "invalid_target", state);
+  if (resource && !sameResource(resource, publicId)) return { kind: "error", message: "This sign-in is for a different TouchTips server." };
   const scope = params.get("scope");
   if (scope && !scope.split(" ").filter(Boolean).every((s) => s === SCOPE)) {
-    return errorRedirect(redirectUri, publicId, "invalid_scope", state, `Only "${SCOPE}" is offered`);
+    return { kind: "error", message: `This app asked for more than TouchTips offers ("${SCOPE}").` };
   }
 
   const account = (
@@ -192,24 +211,29 @@ export async function authorize(publicId: string, userHash: string, params: URLS
       [userHash],
     )
   )[0];
-  const pending = await query<{ n: number }>(
-    "SELECT count(*)::int AS n FROM auth_request WHERE user_hash = $1 AND status = 'pending' AND expires_at > now()",
-    [userHash],
+  // Housekeeping: finished requests go after an hour (long enough to catch a replayed code).
+  await query("DELETE FROM auth_request WHERE user_hash = $1 AND expires_at < now() - interval '1 hour'", [userHash]);
+  // A flood of sign-ins can't lock the user out: past the cap, the oldest waiting ones make room.
+  await query(
+    `DELETE FROM auth_request WHERE id IN (
+       SELECT id FROM auth_request WHERE user_hash = $1 AND status = 'pending' ORDER BY created_at DESC OFFSET $2)`,
+    [userHash, MAX_PENDING - 1],
   );
-  if (pending[0].n >= MAX_PENDING) return { kind: "error", message: "Too many sign-in attempts. Try again in a few minutes." };
 
   const windowClient = account?.window_open ? asClient(account.window_client) : null;
   const name = displayName(windowClient, client.client_name, redirectUri);
   const requestId = newId("r_");
   const browserSecret = secret();
+  const { match, choices } = numbers();
   await query(
-    `INSERT INTO auth_request (id, user_hash, client_id, client, display_name, redirect_uri, state, code_challenge, browser_hash, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + make_interval(mins => $10))`,
-    [requestId, userHash, clientId, windowClient ?? "other", name, redirectUri, state, challenge, sha256(browserSecret), REQUEST_MINUTES],
+    `INSERT INTO auth_request (id, user_hash, client_id, client, display_name, redirect_uri, redirect_given, state, code_challenge,
+                               browser_hash, match, choices, in_window, expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now() + make_interval(mins => $14))`,
+    [requestId, userHash, clientId, windowClient ?? "other", name, redirectUri, given !== null, state, challenge, sha256(browserSecret), match, choices, windowClient !== null, REQUEST_MINUTES],
   );
 
   // A prompt only while the user is connecting from the app, so nobody else can make the phone ask.
-  let pushed = false;
+  // The page reads the same either way, so it doesn't reveal when someone is connecting.
   if (windowClient && OAUTH_CLIENTS.includes(windowClient) && account?.apns_token && account.apns_env) {
     const result = await pushApproval({
       deviceToken: account.apns_token,
@@ -218,10 +242,9 @@ export async function authorize(publicId: string, userHash: string, params: URLS
       displayName: name,
       expiresInSeconds: REQUEST_MINUTES * 60,
     });
-    pushed = result === "sent";
     if (result === "bad-token") await query("UPDATE account SET apns_token = NULL WHERE user_hash = $1", [userHash]);
   }
-  return { kind: "wait", requestId, browserSecret, displayName: name, pushed };
+  return { kind: "wait", requestId, browserSecret, displayName: name, number: match };
 }
 
 // MARK: - The phone decides
@@ -230,25 +253,46 @@ export interface PendingRequest {
   id: string;
   client: Client;
   name: string;
+  /** Whether the sign-in returns to the site of the client the user tapped. */
+  recognised: boolean;
+  /** One of these is on the sign-in page. */
+  choices: number[];
   createdAt: string;
 }
 
-export async function pendingRequests(userHash: string): Promise<PendingRequest[]> {
+/** What the phone may show: sign-ins started while the user was connecting from the app, plus `opened`, a request
+ *  the user reached through the "Open TouchTips" link on its own sign-in page. Anything else never reaches the screen,
+ *  so nobody can put a prompt in front of the user at a moment they aren't connecting. */
+export async function pendingRequests(userHash: string, opened: string | null = null): Promise<PendingRequest[]> {
   return query<PendingRequest>(
-    `SELECT id, client, display_name AS name, created_at AS "createdAt" FROM auth_request
-     WHERE user_hash = $1 AND status = 'pending' AND expires_at > now() ORDER BY created_at DESC`,
-    [userHash],
+    `SELECT id, client, display_name AS name, display_name NOT LIKE '% · %' AS recognised, choices, created_at AS "createdAt" FROM auth_request
+     WHERE user_hash = $1 AND status = 'pending' AND expires_at > now() AND (in_window OR id = $2) ORDER BY created_at DESC`,
+    [userHash, opened],
   );
 }
 
-/** Allow or deny. Allow hands the data key to the request, sealed under the server key until the token exchange. */
-export async function decide(account: Account, requestId: string, allow: boolean): Promise<boolean> {
-  const rows = await query<{ id: string }>(
-    `UPDATE auth_request SET status = $3, pending_dk = $4
-     WHERE id = $1 AND user_hash = $2 AND status = 'pending' AND expires_at > now() RETURNING id`,
-    [requestId, account.userHash, allow ? "allowed" : "denied", allow ? sealForServer(account.dataKey, `pending:${requestId}`) : null],
+export type Decision = "allowed" | "denied" | "wrong-number" | "gone";
+
+/** Allow (with the number the user picked) or deny. A wrong number denies: no second guess.
+ *  Allow hands the data key to the request, sealed under the server key until the token exchange. */
+export async function decide(account: Account, requestId: string, allow: boolean, number: number | null): Promise<Decision> {
+  const rows = await query<{ match: number }>(
+    "SELECT match FROM auth_request WHERE id = $1 AND user_hash = $2 AND status = 'pending' AND expires_at > now()",
+    [requestId, account.userHash],
   );
-  return rows.length > 0;
+  if (!rows[0]) return "gone";
+  const outcome: Decision = !allow ? "denied" : number === rows[0].match ? "allowed" : "wrong-number";
+  const updated = await query<{ id: string }>(
+    `UPDATE auth_request SET status = $3, pending_dk = $4
+     WHERE id = $1 AND user_hash = $2 AND status = 'pending' RETURNING id`,
+    [
+      requestId,
+      account.userHash,
+      outcome === "allowed" ? "allowed" : "denied",
+      outcome === "allowed" ? sealForServer(account.dataKey, `pending:${requestId}`) : null,
+    ],
+  );
+  return updated.length ? outcome : "gone";
 }
 
 /** The authorize page asks with its secret. Once allowed, it gets the redirect carrying a fresh one-time code. */
@@ -326,13 +370,14 @@ async function exchangeCode(userHash: string, form: URLSearchParams): Promise<To
     client: Client;
     display_name: string;
     redirect_uri: string;
+    redirect_given: boolean;
     code_challenge: string;
     status: string;
     pending_dk: string | null;
     grant_id: string | null;
     expired: boolean;
   }>(
-    `SELECT id, user_hash, client_id, client, display_name, redirect_uri, code_challenge, status, pending_dk, grant_id,
+    `SELECT id, user_hash, client_id, client, display_name, redirect_uri, redirect_given, code_challenge, status, pending_dk, grant_id,
             expires_at < now() AS expired
      FROM auth_request WHERE code_hash = $1`,
     [sha256(code)],
@@ -347,38 +392,45 @@ async function exchangeCode(userHash: string, form: URLSearchParams): Promise<To
   }
   if (req.status !== "issued" || req.expired || !req.pending_dk) throw invalid;
   if (form.get("client_id") !== req.client_id) throw new OAuthError("invalid_client", "Wrong client", 401);
-  if (form.get("redirect_uri") !== req.redirect_uri) throw invalid;
+  // OAuth 2.1: required here exactly when the authorization request had it; if sent, it must match.
+  const redirect = form.get("redirect_uri");
+  if ((req.redirect_given || redirect !== null) && redirect !== req.redirect_uri) throw invalid;
   if (!pkceMatches(form.get("code_verifier") ?? "", req.code_challenge)) throw invalid;
 
-  const claimed = await query<{ id: string }>(
-    "UPDATE auth_request SET status = 'exchanged', pending_dk = NULL WHERE id = $1 AND status = 'issued' RETURNING id",
-    [req.id],
-  );
-  if (!claimed.length) throw invalid;
+  // The grant exists before the code is marked used, so a replay racing this exchange still finds it to revoke.
   const dataKey = openForServer(req.pending_dk, `pending:${req.id}`);
   const grantId = newId("g_");
   await query(
     "INSERT INTO oauth_grant (id, user_hash, client_id, client, name, last_used_at) VALUES ($1, $2, $3, $4, $5, now())",
     [grantId, userHash, req.client_id, req.client, req.display_name],
   );
-  await query("UPDATE auth_request SET grant_id = $2 WHERE id = $1", [req.id, grantId]);
+  const claimed = await query<{ id: string }>(
+    "UPDATE auth_request SET status = 'exchanged', pending_dk = NULL, grant_id = $2 WHERE id = $1 AND status = 'issued' RETURNING id",
+    [req.id, grantId],
+  );
+  if (!claimed.length) {
+    await query("DELETE FROM oauth_grant WHERE id = $1", [grantId]);
+    throw invalid;
+  }
   return mint(grantId, dataKey);
 }
 
 async function refresh(userHash: string, form: URLSearchParams): Promise<TokenResponse> {
   const presented = form.get("refresh_token") ?? "";
-  const rows = await query<{ grant_id: string; dk_wrap: string; used: boolean; expired: boolean; user_hash: string; client_id: string }>(
-    `SELECT t.grant_id, t.dk_wrap, t.used_at IS NOT NULL AS used, t.expires_at < now() AS expired, g.user_hash, g.client_id
+  const rows = await query<{ grant_id: string; dk_wrap: string; used: boolean; recent: boolean; expired: boolean; user_hash: string; client_id: string }>(
+    `SELECT t.grant_id, t.dk_wrap, t.used_at IS NOT NULL AS used, t.used_at > now() - make_interval(secs => $2) AS recent,
+            t.expires_at < now() AS expired, g.user_hash, g.client_id
      FROM oauth_token t JOIN oauth_grant g ON g.id = t.grant_id WHERE t.token_hash = $1 AND t.kind = 'refresh'`,
-    [sha256(presented)],
+    [sha256(presented), REFRESH_GRACE_SECONDS],
   );
   const row = rows[0];
   const invalid = new OAuthError("invalid_grant", "The refresh token is invalid, expired or already used");
   if (!row || row.user_hash !== userHash) throw invalid;
   if (form.get("client_id") !== row.client_id) throw new OAuthError("invalid_client", "Wrong client", 401);
   if (row.used) {
-    // A rotated-out refresh token came back: it was copied. End the whole grant.
-    await query("DELETE FROM oauth_grant WHERE id = $1", [row.grant_id]);
+    // A rotated-out refresh token came back. Within a minute it's most likely the client retrying a lost
+    // response: refuse it, nothing more. Later, it was copied: end the whole grant.
+    if (!row.recent) await query("DELETE FROM oauth_grant WHERE id = $1", [row.grant_id]);
     throw invalid;
   }
   if (row.expired) throw invalid;

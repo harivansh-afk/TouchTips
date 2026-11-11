@@ -121,7 +121,8 @@ async function startAuthorize({ redirect = REDIRECT, clientId = client.client_id
   const page = await fetch(u, { redirect: "manual" });
   const html = page.status === 200 ? await page.text() : "";
   const ask = /const ask = \{ request: "([^"]+)", secret: "([^"]+)" \}/.exec(html);
-  return { page, html, verifier, request: ask?.[1], secret: ask?.[2], pollUrl: `${new URL(endpoint).origin}${new URL(endpoint).pathname.replace(/authorize$/, "poll")}` };
+  const number = Number(/id="number">(\d+)</.exec(html)?.[1]);
+  return { page, html, verifier, number, request: ask?.[1], secret: ask?.[2], pollUrl: `${new URL(endpoint).origin}${new URL(endpoint).pathname.replace(/authorize$/, "poll")}` };
 }
 const pollOnce = async (a, secret = a.secret) =>
   (await fetch(a.pollUrl, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ request: a.request, secret }) })).json();
@@ -131,32 +132,36 @@ async function exchange(a, location, overrides = {}) {
   const res = await fetch(asMeta.token_endpoint, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body });
   return { status: res.status, body: await res.json() };
 }
-async function allowAll(headers = phone) {
-  const { requests } = await (await api("/v1/requests", {}, headers)).json();
-  for (const q of requests) await api(`/v1/requests/${q.id}`, { method: "POST", body: JSON.stringify({ allow: true }) }, headers);
-}
+// The phone taps the number the page shows.
+const allow = (a, headers = phone, number = a.number) =>
+  api(`/v1/requests/${a.request}`, { method: "POST", body: JSON.stringify({ allow: true, number }) }, headers);
 
 // 5. Authorize: bad requests first.
 let a = await startAuthorize({ redirect: "https://evil.example/cb" });
 check(a.page.status === 200 && /Can(&#39;|.)t connect/.test(a.html), "unregistered redirect gets an error page, never a redirect");
 a = await startAuthorize({ extra: { code_challenge_method: "plain" } });
-check(a.page.status === 302 && new URL(a.page.headers.get("location")).searchParams.get("error") === "invalid_request", "PKCE plain refused");
+check(a.page.status === 200 && !a.request && /PKCE/.test(a.html), "PKCE plain refused on the page, no redirect");
 a = await startAuthorize({ extra: { resource: "https://evil.example/mcp" } });
-check(a.page.status === 302 && new URL(a.page.headers.get("location")).searchParams.get("error") === "invalid_target", "wrong resource refused");
+check(a.page.status === 200 && !a.request, "wrong resource refused on the page, no redirect");
+a = await startAuthorize({ extra: { response_type: "token" } });
+check(a.page.status === 200 && !a.request, "response_type=token can't be used as an open redirect");
 
 // 6. The real one: the page waits, the phone sees the request named for the client the user tapped.
 a = await startAuthorize();
-check(a.page.status === 200 && a.request && a.secret, "authorize page waits for the phone");
+check(a.page.status === 200 && a.request && a.secret && a.number >= 10 && a.number <= 99, `authorize page waits for the phone, showing ${a.number}`);
 check(a.page.headers.get("x-frame-options") === "DENY" && /frame-ancestors 'none'/.test(a.page.headers.get("content-security-policy") ?? ""), "authorize page can't be framed");
 check((await pollOnce(a)).status === "pending", "page polls: pending");
 let { requests } = await (await api("/v1/requests")).json();
-check(requests.length === 1 && requests[0].id === a.request && requests[0].name === "Claude", `phone sees "Allow ${requests[0]?.name}?"`);
+check(requests.length === 1 && requests[0].id === a.request && requests[0].name === "Claude" && requests[0].recognised, `phone sees "Allow ${requests[0]?.name}?"`);
+check(requests[0].choices.length === 3 && requests[0].choices.includes(a.number), `phone offers ${requests[0].choices.join(", ")}`);
 const stranger = newPhone();
 await api("/v1/snapshot", { method: "PUT", body: JSON.stringify(fixture) }, stranger);
-r = await api(`/v1/requests/${a.request}`, { method: "POST", body: JSON.stringify({ allow: true }) }, stranger);
+r = await allow(a, stranger);
 check(r.status === 404, "another phone can't allow it");
 r = await api(`/v1/requests/${a.request}`, { method: "POST", body: JSON.stringify({ allow: true }) });
-check(r.status === 200, "phone taps Allow");
+check(r.status === 400, "Allow without the page's number is refused");
+r = await allow(a);
+check(r.status === 200 && (await r.json()).outcome === "allowed", "phone taps the matching number");
 check((await pollOnce(a, randomBytes(32).toString("base64url"))).status === "expired", "polling without the page's secret gets nothing");
 let done = await pollOnce(a);
 const location = new URL(done.location);
@@ -207,18 +212,25 @@ check(res.status === 200, "new access token works");
 t = await refreshWith(tokens.refresh_token);
 check(t.status === 400 && t.body.error === "invalid_grant", "replayed refresh token refused");
 res = await rpc(mcpUrl, "tools/list", {}, rotated.access_token);
-check(res.status === 401, "…and the replay ends the whole grant");
+check(res.status === 200, "…a quick retry (a lost response) doesn't end the grant");
 
-// 11. Deny.
+// 11. Deny, and the wrong number.
 a = await startAuthorize();
-({ requests } = await (await api("/v1/requests")).json());
-await api(`/v1/requests/${requests[0].id}`, { method: "POST", body: JSON.stringify({ allow: false }) });
+await api(`/v1/requests/${a.request}`, { method: "POST", body: JSON.stringify({ allow: false }) });
 done = await pollOnce(a);
 check(done.status === "done" && new URL(done.location).searchParams.get("error") === "access_denied", "Don't Allow → access_denied back to the client");
+a = await startAuthorize();
+({ requests } = await (await api("/v1/requests")).json());
+const wrong = requests.find((q) => q.id === a.request).choices.find((n) => n !== a.number);
+r = await allow(a, phone, wrong);
+check((await r.json()).outcome === "wrong-number", "a different number than the page's is refused…");
+check((await allow(a)).status === 404, "…with no second guess");
+done = await pollOnce(a);
+check(new URL(done.location).searchParams.get("error") === "access_denied", "…and the client is told no");
 
 // 12. A code used twice revokes what the first use got.
 a = await startAuthorize();
-await allowAll();
+await allow(a);
 done = await pollOnce(a);
 t = await exchange(a, done.location);
 tokens = t.body;
@@ -229,7 +241,7 @@ check(res.status === 401, "…and the first exchange's tokens are revoked");
 
 // 13. Disconnect from the phone.
 a = await startAuthorize();
-await allowAll();
+await allow(a);
 done = await pollOnce(a);
 tokens = (await exchange(a, done.location)).body;
 let { keys } = await (await api("/v1/keys")).json();
@@ -245,7 +257,24 @@ check(res.status === 401, "disconnected token refused at once");
 await api("/v1/connect", { method: "POST", body: JSON.stringify({ client: "chatgpt" }) }, stranger);
 a = await startAuthorize({ endpoint: `${new URL(strangerUrl).origin}${new URL(strangerUrl).pathname.replace(/mcp$/, "oauth/authorize")}`, extra: { resource: strangerUrl } });
 ({ requests } = await (await api("/v1/requests", {}, stranger)).json());
-check(requests.length === 1 && requests[0].name === "Claude · claude.ai", `mismatched client shows its host: "${requests[0]?.name}"`);
+check(requests.length === 1 && requests[0].name === "Claude · claude.ai" && !requests[0].recognised, `mismatched client shows its host: "${requests[0]?.name}"`);
+a = await startAuthorize({ redirect: "http://localhost:4000/cb", clientId: (await (await fetch(asMeta.registration_endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: "Claude", redirect_uris: ["http://localhost:4000/cb"] }) })).json()).client_id, endpoint: `${new URL(strangerUrl).origin}${new URL(strangerUrl).pathname.replace(/mcp$/, "oauth/authorize")}`, extra: { resource: strangerUrl } });
+({ requests } = await (await api("/v1/requests", {}, stranger)).json());
+check(requests.some((q) => q.name === "Claude · a computer" && !q.recognised), "a localhost sign-in never passes as a named client");
+
+// 14b. Outside a connect window, nothing reaches the phone unless the user opens it from the sign-in page.
+const quiet = newPhone();
+r = await api("/v1/connect", { method: "POST", body: JSON.stringify({ client: "claude" }) }, quiet);
+const quietUrl = (await r.json()).url;
+// The app closes the window after Allow; here it stands in for ten minutes passing.
+r = await api("/v1/connect", { method: "DELETE" }, quiet);
+check(r.status === 200, "window closed");
+a = await startAuthorize({ endpoint: quietUrl.replace(/mcp$/, "oauth/authorize"), extra: { resource: quietUrl } });
+({ requests } = await (await api("/v1/requests", {}, quiet)).json());
+check(a.request && requests.length === 0, "a sign-in outside the window never reaches the screen");
+({ requests } = await (await api(`/v1/requests?opened=${a.request}`, {}, quiet)).json());
+check(requests.length === 1 && requests[0].id === a.request, "…unless the user opens it from its own page");
+await api("/v1/account", { method: "DELETE" }, quiet);
 
 // 15. Connector URLs, for clients that can't do OAuth.
 r = await api("/v1/keys", { method: "POST", body: JSON.stringify({ client: "instinct" }) });

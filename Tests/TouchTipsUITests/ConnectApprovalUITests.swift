@@ -10,14 +10,15 @@ import XCTest
 @MainActor
 final class ConnectApprovalUITests: XCTestCase {
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-    private var base = ""
+    private var base: String {
+        ProcessInfo.processInfo.environment["TOUCHTIPS_CLOUD_E2E"] ?? ""
+    }
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        guard let base = ProcessInfo.processInfo.environment["TOUCHTIPS_CLOUD_E2E"] else {
+        guard ProcessInfo.processInfo.environment["TOUCHTIPS_CLOUD_E2E"] != nil else {
             throw XCTSkip("Set TOUCHTIPS_CLOUD_E2E to a running server to run this test")
         }
-        self.base = base
     }
 
     func testClientSignsInAndThePhoneAllows() async throws {
@@ -43,31 +44,49 @@ final class ConnectApprovalUITests: XCTestCase {
 
         // Sign-in while TouchTips is open: the push becomes the Allow sheet.
         var attempt = try await client.authorize()
-        let allow = app.buttons["approval.allow"]
-        XCTAssertTrue(allow.waitForExistence(timeout: 30), "no Allow sheet: \(app.debugDescription)")
+        let number = app.buttons["approval.number.\(attempt.number)"]
+        XCTAssertTrue(number.waitForExistence(timeout: 30), "no Allow sheet: \(app.debugDescription)")
         XCTAssertTrue(app.staticTexts["Allow Claude?"].exists)
-        allow.tap()
+        number.tap()
         var tokens = try await client.finish(attempt)
         let found = try await client.searchPeople("QA Alice", token: tokens.accessToken)
         XCTAssertTrue(found.contains("QA Alice"), found)
 
-        // Sign-in while TouchTips is in the background: Allow straight from the notification.
+        // Sign-in while TouchTips is in the background: the notification opens the number picker.
+        // Allowing closed the window, so the user starts this one from the app again, as they would.
+        app.buttons["Done"].firstMatch.tap()
+        app.buttons["Connect"].tap()
+        XCTAssertTrue(claude.waitForExistence(timeout: 10))
+        claude.tap()
+        XCTAssertTrue(field.waitForExistence(timeout: 20))
         let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
         settings.activate()
         try await Task.sleep(for: .seconds(2))
         attempt = try await client.authorize()
         let notice = springboard.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Allow Claude?")).firstMatch
         XCTAssertTrue(notice.waitForExistence(timeout: 20), springboard.debugDescription)
-        notice.press(forDuration: 1.2)
-        let action = springboard.buttons["Allow"]
-        XCTAssertTrue(action.waitForExistence(timeout: 5), springboard.debugDescription)
-        action.tap()
+        notice.tap()
+        let second = app.buttons["approval.number.\(attempt.number)"]
+        XCTAssertTrue(second.waitForExistence(timeout: 15), app.debugDescription)
+        second.tap()
         tokens = try await client.finish(attempt)
         let bob = try await client.searchPeople("QA Bob", token: tokens.accessToken)
         XCTAssertTrue(bob.contains("QA Bob"), bob)
 
-        // Don't Allow sends the client away with nothing.
-        app.activate()
+        // A wrong number allows nothing, and Don't Allow sends the client away with nothing.
+        app.buttons["Done"].firstMatch.tap()
+        app.buttons["Connect"].tap()
+        XCTAssertTrue(claude.waitForExistence(timeout: 10))
+        claude.tap()
+        XCTAssertTrue(field.waitForExistence(timeout: 20))
+        attempt = try await client.authorize()
+        let decoy = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'approval.number.' AND identifier != %@", "approval.number.\(attempt.number)")).firstMatch
+        XCTAssertTrue(decoy.waitForExistence(timeout: 30))
+        decoy.tap()
+        XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 10))
+        app.buttons["Close"].tap()
+        let refused = try await client.waitForRedirect(attempt)
+        XCTAssertEqual(URLComponents(string: refused)?.queryItems?.first { $0.name == "error" }?.value, "access_denied")
         attempt = try await client.authorize()
         let deny = app.buttons["approval.deny"]
         XCTAssertTrue(deny.waitForExistence(timeout: 30))
@@ -96,6 +115,7 @@ private struct MCPClient {
     struct Attempt {
         var request: String
         var secret: String
+        var number: Int
         var verifier: String
         var pollURL: URL
     }
@@ -143,8 +163,9 @@ private struct MCPClient {
         let (data, _) = try await URLSession.shared.data(from: parts.url!)
         let html = String(decoding: data, as: UTF8.self)
         let ask = try XCTUnwrap(html.firstMatch(of: /const ask = \{ request: "([^"]+)", secret: "([^"]+)" \}/), html)
+        let shown = try XCTUnwrap(html.firstMatch(of: /id="number">(\d+)</).flatMap { Int($0.1) }, html)
         let pollURL = authorizeURL.deletingLastPathComponent().appendingPathComponent("poll")
-        return Attempt(request: String(ask.1), secret: String(ask.2), verifier: verifier, pollURL: pollURL)
+        return Attempt(request: String(ask.1), secret: String(ask.2), number: shown, verifier: verifier, pollURL: pollURL)
     }
 
     /// What the authorize page does: poll until the phone answers, then follow the redirect.

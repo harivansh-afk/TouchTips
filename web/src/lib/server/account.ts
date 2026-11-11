@@ -52,6 +52,7 @@ export async function putSnapshot(account: Account, raw: string): Promise<PutRes
     return "invalid";
   }
   const sealed = seal(account.dataKey, JSON.stringify(snapshot), `vault:${account.userHash}`);
+  await dropPlaintext(account.userHash);
   const rows = await query<{ user_hash: string }>(
     `INSERT INTO vault (user_hash, generated_at, sealed, updated_at) VALUES ($1, $2, $3, now())
      ON CONFLICT (user_hash) DO UPDATE SET generated_at = EXCLUDED.generated_at, sealed = EXCLUDED.sealed, updated_at = now()
@@ -76,12 +77,28 @@ export async function openWindow(userHash: string, client: string): Promise<void
   ]);
 }
 
+export async function closeWindow(userHash: string): Promise<void> {
+  await query("UPDATE account SET window_client = NULL, window_until = NULL WHERE user_hash = $1", [userHash]);
+}
+
 export async function setPushToken(userHash: string, token: string | null, env: "sandbox" | "production"): Promise<void> {
   await query("UPDATE account SET apns_token = $2, apns_env = $3 WHERE user_hash = $1", [userHash, token, env]);
 }
 
+/** The release before the vault stored snapshots in the clear. Gone on the next push or delete, and for
+ *  everyone once migrations/cleanup-plaintext.sql runs. */
+async function dropPlaintext(userHash: string): Promise<void> {
+  try {
+    await query("DELETE FROM snapshot WHERE user_hash = $1", [userHash]);
+  } catch (e) {
+    // 42P01: the table is already gone.
+    if ((e as { code?: string }).code !== "42P01") throw e;
+  }
+}
+
 /** Forget a phone entirely: its data, every grant and token, every connector URL. */
 export async function deleteAccount(userHash: string): Promise<void> {
+  await dropPlaintext(userHash);
   await query("DELETE FROM client_key WHERE user_hash = $1", [userHash]);
   await query("DELETE FROM account WHERE user_hash = $1", [userHash]);
 }

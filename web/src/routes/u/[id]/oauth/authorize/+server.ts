@@ -18,15 +18,13 @@ export const GET: RequestHandler = async ({ params, url }) => {
   }
 };
 
-function waitingPage(publicId: string, o: { requestId: string; browserSecret: string; displayName: string; pushed: boolean }): Response {
-  const who = `<span class="who">${escape(o.displayName)}</span>`;
-  const body = o.pushed
-    ? `<div class="pulse"></div><h1>Check your iPhone</h1>
-       <p>TouchTips is asking if ${who} can read your people and meetings. Tap <span class="who">Allow</span>.</p>`
-    : `<div class="pulse"></div><h1>Allow in TouchTips</h1>
-       <p>Open TouchTips on your iPhone to let ${who} read your people and meetings.</p>`;
+// The same words whether or not a prompt was pushed: the page mustn't tell anyone when the user is connecting.
+function waitingPage(publicId: string, o: { requestId: string; browserSecret: string; displayName: string; number: number }): Response {
+  const body = `<h1>Allow on your iPhone</h1>
+    <p>TouchTips asks whether ${`<span class="who">${escape(o.displayName)}</span>`} can read your people and meetings. When it does, tap this number:</p>
+    <div class="number" id="number">${o.number}</div>`;
   const open = `<a class="button" href="touchtips://approve/${encodeURIComponent(o.requestId)}">Open TouchTips</a>
-    <p class="small" id="status">This page continues by itself once you allow.</p>`;
+    <p class="small" id="status">This page continues by itself once you allow. No prompt? In TouchTips, tap Connect and this app, then sign in again.</p>`;
   const script = `
     const ask = { request: ${JSON.stringify(o.requestId)}, secret: ${JSON.stringify(o.browserSecret)} };
     const endpoint = ${JSON.stringify(`/u/${publicId}/oauth/poll`)};

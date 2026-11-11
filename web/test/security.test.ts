@@ -76,6 +76,6 @@ describe("what the phone shows", () => {
     expect(displayName("claude", "Claude", "https://claude.ai.evil.example/cb")).toBe("Claude · claude.ai.evil.example");
     expect(displayName("claude", "Claude", "https://evil.example/cb")).toBe("Claude · evil.example");
     expect(displayName(null, "Claude", "https://claude.ai/cb")).toBe("Claude · claude.ai");
-    expect(displayName("claude", "Claude Code", "http://localhost:4000/callback")).toBe("Claude Code");
+    expect(displayName("claude", "Claude Code", "http://localhost:4000/callback")).toBe("Claude Code · a computer");
   });
 });

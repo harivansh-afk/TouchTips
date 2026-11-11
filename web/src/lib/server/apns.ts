@@ -44,7 +44,7 @@ export async function pushApproval(p: ApprovalPush): Promise<PushResult> {
   if (!/^[0-9a-f]{64,200}$/i.test(p.deviceToken)) return "bad-token";
   const payload = JSON.stringify({
     aps: {
-      alert: { title: `Allow ${p.displayName}?`, body: `${p.displayName} wants to read your people and meetings in TouchTips.` },
+      alert: { title: `Allow ${p.displayName}?`, body: `${p.displayName} wants to read your people and meetings. Tap, then pick the number it shows.` },
       sound: "default",
       category: APPROVAL_CATEGORY,
     },

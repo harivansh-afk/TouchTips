@@ -73,6 +73,13 @@ CREATE TABLE IF NOT EXISTS oauth_token (
 );
 CREATE INDEX IF NOT EXISTS oauth_token_grant ON oauth_token (grant_id);
 
+-- Number matching: the authorize page shows `match`; the phone offers `choices` (match among them).
+ALTER TABLE auth_request ADD COLUMN IF NOT EXISTS match INT;
+ALTER TABLE auth_request ADD COLUMN IF NOT EXISTS choices INT[];
+ALTER TABLE auth_request ADD COLUMN IF NOT EXISTS redirect_given BOOLEAN NOT NULL DEFAULT true;
+-- Started while the user was connecting from the app. Only these reach the phone unasked.
+ALTER TABLE auth_request ADD COLUMN IF NOT EXISTS in_window BOOLEAN NOT NULL DEFAULT false;
+
 -- Connector URLs, for clients that can't do OAuth. The key in the URL is the credential.
 CREATE TABLE IF NOT EXISTS client_key (
   id TEXT PRIMARY KEY,
