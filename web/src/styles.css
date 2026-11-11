@@ -123,9 +123,9 @@ footer .word { font-size: clamp(84px, 20vw, 270px); line-height: 0.8; letter-spa
 .eyebrow { margin: 0 0 14px; }
 .eyebrow .ico { font-size: 28px; }
 
-.top .left { display: flex; gap: 22px; }
-.top .left a { color: var(--muted); }
-.top .left a:hover, .top .left a[aria-current="page"] { color: var(--fg); text-decoration: none; }
+.top .left, .top .right { display: flex; align-items: center; gap: 22px; }
+.top nav a { color: var(--muted); }
+.top nav a:hover, .top nav a[aria-current="page"] { color: var(--fg); text-decoration: none; }
 .top .gh { color: var(--muted); font-size: 20px; line-height: 0; }
 .top .gh:hover { color: var(--fg); }
 footer .app { display: block; line-height: 0; }
