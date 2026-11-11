@@ -63,7 +63,17 @@ final class LocationAccess: NSObject {
                 manager.requestLocation()
             }
         }
-        return location.flatMap { Self.good($0) ? $0 : nil }
+        guard let location else {
+            Log.geocode.notice("no fix")
+            return nil
+        }
+        guard Self.good(location) else {
+            Log.geocode.notice(
+                "fix too vague or old: \(Int(location.horizontalAccuracy), privacy: .public) m, \(Int(-location.timestamp.timeIntervalSinceNow), privacy: .public) s"
+            )
+            return nil
+        }
+        return location
     }
 
     private static func good(_ location: CLLocation) -> Bool {
@@ -105,6 +115,7 @@ extension LocationAccess: CLLocationManagerDelegate {
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: any Error) {
+        Log.geocode.notice("location failed: \(error.localizedDescription, privacy: .public)")
         MainActor.assumeIsolated { finish(nil) }
     }
 }

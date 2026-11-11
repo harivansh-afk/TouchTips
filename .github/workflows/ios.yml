@@ -57,6 +57,11 @@ jobs:
               if n.get("nodeType") == "Failure Message": print(path, "::", name)
               for c in n.get("children", []): walk(c, path + "/" + name if n.get("nodeType") == "Test Case" else path or name)
           for n in json.load(sys.stdin)["testNodes"]: walk(n)' || true
+      - name: App log
+        if: failure()
+        run: |
+          xcrun simctl spawn "$UDID" log show --last 40m --style compact \
+            --predicate 'subsystem == "sh.harivan.touchtips" AND (category == "geocode" OR category == "capture")' | tail -80 || true
       - name: Screenshots
         if: always()
         run: |

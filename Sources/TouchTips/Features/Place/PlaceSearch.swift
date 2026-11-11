@@ -22,7 +22,14 @@ enum PlaceSearch {
     static func nearby(_ location: CLLocation, limit: Int = 4) async -> [PlaceChoice] {
         let radius = min(max(location.horizontalAccuracy, 40), LocationAccess.maxUncertainty)
         let request = MKLocalPointsOfInterestRequest(center: location.coordinate, radius: radius)
-        guard let response = try? await MKLocalSearch(request: request).start() else { return [] }
+        let response: MKLocalSearch.Response
+        do {
+            response = try await MKLocalSearch(request: request).start()
+        } catch {
+            Log.geocode.notice("nearby search failed: \(error.localizedDescription, privacy: .public)")
+            return []
+        }
+        Log.geocode.notice("nearby: \(response.mapItems.count, privacy: .public) within \(Int(radius), privacy: .public) m")
         return Array(
             response.mapItems
                 .sorted { location.distance(from: $0.location) < location.distance(from: $1.location) }
@@ -36,9 +43,14 @@ enum PlaceSearch {
         if let nearest = await nearby(location, limit: 1).first {
             return nearest
         }
-        guard let request = MKReverseGeocodingRequest(location: location),
-              let item = try? await request.mapItems.first
-        else { return nil }
-        return PlaceChoice(mapItem: item)
+        do {
+            guard let request = MKReverseGeocodingRequest(location: location),
+                  let item = try await request.mapItems.first
+            else { return nil }
+            return PlaceChoice(mapItem: item)
+        } catch {
+            Log.geocode.notice("address lookup failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 }
