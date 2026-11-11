@@ -12,10 +12,7 @@ struct SafariView: UIViewControllerRepresentable {
     let url: URL
 
     func makeUIViewController(context: Context) -> SFSafariViewController {
-        let controller = SFSafariViewController(url: url)
-        controller.preferredControlTintColor = .white
-        controller.preferredBarTintColor = .black
-        return controller
+        SFSafariViewController(url: url)
     }
 
     func updateUIViewController(_ controller: SFSafariViewController, context: Context) {}
