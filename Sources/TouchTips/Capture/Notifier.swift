@@ -45,6 +45,13 @@ final class Notifier: NSObject {
     private nonisolated static let contactKey = "contactID"
     /// The place the notice named, if any. "That's right" accepts only what was shown.
     private nonisolated static let placeKey = "placeID"
+    /// A client's sign-in asking this phone. Sent by the server; see web/src/lib/server/apns.ts.
+    private nonisolated static let approvalCategory = "connect-approval"
+    private nonisolated static let approvalDeny = "deny"
+    private nonisolated static let requestKey = "requestId"
+
+    /// Don't Allow (false), or show it on screen to pick the number (nil). Set by AppModel.
+    var onApproval: ((String, Bool?) async -> Void)?
 
     private let database: AppDatabase
     private let center = UNUserNotificationCenter.current()
@@ -85,6 +92,14 @@ final class Notifier: NSObject {
                         title: "Not a meeting",
                         options: .destructive
                     ),
+                ],
+                intentIdentifiers: []
+            ),
+            UNNotificationCategory(
+                identifier: Self.approvalCategory,
+                // No Allow here: allowing means picking the number on the sign-in page, in the app.
+                actions: [
+                    UNNotificationAction(identifier: Self.approvalDeny, title: "Don't Allow", options: .destructive),
                 ],
                 intentIdentifiers: []
             ),
@@ -260,11 +275,28 @@ final class Notifier: NSObject {
     }
 }
 
+extension Notifier {
+    /// The answer has to reach the server before iOS suspends a background action, so `done` waits for it.
+    fileprivate func approve(_ id: String, allow: Bool?, done: @escaping @Sendable () -> Void) {
+        guard let onApproval else { return done() }
+        Task {
+            await onApproval(id, allow)
+            done()
+        }
+    }
+}
+
 extension Notifier: UNUserNotificationCenterDelegate {
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter, willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound]
+        let content = notification.request.content
+        if content.categoryIdentifier == Self.approvalCategory, let id = content.userInfo[Self.requestKey] as? String {
+            // Already in the app: ask on screen instead of a banner.
+            await MainActor.run { approve(id, allow: nil, done: {}) }
+            return []
+        }
+        return [.banner, .list, .sound]
     }
 
     nonisolated func userNotificationCenter(
@@ -273,9 +305,14 @@ extension Notifier: UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping @Sendable () -> Void
     ) {
         let action = response.actionIdentifier
-        let info = response.notification.request.content.userInfo
-        let contactID = info[Self.contactKey] as? String
-        let shownPlaceID = (info[Self.placeKey] as? NSNumber)?.int64Value
+        let content = response.notification.request.content
+        if content.categoryIdentifier == Self.approvalCategory, let id = content.userInfo[Self.requestKey] as? String {
+            let allow: Bool? = action == Self.approvalDeny ? false : nil
+            Task { @MainActor in approve(id, allow: allow, done: completionHandler) }
+            return
+        }
+        let contactID = content.userInfo[Self.contactKey] as? String
+        let shownPlaceID = (content.userInfo[Self.placeKey] as? NSNumber)?.int64Value
         // UIKit's completion updates scene restoration and must run on the main thread. The async
         // delegate's generated completion can run on a pool thread even after MainActor.run returns.
         Task { @MainActor in

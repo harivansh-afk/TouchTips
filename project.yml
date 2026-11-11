@@ -41,6 +41,8 @@ targets:
       path: Sources/TouchTips/TouchTips.entitlements
       properties:
         com.apple.developer.associated-domains: [applinks:touchtips.app]
+        # Approval prompts for clients signing in. Xcode switches it to production for TestFlight and the App Store.
+        aps-environment: development
     info:
       path: Sources/TouchTips/Info.plist
       properties:
@@ -51,6 +53,10 @@ targets:
         UIUserInterfaceStyle: Dark
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIBackgroundModes: [fetch]
+        # touchtips://approve/<request>: the "Open TouchTips" button on a client's sign-in page.
+        CFBundleURLTypes:
+          - CFBundleURLName: sh.harivan.touchtips
+            CFBundleURLSchemes: [touchtips]
         BGTaskSchedulerPermittedIdentifiers: [sh.harivan.touchtips.refresh]
         UIAppFonts: [InstrumentSerif-Italic.ttf]
         ITSAppUsesNonExemptEncryption: false

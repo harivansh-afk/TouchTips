@@ -32,6 +32,13 @@ final class AppModel {
         capture.didIngest = { [photos] in photos.reset() }
         // Bounded: a slow fix may cost the notice its place, never its delivery.
         capture.beforeAnnouncing = { [placeOnOpen] in await placeOnOpen.fill(within: .seconds(8)) }
+        notifier.onApproval = { [cloud] id, allow in
+            if let allow {
+                await cloud.decide(id, allow: allow)
+            } else {
+                await cloud.checkApprovals(showing: id)
+            }
+        }
     }
 
     func start() {

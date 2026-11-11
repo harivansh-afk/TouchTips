@@ -40,6 +40,7 @@ struct RootView: View {
                 // Contacts found while the app was away, by background refresh, get their place now.
                 Task { await app.placeOnOpen.fill() }
                 openNotification()
+                Task { await app.cloud.checkApprovals() }
             }
         }
         .onChange(of: app.location.usable) { _, usable in
@@ -60,10 +61,18 @@ struct RootView: View {
             ConnectView(start: request.client)
                 .environment(app)
         }
+        .approvalSheet(app.cloud, active: !app.cloud.connectScreenOpen)
     }
 
-    /// touchtips.app/connect/<client> opens Connect and starts that client; touchtips.app/p/<id> opens a person.
+    /// touchtips.app/connect/<client> opens Connect and starts that client; touchtips.app/p/<id> opens a person;
+    /// touchtips://approve/<request> asks Allow for a client's sign-in.
     private func open(_ url: URL) {
+        if url.scheme == "touchtips" {
+            if url.host() == "approve", let id = url.pathComponents.last, id != "/" {
+                Task { await app.cloud.checkApprovals(showing: id) }
+            }
+            return
+        }
         let parts = url.pathComponents.filter { $0 != "/" }
         switch (parts.first, parts.count) {
         case ("connect", 1):
