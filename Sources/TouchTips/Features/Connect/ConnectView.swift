@@ -221,59 +221,36 @@ struct ConnectedView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                HStack(spacing: 12) {
-                    Text(url)
-                        .font(.footnote.monospaced())
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .foregroundStyle(.primary)
-                    Spacer(minLength: 0)
-                    Text("Copied")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 15)
-                .glassEffect(.clear, in: .rect(cornerRadius: 22))
+                pill(url)
 
                 HStack(spacing: 10) {
-                    if let open = client.openURL {
-                        Button {
-                            HapticManager.light()
-                            openURL(open)
-                        } label: {
-                            Text("Open \(client.name)")
-                                .frame(maxWidth: .infinity)
+                    if client.sharesFirst {
+                        share(prominent: true)
+                        if let open = client.openURL {
+                            openButton(open, prominent: false)
                         }
-                        .buttonStyle(.glassProminent)
-                        .controlSize(.large)
+                    } else if let open = client.openURL {
+                        openButton(open, prominent: true)
+                        share(prominent: false)
+                    } else {
+                        share(prominent: true)
                     }
-                    ShareLink(item: client.clipboardText(for: url)) {
-                        Text("Share")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.glass)
-                    .controlSize(.large)
                 }
 
-                VStack(spacing: 0) {
-                    ForEach(Array(client.steps.enumerated()), id: \.offset) { index, step in
-                        if index > 0 {
-                            Rectangle().fill(Color.hairline).frame(height: 1).padding(.leading, 18)
+                steps(client.steps)
+
+                if client == .claude {
+                    VStack(alignment: .leading, spacing: 12) {
+                        SectionLabel(text: "Claude Code").padding(.leading, 6)
+                        pill(ConnectClient.claudeCodeCommand(url))
+                        ShareLink(item: ConnectClient.claudeCodeCommand(url)) {
+                            Text("Share command")
+                                .frame(maxWidth: .infinity)
                         }
-                        HStack(alignment: .firstTextBaseline, spacing: 12) {
-                            Text("\(index + 1)")
-                                .font(.footnote.monospacedDigit())
-                                .foregroundStyle(.tertiary)
-                            Text(step)
-                                .foregroundStyle(.primary)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 15)
+                        .buttonStyle(.glass)
+                        .controlSize(.large)
                     }
                 }
-                .glassEffect(.clear, in: .rect(cornerRadius: 22))
 
                 Button {
                     HapticManager.light()
@@ -292,8 +269,90 @@ struct ConnectedView: View {
         .background { Color.ground.ignoresSafeArea() }
         .serifTitle(client.name)
         .onAppear {
-            UIPasteboard.general.string = client.clipboardText(for: url)
+            UIPasteboard.general.string = url
             HapticManager.success()
         }
+    }
+
+    private func pill(_ text: String) -> some View {
+        HStack(spacing: 12) {
+            Text(text)
+                .font(.footnote.monospaced())
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .foregroundStyle(.primary)
+            Spacer(minLength: 0)
+            Text("Copied")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 15)
+        .glassEffect(.clear, in: .rect(cornerRadius: 22))
+    }
+
+    @ViewBuilder
+    private func openButton(_ target: URL, prominent: Bool) -> some View {
+        let label = Text("Open \(client.name)").frame(maxWidth: .infinity)
+        if prominent {
+            Button {
+                HapticManager.light()
+                openURL(target)
+            } label: {
+                label.foregroundStyle(.black)
+            }
+            .buttonStyle(.glassProminent)
+            .tint(.white)
+            .controlSize(.large)
+        } else {
+            Button {
+                HapticManager.light()
+                openURL(target)
+            } label: {
+                label
+            }
+            .buttonStyle(.glass)
+            .controlSize(.large)
+        }
+    }
+
+    @ViewBuilder
+    private func share(prominent: Bool) -> some View {
+        let label = Text("Share").frame(maxWidth: .infinity)
+        if prominent {
+            ShareLink(item: url) {
+                label.foregroundStyle(.black)
+            }
+            .buttonStyle(.glassProminent)
+            .tint(.white)
+            .controlSize(.large)
+        } else {
+            ShareLink(item: url) {
+                label
+            }
+            .buttonStyle(.glass)
+            .controlSize(.large)
+        }
+    }
+
+    private func steps(_ lines: [String]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { index, step in
+                if index > 0 {
+                    Rectangle().fill(Color.hairline).frame(height: 1).padding(.leading, 18)
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text("\(index + 1)")
+                        .font(.footnote.monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                    Text(step)
+                        .foregroundStyle(.primary)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 15)
+            }
+        }
+        .glassEffect(.clear, in: .rect(cornerRadius: 22))
     }
 }

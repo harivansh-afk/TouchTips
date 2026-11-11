@@ -35,7 +35,7 @@ a:focus-visible, button:focus-visible { outline: 1px solid var(--fg); outline-of
 
 .wrap { max-width: 1120px; margin: 0 auto; padding-inline: 28px; }
 .wrap.narrow { max-width: 760px; padding-top: 40px; padding-bottom: 96px; }
-.top nav { display: flex; justify-content: flex-end; align-items: center; gap: 24px; height: 76px; font-size: 13px; }
+.top nav { display: flex; align-items: center; justify-content: space-between; font-size: 13px; padding: 30px 0 8px; }
 .top nav a { color: var(--muted); }
 .top nav a:hover, .top nav a[aria-current="page"] { color: var(--fg); text-decoration: none; }
 
@@ -46,7 +46,7 @@ a:focus-visible, button:focus-visible { outline: 1px solid var(--fg); outline-of
 .ico { display: inline-block; width: 1em; height: 1em; flex: none; background: currentColor; -webkit-mask: var(--i) center / contain no-repeat; mask: var(--i) center / contain no-repeat; }
 .ico.img { background: var(--i) center / cover; -webkit-mask: none; mask: none; border-radius: 22%; }
 
-.agents { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; margin: 0 0 96px; padding: 0; list-style: none; background: var(--hairline); border: 1px solid var(--hairline); border-radius: 22px; overflow: hidden; }
+.agents { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 0 0 96px; padding: 0; list-style: none; background: var(--hairline); border: 1px solid var(--hairline); border-radius: 22px; overflow: hidden; }
 .agents a { display: grid; justify-items: center; gap: 13px; height: 100%; padding: 30px 12px 24px; background: var(--bg); color: var(--muted); font-size: 12px; transition: background 0.25s, color 0.25s; }
 .agents .ico { font-size: 30px; transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .agents a:hover { background: #141414; color: var(--fg); text-decoration: none; }
@@ -122,3 +122,10 @@ footer .word { font-size: clamp(84px, 20vw, 270px); line-height: 0.8; letter-spa
 
 .eyebrow { margin: 0 0 14px; }
 .eyebrow .ico { font-size: 28px; }
+
+.top .left { display: flex; gap: 22px; }
+.top .left a { color: var(--muted); }
+.top .left a:hover, .top .left a[aria-current="page"] { color: var(--fg); text-decoration: none; }
+.top .gh { color: var(--muted); font-size: 20px; line-height: 0; }
+.top .gh:hover { color: var(--fg); }
+footer .app { display: block; line-height: 0; }

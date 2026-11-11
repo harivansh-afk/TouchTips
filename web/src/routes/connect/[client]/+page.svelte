@@ -1,5 +1,6 @@
 <script>
   import { CLIENT_ICONS, iconClass, iconStyle } from '$lib/agents';
+  import { claudeCodeCommand } from '$lib/connect';
   let { data } = $props();
   const client = $derived(data.client);
 </script>
@@ -18,6 +19,10 @@
     <li>{step}</li>
   {/each}
 </ol>
+{#if client.id === 'claude'}
+  <p class="lede" style="margin-top:28px">Claude Code: the app copies the same URL as a command.</p>
+  <pre>{claudeCodeCommand('https://touchtips.app/c/…/mcp')}</pre>
+{/if}
 <div class="actions">
   <a class="button primary" href="/ios">Get TouchTips</a>
 </div>
