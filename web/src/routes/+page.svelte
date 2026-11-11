@@ -24,7 +24,7 @@
   (() => {
     const el = document.getElementById('city');
     if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const cities = ['New York', 'Lisbon', 'Tokyo', 'Berlin', 'Austin', 'London', 'Paris', 'Mumbai', 'Toronto', 'Sydney'];
+    const cities = ['New York', 'Lisbon', 'Tokyo', 'Berlin', 'Austin', 'London', 'Paris', 'Mumbai', 'Sydney', 'Chicago'];
     let i = 0;
     setInterval(() => {
       el.classList.add('out');

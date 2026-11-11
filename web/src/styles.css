@@ -1,13 +1,13 @@
 @font-face {
   font-family: "Berkeley Mono";
   src: url("/fonts/BerkeleyMono-Regular.otf") format("opentype");
-  font-display: swap;
+  font-display: block;
 }
 @font-face {
   font-family: "Instrument Serif";
   font-style: italic;
   src: url("/fonts/InstrumentSerif-Italic.ttf") format("truetype");
-  font-display: swap;
+  font-display: block;
 }
 
 :root {
@@ -149,3 +149,5 @@ footer { margin-top: auto; }
 .button.ios { padding: 22px 38px; font-size: 20px; gap: 14px; background: #1b2fa0; border-color: #1b2fa0; color: #fff; transition: background 0.2s ease, transform 0.2s ease; }
 .button.ios:hover { background: #2440c4; border-color: #2440c4; transform: translateY(-1px); }
 .button.ios .ico { font-size: 22px; margin-top: -3px; }
+
+@media (min-width: 700px) { .hero h1 { white-space: nowrap; } }
