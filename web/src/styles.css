@@ -96,12 +96,11 @@ code.inline { color: var(--fg); }
 ul.plain { padding-left: 18px; margin: 0 0 18px; }
 ul.plain li { margin: 4px 0; }
 
-footer { border-top: 1px solid var(--hairline); padding-top: 112px; overflow: hidden; }
+footer { padding-top: 112px; overflow: hidden; }
 footer .wrap { display: flex; flex-direction: column; align-items: center; }
-footer .app { display: inline-grid; justify-items: center; gap: 22px; color: var(--muted); font-size: 13px; transition: color 0.25s; }
-footer .app img { display: block; width: 132px; height: 132px; border-radius: 30px; border: 1px solid var(--hairline); transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
-footer .app:hover { color: var(--fg); text-decoration: none; }
-footer .app:hover img { transform: translateY(-6px) scale(1.03); }
+footer .app img { display: block; width: 132px; height: 132px; border-radius: 30px; border: 1px solid var(--hairline); transition: border-color 0.3s ease, transform 0.3s ease; }
+footer .app:hover { text-decoration: none; }
+footer .app:hover img { border-color: rgba(255, 255, 255, 0.4); transform: translateY(-2px); }
 footer nav { display: flex; gap: 28px; margin-top: 56px; font-size: 12px; }
 footer nav a { color: var(--muted); }
 footer nav a:hover { color: var(--fg); text-decoration: none; }
@@ -129,3 +128,7 @@ footer .word { font-size: clamp(84px, 20vw, 270px); line-height: 0.8; letter-spa
 .top .gh { color: var(--muted); font-size: 20px; line-height: 0; }
 .top .gh:hover { color: var(--fg); }
 footer .app { display: block; line-height: 0; }
+
+body { min-height: 100dvh; display: flex; flex-direction: column; }
+main { flex: 1 0 auto; }
+footer { margin-top: auto; }
