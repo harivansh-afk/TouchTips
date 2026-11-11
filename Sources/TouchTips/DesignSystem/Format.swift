@@ -72,12 +72,9 @@ enum Format {
         return placeLabel(place.name, latitude: place.latitude, longitude: place.longitude)
     }
 
-    /// Second line of a people row: place, date only, or no meeting details.
+    /// Second line of a people row: the meeting place, or nothing.
     static func rowSubtitle(_ row: PersonRow) -> String {
-        if let name = placeName(row) {
-            return name
-        }
-        return row.meet == nil ? "" : "Date only"
+        placeName(row) ?? ""
     }
 
     /// Notification body: "Blue Bottle @ 2:14 pm", or whichever half is known.
