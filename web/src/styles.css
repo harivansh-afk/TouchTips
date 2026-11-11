@@ -161,18 +161,19 @@ footer .copy { position: absolute; right: var(--gutter); bottom: 20px; font-size
 .hero { text-align: center; padding: var(--s-10) 0 var(--s-9); }
 .hero h1 { margin: 0; font-size: clamp(44px, 6vw, 80px); line-height: 1.02; letter-spacing: -0.02em; }
 .hero .lede { max-width: 380px; margin: var(--s-5) auto var(--s-6); font-size: 14px; }
-/* Every headline sentence is laid out in the same box, so the box never changes size.
-   Switching waits: the old line lifts and blurs away, then the new one rises out of a blur. Never two at once. */
-.lines { display: grid; }
-.line {
-  grid-area: 1 / 1; opacity: 0; filter: blur(10px); transform: translateY(0.18em);
-  transition: opacity 320ms ease-in, filter 320ms ease-in, transform 320ms ease-in;
+/* Only the city changes. Every city shares one slot as wide as the widest, so nothing else ever moves.
+   Letters flip over the top like a departures board: the old city flips away, then the new one flips in. */
+.cities { display: inline-grid; perspective: 800px; text-align: left; }
+.city { grid-area: 1 / 1; white-space: nowrap; }
+.city span {
+  display: inline-block; opacity: 0; transform: rotateX(-90deg); transform-origin: 50% 50% -0.35em; backface-visibility: hidden;
+  transition: transform 550ms var(--ease) calc(220ms + var(--j) * 40ms), opacity 250ms ease calc(220ms + var(--j) * 40ms);
 }
-.line.on {
-  opacity: 1; filter: blur(0); transform: none;
-  transition: opacity 700ms var(--ease) 280ms, filter 700ms var(--ease) 280ms, transform 700ms var(--ease) 280ms;
+.city.on span { opacity: 1; transform: none; }
+.city.out span {
+  opacity: 0; transform: rotateX(90deg);
+  transition: transform 300ms ease-in calc(var(--j) * 25ms), opacity 300ms ease-in calc(var(--j) * 25ms);
 }
-.line.out { transform: translateY(-0.18em); }
 .connect-head { margin-top: var(--s-6); }
 
 /* 7. Breakpoints */
