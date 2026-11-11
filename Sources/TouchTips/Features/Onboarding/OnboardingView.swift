@@ -267,7 +267,7 @@ private struct NoticePart: View {
             .fixedSize(horizontal: false, vertical: true)
 
             // One sentence a line, as few words as each will take.
-            Text("Once you save their contact,\na notification will confirm the time and place.\nLocation names the place, only while the app is open.")
+            Text("Once you save their contact,\na notification will confirm the time and place.\nLocation names it, only while the app is open.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 8)

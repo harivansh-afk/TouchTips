@@ -1,7 +1,7 @@
 import XCTest
 
-/// The screens location touches. Needs a simulator with location granted While Using and set
-/// somewhere with places around it; CI does both with `simctl` before running these.
+/// The screens location touches. Needs a simulator set somewhere with places around it; CI sets it
+/// with `simctl location`. Permission is given the way a person gives it, through the system prompt.
 @MainActor
 final class LocationUITests: XCTestCase {
     override func setUp() {
@@ -18,7 +18,29 @@ final class LocationUITests: XCTestCase {
         }
         app.launch()
         XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 15))
+        allowLocation(in: app)
         return app
+    }
+
+    /// From Settings: Allow, then the system prompt's While Using. Already allowed, it only checks.
+    private func allowLocation(in app: XCUIApplication) {
+        app.buttons["Settings"].tap()
+        let row = app.buttons["settings-access-location"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        if row.label.contains("Allow") {
+            row.tap()
+            let prompt = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+            XCTAssertTrue(prompt.waitForExistence(timeout: 10), "Allow should show the system prompt")
+            capture(app, "location-prompt")
+            prompt.buttons["Allow While Using App"].tap()
+        }
+        let allowed = NSPredicate(format: "label CONTAINS %@", "While using")
+        XCTAssertTrue(
+            XCTWaiter().wait(for: [expectation(for: allowed, evaluatedWith: row)], timeout: 10) == .completed,
+            row.label
+        )
+        app.buttons["Done"].tap()
+        XCTAssertTrue(row.waitForNonExistence(timeout: 5))
     }
 
     private func capture(_ app: XCUIApplication, _ name: String) {
@@ -54,6 +76,11 @@ final class LocationUITests: XCTestCase {
         let app = launch()
         app.pullToAdd()
         XCTAssertTrue(app.textFields["Name"].waitForExistence(timeout: 5))
+        // The simulator's first keyboard explains swipe typing over the sheet.
+        let tip = app.buttons["Continue"]
+        if tip.waitForExistence(timeout: 2) {
+            tip.tap()
+        }
         let map = app.buttons["meeting.map"].exists ? app.buttons["meeting.map"] : app.otherElements["meeting.map"]
         let place = waitForPlace(on: map)
         capture(app, "add-sheet-nearby")
