@@ -44,6 +44,23 @@ describe("meetings", () => {
     expect(index.meetings({ from: "2024-01-01T00:00:00Z", to: "2024-12-31T00:00:00Z", limit: 10 }).map((m) => m.person.name)).toEqual(["Sam Okafor"]);
     expect(index.meetings({ place: "boulders", limit: 10 }).map((m) => m.person.name)).toEqual(["Sam Okafor"]);
   });
+  it("takes plain dates, the upper one through the end of its day", () => {
+    expect(index.meetings({ from: "2024-03-14", to: "2024-03-14", limit: 10 }).map((m) => m.person.name)).toEqual(["Sam Okafor"]);
+    expect(index.meetings({ to: "2024-03-13", limit: 10 }).map((m) => m.person.name)).toEqual(["José Álvarez"]);
+  });
+  it("orders by instant when offsets differ", () => {
+    const mixed = new Index(
+      {
+        ...fixture,
+        meets: [
+          { ...fixture.meets[0], personId: "p-sam", start: "2024-03-14T20:00:00+02:00", end: "2024-03-14T20:00:00+02:00" },
+          { ...fixture.meets[0], personId: "p-jose", start: "2024-03-14T19:00:00Z", end: "2024-03-14T19:00:00Z" },
+        ],
+      },
+      "https://mcp.example",
+    );
+    expect(mixed.meetings({ limit: 10 }).map((m) => m.person.name)).toEqual(["José Álvarez", "Sam Okafor"]);
+  });
   it("marks estimates", () => {
     const samira = index.person("p-sami")!;
     expect(samira.meetings[0]).toMatchObject({ when: "May 2025", confidence: "estimated", basis: "estimated from when the contact appeared on the phone", place: null });

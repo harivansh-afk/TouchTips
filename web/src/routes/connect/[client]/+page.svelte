@@ -21,8 +21,8 @@
 </ol>
 {#if client.id === 'claude'}
   <h2>Claude Code</h2>
-  <p>The app has the same URL as a command.</p>
-  <pre>{claudeCodeCommand('https://touchtips.app/c/…/mcp')}</pre>
+  <p>The app has the same URL as a command. Run it, then <code>/mcp</code> in Claude Code to sign in.</p>
+  <pre>{claudeCodeCommand('https://touchtips.app/u/…/mcp')}</pre>
 {/if}
 <div class="actions">
   <a class="button primary" href="/ios">Get TouchTips</a>
