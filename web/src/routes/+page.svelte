@@ -11,7 +11,7 @@
 <div class="hero">
   <h1>Never forget anyone again.</h1>
   <figure class="demo" id="demo" data-muted data-paused>
-    <video src="/launch.mp4" poster="/launch.jpg" muted loop playsinline preload="auto" aria-label="TouchTips demo: tap phones, then ask any agent who you met"></video>
+    <video src="/launch.mp4" poster="/launch.jpg" muted loop playsinline preload="auto" aria-label="TouchTips demo: ask your agent about someone you met, and TouchTips finds them"></video>
     <div class="controls">
       <button type="button" data-act="play" aria-label="Play or pause">
         <svg class="when-paused" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
