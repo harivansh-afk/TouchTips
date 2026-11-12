@@ -158,22 +158,17 @@ footer .copy { position: absolute; right: var(--gutter); bottom: 20px; font-size
 .steps li::before { content: counter(step); color: var(--muted); font-size: var(--small); padding-top: 3px; }
 
 /* 6. Pages */
-.hero { text-align: center; padding: var(--s-10) 0 var(--s-9); }
-.hero h1 { margin: 0; font-size: clamp(44px, 6vw, 80px); line-height: 1.02; letter-spacing: -0.02em; }
-.hero .lede { max-width: 380px; margin: var(--s-5) auto var(--s-6); font-size: 14px; }
-/* Only the city changes. Every city shares one slot as wide as the widest, so nothing else ever moves.
-   Letters flip over the top like a departures board: the old city flips away, then the new one flips in. */
-.cities { display: inline-grid; perspective: 800px; text-align: left; }
-.city { grid-area: 1 / 1; white-space: nowrap; }
-.city span {
-  display: inline-block; opacity: 0; transform: rotateX(-90deg); transform-origin: 50% 50% -0.35em; backface-visibility: hidden;
-  transition: transform 550ms var(--ease) calc(220ms + var(--j) * 40ms), opacity 250ms ease calc(220ms + var(--j) * 40ms);
-}
-.city.on span { opacity: 1; transform: none; }
-.city.out span {
-  opacity: 0; transform: rotateX(90deg);
-  transition: transform 300ms ease-in calc(var(--j) * 25ms), opacity 300ms ease-in calc(var(--j) * 25ms);
-}
+.hero { display: grid; justify-items: center; gap: var(--s-6); text-align: center; padding: var(--s-10) 0 var(--s-8); }
+.hero h1 { margin: 0; font-size: clamp(44px, 6vw, 80px); line-height: 1.02; letter-spacing: -0.02em; text-wrap: balance; }
+/* The demo is a light film on a black page: a quiet frame and two small glass buttons. */
+.demo { position: relative; justify-self: stretch; margin: var(--s-3) 0; padding: 1px; border-radius: var(--r-card); background: var(--faint); }
+.demo video { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: calc(var(--r-card) - 1px); background: #fff; cursor: pointer; }
+.demo .controls { position: absolute; right: 14px; bottom: 14px; display: flex; gap: 2px; padding: 3px; border-radius: var(--r-pill); background: rgba(0, 0, 0, 0.55); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.demo button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #fff; cursor: pointer; transition: background var(--fast) var(--ease); }
+.demo button:hover { background: rgba(255, 255, 255, 0.14); }
+.demo svg { width: 18px; height: 18px; }
+.demo:not([data-paused]) .when-paused, .demo[data-paused] .when-playing,
+.demo:not([data-muted]) .when-muted, .demo[data-muted] .when-sound { display: none; }
 .connect-head { margin-top: var(--s-6); }
 
 /* 7. Breakpoints */
@@ -185,7 +180,8 @@ footer .copy { position: absolute; right: var(--gutter); bottom: 20px; font-size
   body { font-size: 14px; }
   .top nav { padding-top: var(--s-5); }
   .top .left, .top .right { gap: 16px; }
-  .hero { padding-bottom: var(--s-8); }
+  .hero { padding-bottom: var(--s-7); }
+  .demo { --r-card: 16px; }
   .agents { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .agents li:nth-child(4) a, .agents li:nth-last-child(4) a { border-radius: 0; }
   .agents li:nth-child(2) a { border-top-right-radius: calc(var(--r-card) - 1px); }
