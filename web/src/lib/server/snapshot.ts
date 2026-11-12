@@ -116,6 +116,9 @@ export function normalize(s: string): string {
     .trim();
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export class Index {
   private people = new Map<string, Person>();
   private places = new Map<number, Place>();
@@ -132,7 +135,7 @@ export class Index {
       list.push(m);
       this.meetsByPerson.set(m.personId, list);
     }
-    for (const list of this.meetsByPerson.values()) list.sort((a, b) => a.start.localeCompare(b.start));
+    for (const list of this.meetsByPerson.values()) list.sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
   }
 
   personUrl(id: string): string {
@@ -202,7 +205,8 @@ export class Index {
   /** Meetings newest first, optionally within [from, to] and at a place whose name contains `place`. */
   meetings(opts: { from?: string; to?: string; place?: string; limit: number }): MeetingWithPerson[] {
     const from = opts.from ? Date.parse(opts.from) : -Infinity;
-    const to = opts.to ? Date.parse(opts.to) : Infinity;
+    // A plain date as the upper bound means through the end of that day (UTC).
+    const to = opts.to ? Date.parse(opts.to) + (DATE_ONLY.test(opts.to) ? DAY_MS - 1 : 0) : Infinity;
     const place = opts.place ? normalize(opts.place) : null;
     const out: MeetingWithPerson[] = [];
     for (const m of this.snapshot.meets) {
@@ -214,7 +218,8 @@ export class Index {
       if (!p) continue;
       out.push({ ...view, person: { id: p.id, name: p.name, url: this.personUrl(p.id) } });
     }
-    out.sort((a, b) => b.start.localeCompare(a.start));
+    // By instant, not by string: offsets differ between records.
+    out.sort((a, b) => Date.parse(b.start) - Date.parse(a.start));
     return out.slice(0, opts.limit);
   }
 }

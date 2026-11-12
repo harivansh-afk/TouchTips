@@ -19,6 +19,9 @@ const Meeting = z.object({
   place: z.object({ name: z.string().nullable(), latitude: z.number(), longitude: z.number() }).nullable(),
 });
 
+/** A date-time with offset, or a plain date, which models send as often as not. */
+const Bound = z.union([z.iso.datetime({ offset: true }), z.iso.date()]);
+
 const PersonOut = z.object({
   id: z.string(),
   name: z.string(),
@@ -94,8 +97,8 @@ export function createServer(load: () => Promise<Snapshot | null>) {
       title: "List meetings",
       description: "Who the user met, newest first. Filter by a date range and/or a place name, e.g. everyone met in Berlin last spring.",
       inputSchema: z.object({
-        from: z.iso.datetime({ offset: true }).optional().describe("Earliest meeting start, ISO 8601"),
-        to: z.iso.datetime({ offset: true }).optional().describe("Latest meeting start, ISO 8601"),
+        from: Bound.optional().describe("Earliest meeting start, ISO 8601: a date (2024-03-01) or a date-time with offset"),
+        to: Bound.optional().describe("Latest meeting start, ISO 8601: a date (a whole day, through its end) or a date-time with offset"),
         place: z.string().optional().describe("Part of a place name"),
         limit: z.number().int().min(1).max(200).default(50),
       }),
