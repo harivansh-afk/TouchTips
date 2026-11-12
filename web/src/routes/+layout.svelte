@@ -11,8 +11,6 @@
   <nav class="wrap" aria-label="Site">
     <span class="left">{#if path !== '/'}<a href="/">Home</a>{/if}</span>
     <span class="right">
-      <a href="/privacy" aria-current={path === '/privacy' ? 'page' : undefined}>Privacy</a>
-      <a href="/support" aria-current={path === '/support' ? 'page' : undefined}>Support</a>
       <a class="gh" href="https://github.com/harivansh-afk/TouchTips" aria-label="Source on GitHub"><span class="ico" style="--i:url(/agents/github.svg)"></span></a>
     </span>
   </nav>
@@ -24,5 +22,9 @@
 
 <footer>
   <div class="word serif" aria-hidden="true">TouchTips</div>
-  <span class="copy">© {new Date().getFullYear()} TouchTips</span>
+  <nav class="meta" aria-label="Legal">
+    <a href="/privacy" aria-current={path === '/privacy' ? 'page' : undefined}>Privacy</a>
+    <a href="/support" aria-current={path === '/support' ? 'page' : undefined}>Support</a>
+    <span>© {new Date().getFullYear()} TouchTips</span>
+  </nav>
 </footer>
