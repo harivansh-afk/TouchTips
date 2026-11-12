@@ -31,11 +31,11 @@ const SECURITY = {
   "x-content-type-options": "nosniff",
 };
 
-export function page(title: string, body: string, script = ""): Response {
+export function page(body: string, script = ""): Response {
   const nonce = randomBytes(16).toString("base64");
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
-<title>${escape(title)}</title><style nonce="${nonce}">${STYLE}</style></head>
+<title>TouchTips</title><style nonce="${nonce}">${STYLE}</style></head>
 <body><main>${body}</main>${script ? `<script nonce="${nonce}">${script}</script>` : ""}</body></html>`;
   return new Response(html, {
     headers: {
@@ -49,5 +49,5 @@ export function messagePage(title: string, text: string, link?: { href: string; 
   const body = `<h1>${escape(title)}</h1><p>${escape(text)}</p>${
     link ? `<a class="button" href="${escape(link.href)}">${escape(link.label)}</a>` : ""
   }`;
-  return page(title, body);
+  return page(body);
 }

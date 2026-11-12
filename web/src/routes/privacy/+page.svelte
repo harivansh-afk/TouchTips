@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>Privacy — TouchTips</title>
+  <title>TouchTips</title>
   <meta name="description" content="How TouchTips handles your data." />
   <link rel="canonical" href="https://touchtips.app/privacy" />
 </svelte:head>

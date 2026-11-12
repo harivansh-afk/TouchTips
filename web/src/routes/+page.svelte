@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-  <title>TouchTips — never forget anyone again</title>
+  <title>TouchTips</title>
   <meta name="description" content="TouchTips is the iPhone app that remembers everyone you meet. Claude, ChatGPT and any agent can ask it." />
   <link rel="canonical" href="https://touchtips.app/" />
 </svelte:head>

@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>Support — TouchTips</title>
+  <title>TouchTips</title>
   <meta name="description" content="Contact TouchTips support." />
   <link rel="canonical" href="https://touchtips.app/support" />
 </svelte:head>

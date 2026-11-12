@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-  <title>Connect {client.name} to TouchTips</title>
+  <title>TouchTips</title>
   <meta name="description" content={`Connect ${client.name} to your TouchTips meetings.`} />
   <link rel="canonical" href={`https://touchtips.app/connect/${client.id}`} />
 </svelte:head>

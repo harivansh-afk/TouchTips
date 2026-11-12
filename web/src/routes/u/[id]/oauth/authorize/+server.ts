@@ -41,5 +41,5 @@ function waitingPage(publicId: string, o: { requestId: string; browserSecret: st
       setTimeout(tick, 1500);
     }
     setTimeout(tick, 1000);`;
-  return page("Connect TouchTips", body + open, script);
+  return page(body + open, script);
 }
