@@ -91,18 +91,19 @@ struct ConnectView: View {
             .navigationDestination(item: $minted) { key in
                 ConnectedView(key: key) { dismiss() }
             }
-
-            .confirmationDialog(
+            .alert(
                 "Disconnect \(disconnecting?.name ?? "")?",
-                isPresented: Binding(get: { disconnecting != nil }, set: { if !$0 { disconnecting = nil } }),
-                titleVisibility: .visible
+                isPresented: Binding(get: { disconnecting != nil }, set: { if !$0 { disconnecting = nil } })
             ) {
+                Button("Cancel", role: .cancel) {}
                 Button("Disconnect", role: .destructive) {
                     if let key = disconnecting {
                         HapticManager.warning()
                         Task { await app.cloud.revoke(key) }
                     }
                 }
+            } message: {
+                Text("That app loses access to your synced data.")
             }
             .alert("Delete cloud data?", isPresented: $confirmDelete) {
                 Button("Cancel", role: .cancel) {}
