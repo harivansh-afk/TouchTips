@@ -56,6 +56,8 @@
 
 /* 3. Base */
 * { box-sizing: border-box; }
+/* No rubber-band past the top or bottom: the page ends where it ends. */
+html, body { overscroll-behavior: none; }
 html { background: var(--bg); scrollbar-gutter: stable; }
 body {
   margin: 0;
